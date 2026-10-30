@@ -22,12 +22,12 @@ class LoadTestPrepare extends BaseCommand
     protected $group       = 'Science Slam';
     protected $name        = 'slam:loadtest-prepare';
     protected $description = 'Create a load-test slam with N attendees (gate open) and write tests/load/badges.json.';
-    protected $usage       = 'slam:loadtest-prepare [count]';
+    protected $usage       = 'slam:loadtest-prepare [count] [--allow-production]';
 
     public function run(array $params): void
     {
-        if (ENVIRONMENT === 'production') {
-            CLI::error('Refusing to run in production.');
+        if (ENVIRONMENT === 'production' && CLI::getOption('allow-production') === null) {
+            CLI::error('Refusing to run in production without --allow-production (it adds a separate "Load test" slam with N fake attendees).');
 
             return;
         }

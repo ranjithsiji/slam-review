@@ -1,7 +1,7 @@
 // k6 load test: N phones check in, then poll like the reviewer screen and submit a
 // review whenever a window is open. Run against a production-like PHP-FPM server.
 //
-//   php spark slam:loadtest-prepare 1000
+//   php spark slam:loadtest-prepare 1000        (add --allow-production on the live server)
 //   k6 run -e BASE=https://staging.example -e VUS=1000 tests/load/reviewers.js
 //
 // During the run, open a review window from the control panel to exercise submits.
@@ -34,12 +34,19 @@ const jitter = (s) => s * (0.8 + Math.random() * 0.4);
 
 export default function () {
   const badge = badges[__VU - 1];
-  // Arrivals spread over the first ~2 minutes, like a gate rush.
-  sleep(Math.random() * 120);
-  const page = http.get(`${BASE}/in/${badge}`);
-  const token = (page.body.match(/name="csrf_test_name" value="([^"]+)"/) || [])[1];
-  const res = http.post(`${BASE}/checkin`, { csrf_test_name: token, badge_id: badge }, { redirects: 0 });
-  if (!check(res, { 'checked in (303 → /review)': (r) => r.status === 303 && String(r.headers.Location).includes('/review') })) return;
+  // Arrivals are spread out like a gate rush; the per-IP check-in limit (600 a minute) applies because every phone
+  // here comes from one address, so keep ARRIVAL_SECONDS >= 300 for 1000 phones.
+  sleep(Math.random() * Number(__ENV.ARRIVAL_SECONDS || 300));
+  // Check-in is two steps with a bot trap: the form carries a signed load-time stamp that must be >= 2 s old.
+  const field = (body, name) => (body.match(new RegExp(`name="${name}" value="([^"]*)"`)) || [])[1];
+  const landing = http.get(`${BASE}/in/${badge}`);
+  sleep(2.5);
+  const verify = http.post(`${BASE}/checkin`, { csrf_test_name: field(landing.body, 'csrf_test_name'), hp_ts: field(landing.body, 'hp_ts'), hp_website: '', badge_id: badge }, { redirects: 0 });
+  if (!check(verify, { 'badge found (303 -> /checkin/confirm)': (r) => r.status === 303 && String(r.headers.Location).includes('/checkin/confirm') })) return;
+  const confirm = http.get(`${BASE}/checkin/confirm`);
+  sleep(2.5);
+  const res = http.post(`${BASE}/checkin/confirm`, { csrf_test_name: field(confirm.body, 'csrf_test_name'), hp_ts: field(confirm.body, 'hp_ts'), hp_website: '' }, { redirects: 0 });
+  if (!check(res, { 'checked in (303 -> /review)': (r) => r.status === 303 && String(r.headers.Location).includes('/review') })) return;
   const csrf = (http.get(`${BASE}/review`).body.match(/name="csrf-token" content="([^"]+)"/) || [])[1];
 
   let etag = null;
