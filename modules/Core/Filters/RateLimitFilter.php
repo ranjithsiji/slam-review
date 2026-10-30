@@ -9,27 +9,35 @@ use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
- * Token-bucket rate limit per IP (CI4 Throttler). Argument = bucket name:
- *   public (schedule pages/JSON), checkin, review, search, poll, staff.
- * Login lockouts (per ID, per IP) are handled separately by ThrottleService.
+ * Token-bucket rate limits (CI4 Throttler). Argument = bucket name.
+ *
+ * A whole venue usually shares ONE public IP (Wi-Fi NAT), so reviewer buckets
+ * (poll, review) are keyed per check-in session, not per IP; per-IP buckets
+ * (public, checkin) are sized for a full hall. Failed check-in/login attempts are
+ * throttled separately, per ID and per IP, by ThrottleService.
  */
 class RateLimitFilter implements FilterInterface
 {
     /** bucket => [capacity, seconds] */
     private const BUCKETS = [
-        'public'  => [120, MINUTE],
-        'poll'    => [60, MINUTE],
-        'checkin' => [30, MINUTE],
-        'review'  => [30, MINUTE],
-        'search'  => [60, MINUTE],
-        'staff'   => [600, MINUTE],
+        'public'  => [1200, MINUTE], // per IP
+        'checkin' => [600, MINUTE],  // per IP (gate rush through one NAT address)
+        'poll'    => [60, MINUTE],   // per reviewer session (normal: ~15/min)
+        'review'  => [30, MINUTE],   // per reviewer session
+        'search'  => [120, MINUTE],  // per staff session
+        'staff'   => [600, MINUTE],  // per IP
     ];
 
     public function before(RequestInterface $request, $arguments = null)
     {
         $bucket          = $arguments[0] ?? 'public';
         [$cap, $seconds] = self::BUCKETS[$bucket] ?? self::BUCKETS['public'];
-        $key             = 'rl_' . $bucket . '_' . md5($request->getIPAddress());
+        $who             = match ($bucket) {
+            'poll', 'review' => 'r' . (session('reviewer')['checkin_id'] ?? $request->getIPAddress()),
+            'search'         => 's' . (session('auth')['id'] ?? $request->getIPAddress()),
+            default          => $request->getIPAddress(),
+        };
+        $key             = 'rl_' . $bucket . '_' . md5((string) $who);
         if (service('throttler')->check($key, $cap, $seconds) === false) {
             return service('response')->setStatusCode(429)
                 ->setHeader('Retry-After', (string) max(1, (int) service('throttler')->getTokenTime()))

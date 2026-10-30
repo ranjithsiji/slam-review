@@ -1,69 +1,145 @@
-# CodeIgniter 4 Application Starter
+# Science Slam audience review system
 
-## What is CodeIgniter?
+Live audience and judge reviews for the Kerala Science Slam (4 regional slams and a final). Attendees check in by scanning the QR code on their badge and then score each performance on their phone while its review window is open. Admins run the event timeline live, and volunteers handle check-in at the desk. The system computes weighted marks and keeps immutable mark snapshots.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+The full specification is in [CLAUDE.md](CLAUDE.md).
 
-This repository holds a composer-installable app starter.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+## Stack
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+| Part | Choice |
+|---|---|
+| Backend | PHP 8.2+ and CodeIgniter 4.7, organised as feature modules (see below) |
+| Database | MySQL / MariaDB (InnoDB, utf8mb4), with CHECK and foreign-key constraints |
+| UI | [Tabler](https://tabler.io) (Bootstrap 5.3), Tabler Icons as an SVG sprite, self-hosted Inter and Noto Sans Malayalam |
+| Live screens | Vue 3 (no router, not a SPA), built with Vite into `public/assets/` |
+| Admin widgets | [vue-tabler](https://github.com/dfpc-coe/vue-tabler): `Modal`, `Input` and `Loading`, imported one at a time through the `@vue-tabler` alias |
+| Tables | DataTables 3.1 + Bootstrap 5 + Responsive, all server-side. **jQuery is not used anywhere**: DataTables 3 and its Responsive extension import no jQuery (checked at build time) |
+| QR / PDF | `chillerlan/php-qrcode` (SVG/PNG plus a decoder used in the tests) and `mpdf/mpdf` |
+| Charts | Chart.js (statistics screen) |
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+Node is needed only to build the frontend. Deploy the built `public/assets/`; the server never needs Node.
 
-## Installation & updates
+## Module layout
 
-`composer create-project codeigniter4/appstarter` then `composer update` whenever
-there is a new release of the framework.
+Each feature lives in `modules/{Module}/`, which contains `Config/Routes.php`, `Controllers`, `Services`, `DataTables`, `Views`, `Database/Migrations` and, where needed, `Commands`. CodeIgniter discovers routes, migrations, services and commands from every registered namespace (`app/Config/Autoload.php`).
 
-When updating, check the release notes to see if there are any changes you might need to apply
-to your `app` folder. The affected files can be copied or merged from
-`vendor/codeigniter4/framework/app`.
+| Module | Responsibility |
+|---|---|
+| Core | Clock (server time), Actor, transaction/lock helpers, filters, DataTableService, layouts, view helpers, PDF factory, demo seeder |
+| ActivityLog | Append-only `activity_log`, its writer service and the viewer |
+| Accounts | Admin and volunteer login, login throttling, volunteer accounts |
+| Slams | Slam details and times, the **phase state machine** (`SlamPhaseService`), review and edit windows, the control panel, cron tick |
+| Schedule | Schedule maker: drafts, versions, re-flow, generate wizard, run-sheet |
+| Presenters | Presenters (reusable across slams), performances, photo uploads |
+| Attendees | Badge IDs, CSV import, QR codes, badge PDFs, ID reissue |
+| Checkin | Public check-in pages, volunteer desk, force checkout, late entry, monitor |
+| Reviews | Questions, review submit and revise, the reviewer screen, the live-state document |
+| Scoring | Weighted marks, mark runs (snapshots), statistics, complete reviewers |
+| PublicSite | Public schedule pages, JSON and `.ics` |
 
-## Setup
+The frontend mirrors this layout: `frontend/modules/{reviewer,volunteer,control,schedule,questions}`, with shared code in `frontend/shared` and the theme in `frontend/theme`. The semantic colour and icon maps are `frontend/theme/semantic.json` and `icons.json`; the build copies them to `public/assets/ui-map.json` so PHP views use the same maps.
 
-Copy `env` to `.env` and tailor for your app, specifically the baseURL
-and any database settings.
+## Local setup
 
-## Important Change with index.php
+```bash
+composer install
+npm install
+cp env.example .env              # then edit the database settings; set CI_ENVIRONMENT = development
+php spark key:generate
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+# Database (as a MariaDB admin): creates slam + slam_test and the app user
+sudo mariadb < database/create_databases.sql
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+php spark migrate --all
+php spark db:seed 'Modules\Core\Database\Seeds\DemoSeeder'
+npm run build                    # or: npm run dev (rebuilds on change)
+php spark serve                  # http://localhost:8080
+```
 
-**Please** read the user guide for a better explanation of how CI4 works!
+Demo accounts created by the seeder (**change them before any real use**):
 
-## Repository Management
+| Role | Sign-in | Credentials |
+|---|---|---|
+| Admin | `/admin/login` | `admin` / `ChangeMe-2026!` |
+| Volunteer (demo slam) | `/volunteer/login` | `volunteer1` / `Volunteer-2026!` |
+| Reviewer | `/checkin` | any badge ID from the attendee list (the check-in gate must be open) |
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+The demo slam is set for tomorrow. To try the live flow now, edit the slam's times so the gates are open, or use **Control panel → Advance now**.
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+Create real admins with `php spark slam:create-admin <username> "<Full name>"`.
 
-## Server Requirements
+### Tests
 
-PHP version 8.2 or higher is required, with the following extensions installed:
+```bash
+vendor/bin/phpunit
+```
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
+The suite runs against the `database.tests.*` connection (`slam_test`), which is wiped on every run. There are 48 tests (628 assertions) covering the phase transition table and the automatic timeline (gate, windows, changeover, running late, hold, manual mode, hard stop, readiness), check-in rules (gate, single device, throttling, forced checkout, desk claim, late override), review submission (window boundaries, idempotency, 1–10 validation, question locking), revision, schedule validation, re-flow, reorder preview, 409 conflicts, live-mode locks, seeded shuffle and break extension, scoring (weights, re-normalisation, ties, complete reviewers, mark runs and recalculation), CSV import (BOM, `;`, duplicates, both modes, 5,001 rows), QR decoding, Malayalam in badge PDFs, and the DataTable contract (paging cap, allow-lists, injection strings, volunteer scope, exports).
 
-> [!WARNING]
-> - The end of life date for PHP 7.4 was November 28, 2022.
-> - The end of life date for PHP 8.0 was November 26, 2023.
-> - The end of life date for PHP 8.1 was December 31, 2025.
-> - If you are still using below PHP 8.2, you should upgrade immediately.
-> - The end of life date for PHP 8.2 will be December 31, 2026.
+### Load test
 
-Additionally, make sure that the following extensions are enabled in your PHP:
+The design target is 500–1,000 phones per slam polling every ~4 s (see CLAUDE.md, *Live polling design*).
 
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
+```bash
+php spark slam:loadtest-prepare 1000                       # throw-away slam + tests/load/badges.json
+k6 run -e BASE=https://staging.example -e VUS=1000 tests/load/reviewers.js
+```
+
+Open a review window from the control panel during the run. Pass criteria: p95 state poll under 300 ms, under 1 % errors.
+
+**Not yet run under k6.** A local measurement on the single-process dev server gave about 4 ms of server time per state poll (p95 5.2 ms), with 95 % answered as `304 Not Modified`. That suggests about one CPU core of PHP-FPM per 1,000 phones, but the k6 run against a production-like server is still to do.
+
+## Deployment
+
+1. Build on a developer machine or in CI: `composer install --no-dev -o` and `npm ci && npm run build`.
+2. Rsync the project, **including `public/assets/`** and excluding `node_modules/`, `.env` and `writable/*`.
+3. Write a `.env` on the server from `env.example`. Use `CI_ENVIRONMENT = production`, set `app.baseURL` and `slam.checkinUrl` (the public domain printed in badge QR codes) and `cookie.secure = true`.
+4. Point the web root at `public/`, and serve over HTTPS only.
+5. Run `php spark migrate --all`.
+6. Add the cron backup for the timeline:
+   ```
+   * * * * * cd /var/www/slam-review && php spark slam:tick >> writable/logs/cron.log 2>&1
+   ```
+   Correctness never depends on cron: every request checks the server clock, and polls apply due steps within seconds.
+7. Uploaded photos live in `public/uploads/presenters/`. `public/uploads/.htaccess` disables PHP there for Apache. For nginx add:
+   ```nginx
+   location ^~ /uploads/ { location ~ \.php$ { deny all; } add_header X-Content-Type-Options nosniff; }
+   ```
+8. Optional: an nginx microcache of 1–2 s on `/api/public/`.
+9. Keep sessions in files (the default) or Redis, never in the database.
+
+### Database privileges
+
+The activity log is append-only, so in production the app's database user should only be able to `INSERT` and `SELECT` on `activity_log`. MariaDB cannot revoke a single table from a database-wide grant, so grant per table:
+
+```sql
+REVOKE ALL PRIVILEGES ON slam.* FROM 'slam'@'localhost';
+GRANT SELECT, INSERT ON slam.activity_log TO 'slam'@'localhost';
+-- every other table: full DML
+SELECT CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE ON slam.`', table_name, '` TO ''slam''@''localhost'';')
+  FROM information_schema.tables WHERE table_schema = 'slam' AND table_name <> 'activity_log';
+-- run the generated statements; run migrations with a separate admin account
+```
+
+The app also needs `CREATE TEMPORARY TABLES`, because provisional marks are computed into a per-connection temporary table so that sorting and paging stay in SQL.
+
+## Decisions and notes
+
+- **UI: Tabler** (owner's choice), replacing the earlier Bootswatch Cosmo plan. CLAUDE.md has been updated to match.
+- **Malayalam in PDFs uses the Manjari font.** mPDF cannot parse the GPOS tables of current Noto Sans Malayalam builds. Manjari (SMC, OFL) shapes conjuncts and vowel signs correctly. Web pages use Noto Sans Malayalam, which browsers shape correctly.
+- **Rate limits and venue NAT.** A whole hall usually shares one public IP, so poll and review limits are applied per check-in session, while the per-IP limits (check-in, public pages) are sized for a full hall. Failed check-ins are throttled per ID (5 per 10 minutes, then a 15-minute lockout) and per IP (higher limits, configurable in `modules/Core/Config/Slam.php`).
+- **Check-in on a phone after a desk check-in.** A volunteer check-in (or an admin late entry) creates an *unclaimed* check-in. The attendee's phone claims it on its first badge scan. A second phone using the same badge is rejected and sent to the volunteer desk.
+- **`tick()`** compares the clock with a cached next-due time and takes a non-blocking `GET_LOCK` only when something is due. Cron and admin actions use the blocking path. All phase writes hold the slam row lock.
+- **Auto mode opens the edit window by itself** after All Review Close (for `edit_window_minutes`; 0 skips it). The control panel offers manual open and skip only in manual mode or while the slam is held.
+- **Tables that are not DataTables.** Like the schedule maker, the review-questions editor is a Vue card list (it reorders and edits inline). The reviewer and public screens are card layouts, as the spec requires.
+- **API paths.** Review-window and edit-window actions include the slam ID (`/api/slams/{id}/window/open`) instead of the spec's slam-less `/api/window/open`, so the slam scope is explicit.
+- **The CodeIgniter debug toolbar is disabled**, because it injects inline scripts that the strict Content-Security-Policy blocks.
+
+## Still open (from CLAUDE.md §13)
+
+- Final wording of the questions; the seeded questions are placeholders.
+- Durations: review, changeover, edit window and breaks (the seeded values are placeholders).
+- Public domain for `APP_CHECKIN_URL`, and the physical badge size.
+- Whether finalists flow automatically from the regionals into the final. For now the final is set up by hand, reusing presenters through the presenter pool or "Add existing presenter".
+- Expected number of phones per slam (this sizes the polling interval and caching).
+- Whether the complete-reviewer weight should also apply to judges. Currently it applies to audience users only.

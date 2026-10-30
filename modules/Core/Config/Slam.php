@@ -23,10 +23,10 @@ class Slam extends BaseConfig
      * Per-IP limits. A whole venue usually shares one public IP (Wi-Fi NAT), so these
      * are deliberately higher than the per-ID limit. Tune before each event.
      */
-    public int $ipMaxFailures = 30;
+    public int $ipMaxFailures = 60;
     public int $ipWindowMinutes = 10;
     public int $ipLockoutMinutes = 15;
-    public int $ipMaxDistinctIds = 25;
+    public int $ipMaxDistinctIds = 40;
     public int $ipDistinctWindowMinutes = 60;
 
     /** Staff (admin/volunteer) login throttling. */
