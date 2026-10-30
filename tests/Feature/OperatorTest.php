@@ -141,7 +141,10 @@ final class OperatorTest extends SlamTestCase
         $this->assertFalse($call('attendees', [], $a['id']));
         $this->assertFalse($call('admins', ['slam_id' => $a['id']], $a['id']));
         $this->assertFalse($call('volunteers', ['slam_id' => $a['id']], $a['id']));
-        $this->assertFalse($call('activity-log', ['slam_id' => $a['id']], $a['id']));
+        // The Status screen's live activity: their own slam's log only.
+        $this->assertTrue($call('activity-log', ['slam_id' => $a['id']], $a['id']));
+        $this->assertFalse($call('activity-log', ['slam_id' => $b['id']], $a['id']));
+        $this->assertFalse($call('activity-log', [], $a['id']));
         $this->assertFalse($call('presenters', ['slam_id' => $a['id']], $a['id']));
         $this->assertTrue($call('marks', ['slam_id' => $a['id']], $a['id']));
     }
