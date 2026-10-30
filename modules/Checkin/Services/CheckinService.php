@@ -278,6 +278,17 @@ class CheckinService
      */
     public function waitingList(int $slamId): array
     {
+        try {
+            return $this->waitingListRows($slamId);
+        } catch (\CodeIgniter\Database\Exceptions\DatabaseException $e) {
+            log_message('error', 'late_checkin_requests unavailable (run the migrations and the grants): ' . $e->getMessage());
+
+            return []; // the desk keeps working without the waiting list
+        }
+    }
+
+    private function waitingListRows(int $slamId): array
+    {
         $now = Clock::db();
         $rows = Db::rows(
             "SELECT r.id, r.code, r.created_at, a.id AS attendee_id, a.name, a.badge_id, a.mobile, a.user_type

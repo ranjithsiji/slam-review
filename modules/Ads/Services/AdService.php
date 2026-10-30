@@ -15,6 +15,17 @@ class AdService
     /** What phones and the public page receive (active ads in order; only allow-listed fields). */
     public function forBreak(int $slamId): array
     {
+        try {
+            return $this->activeAds($slamId);
+        } catch (\CodeIgniter\Database\Exceptions\DatabaseException $e) {
+            log_message('error', 'ads unavailable (run the migrations and the grants): ' . $e->getMessage());
+
+            return []; // a break must never break the live screens
+        }
+    }
+
+    private function activeAds(int $slamId): array
+    {
         return array_map(static fn ($a) => [
             'id' => (int) $a['id'], 'kind' => $a['kind'], 'sponsor' => $a['sponsor'], 'headline' => $a['headline'], 'body' => $a['body'],
             'image' => $a['image_path'] !== null ? '/' . $a['image_path'] : null, 'link' => $a['link_url'],

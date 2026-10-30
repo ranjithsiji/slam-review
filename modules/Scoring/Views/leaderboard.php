@@ -16,7 +16,7 @@ $pending = $judging['timing'] === 'end_of_slam' && $judgeProgress['entered'] < $
     <span class="ms-auto d-flex flex-wrap gap-2">
         <?php if ($top !== []): ?>
             <a class="btn btn-sm btn-primary" href="<?= site_url("admin/slams/{$sid}/results.pdf") ?>" target="_blank" rel="noopener"><?= icon('action.export') ?>Print result sheet (A4)</a>
-            <a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/results.pdf?marks=1") ?>" target="_blank" rel="noopener">With marks</a>
+            <?php if ($slam['type'] !== 'final'): ?><a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/results.pdf?marks=1") ?>" target="_blank" rel="noopener">With marks</a><?php endif ?>
         <?php endif ?>
         <a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/scores") ?>"><?= icon('action.open') ?>Drill down</a>
         <a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/marks") ?>"><?= icon('action.calculate') ?>Calculate marks</a>
@@ -28,9 +28,9 @@ $pending = $judging['timing'] === 'end_of_slam' && $judgeProgress['entered'] < $
 <div class="card card-accent accent-green mb-3"><div class="card-body d-flex flex-wrap align-items-center gap-3">
     <div class="me-auto">
         <div class="fw-bold"><?= icon('nav.marks', 'me-1') ?>Result: top <?= count($top) ?> <?= $published ? '<span class="badge bg-green-lt ms-1">On the home page</span>' : '<span class="badge bg-secondary-lt ms-1">Not published</span>' ?></div>
-        <div class="small text-secondary ml-text"><?= $top === [] ? 'No result yet.' : esc(implode(' · ', array_column($top, 'presenter_name'))) ?></div>
+        <div class="small text-secondary ml-text"><?= $top === [] ? 'No result yet.' : ($slam['type'] === 'final' ? esc(implode(' · ', array_map(static fn ($t) => $t['rank'] . '. ' . $t['presenter_name'], $top))) : esc(implode(' · ', array_column($top, 'presenter_name')))) ?></div>
     </div>
-    <form method="post" action="<?= site_url("admin/slams/{$sid}/results/publish") ?>" data-confirm="<?= $published ? 'Take the result off the home page?' : 'Show the top ' . count($top) . ' presenters (names only, no positions) on the public home page?' ?>" data-ok="<?= $published ? 'Unpublish' : 'Publish' ?>">
+    <form method="post" action="<?= site_url("admin/slams/{$sid}/results/publish") ?>" data-confirm="<?= $published ? 'Take the result off the home page?' : 'Show the ' . ($slam['type'] === 'final' ? 'final result with positions and marks' : 'top ' . count($top) . ' presenters (names only, no positions)') . ' on the public home page?' ?>" data-ok="<?= $published ? 'Unpublish' : 'Publish' ?>">
         <?= csrf_field() ?><input type="hidden" name="public" value="<?= $published ? 0 : 1 ?>">
         <button class="btn <?= $published ? 'btn-outline-danger' : 'btn-success' ?>" type="submit" <?= $top === [] ? 'disabled' : '' ?>><?= $published ? 'Unpublish from home page' : 'Publish to the home page' ?></button>
     </form>

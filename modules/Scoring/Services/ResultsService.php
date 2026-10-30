@@ -23,13 +23,15 @@ class ResultsService
     /**
      * @return list<array<string, mixed>> presenter_name, designation, topic, thumb, final_mark (out of 10), rank
      */
-    public function top(int $slamId, bool $alphabetical = true): array
+    public function top(int $slamId, ?bool $alphabetical = null): array
     {
         $slam = service('slams')->find($slamId);
         $run  = service('markRuns')->currentRun($slamId);
         if ($run === null) {
             return [];
         }
+        // Regional slams: names only, alphabetical, no positions. The final: clear positions, best first.
+        $alphabetical ??= $slam['type'] !== 'final';
         $rows = Db::rows(
             'SELECT mr.final_mark, mr.`rank`, pr.name AS presenter_name, pr.designation_or_institution AS designation, p.topic, pr.photo_thumb_path
                FROM mark_results mr JOIN performances p ON p.id = mr.performance_id JOIN presenters pr ON pr.id = p.presenter_id
@@ -45,6 +47,30 @@ class ResultsService
             'presenter_name' => $r['presenter_name'], 'designation' => $r['designation'], 'topic' => $r['topic'],
             'thumb' => $r['photo_thumb_path'] !== null ? '/' . $r['photo_thumb_path'] : null, 'final_mark' => (float) $r['final_mark'], 'rank' => (int) $r['rank'],
         ], $rows);
+    }
+
+    /**
+     * The complete ranking with each group's average, for the final's result sheet.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function ranking(int $slamId): array
+    {
+        $run = service('markRuns')->currentRun($slamId);
+        if ($run === null) {
+            return [];
+        }
+
+        return array_map(static fn ($r) => [
+            'rank' => (int) $r['rank'], 'presenter_name' => $r['presenter_name'], 'designation' => $r['designation'], 'topic' => $r['topic'],
+            'final_mark' => (float) $r['final_mark'], 'avg_general' => $r['avg_general'] !== null ? (float) $r['avg_general'] : null,
+            'avg_representative' => $r['avg_representative'] !== null ? (float) $r['avg_representative'] : null, 'avg_judge' => $r['avg_judge'] !== null ? (float) $r['avg_judge'] : null,
+        ], Db::rows(
+            'SELECT mr.final_mark, mr.`rank`, mr.avg_general, mr.avg_representative, mr.avg_judge, pr.name AS presenter_name, pr.designation_or_institution AS designation, p.topic
+               FROM mark_results mr JOIN performances p ON p.id = mr.performance_id JOIN presenters pr ON pr.id = p.presenter_id
+              WHERE mr.mark_run_id = ? AND mr.final_mark IS NOT NULL AND mr.`rank` IS NOT NULL ORDER BY mr.`rank`, pr.name',
+            [$run['id']],
+        ));
     }
 
     public function setPublic(int $slamId, bool $public, Actor $actor): void

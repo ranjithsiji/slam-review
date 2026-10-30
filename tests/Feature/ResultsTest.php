@@ -75,4 +75,42 @@ final class ResultsTest extends SlamTestCase
             $this->assertSame('forbidden_transition', $e->reason);
         }
     }
+
+    public function testFinalResultsAreRankedWithPositionsAndMarks(): void
+    {
+        $s = $this->makeSlam(4, 3, 0, ['type' => 'final']);
+        $id = $s['id'];
+        db_connect()->table('review_questions')->where('slam_id', $id)->where('audience', 'user')->update(['max_score' => 5]);
+        $this->at('2026-11-01 03:30:00', $id);
+        foreach ($s['users'] as $u) {
+            $this->checkIn($u);
+        }
+        foreach (range(0, 3) as $k) {
+            $this->at(date('Y-m-d H:i:s', strtotime('2026-11-01 04:45:00') + $k * 7 * 60), $id);
+        }
+        foreach (['05:11:00', '05:21:00', '05:26:00'] as $t) {
+            $this->at("2026-11-01 {$t}", $id);
+        }
+        $this->assertContains($this->phase($id), ['closed', 'marks_calculated']);
+        // Talk k gets higher marks the later it is: distinct levels, so the order is clear.
+        foreach ($s['items'] as $k => $item) {
+            $rows = array_map(static fn ($user) => ['badge_id' => $user['badge_id'], 'scores' => [min(5, 1 + $k), min(5, 1 + $k)]], $s['users']);
+            service('paperMarks')->saveAudience($id, (int) $item, $rows, $this->admin);
+        }
+
+        $top = service('results')->top($id);
+        $this->assertCount(3, $top);                                            // podium of three in the final
+        $this->assertSame([1, 2, 3], array_column($top, 'rank'));               // positions, best first (not alphabetical)
+        $marks = array_column($top, 'final_mark');
+        $this->assertSame($marks, array_values(array_reverse(array_values(array_reverse($marks)))));
+        $this->assertGreaterThan($marks[1], $marks[0]);
+        $all = service('results')->ranking($id);
+        $this->assertCount(4, $all);
+        $this->assertSame([1, 2, 3, 4], array_column($all, 'rank'));
+        $this->assertEqualsWithDelta(80.0, $all[0]['final_mark'] * 10, 1e-6);   // talk 4: 4+4... = 8/10 → 80.00 out of 100
+        $this->assertStringStartsWith('%PDF', service('resultsPdf')->sheet(service('slams')->find($id), $top, false));
+        // The regional rule is unchanged: names only, alphabetical.
+        $regional = $this->makeSlam(1, 1, 0);
+        $this->assertSame([], service('results')->top($regional['id']));
+    }
 }
