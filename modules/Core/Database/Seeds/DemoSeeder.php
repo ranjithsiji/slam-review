@@ -24,6 +24,8 @@ class DemoSeeder extends Seeder
     public const ADMIN_PASS     = 'ChangeMe-2026!';
     public const VOLUNTEER_USER = 'volunteer1';
     public const VOLUNTEER_PASS = 'Volunteer-2026!';
+    public const OPERATOR_USER  = 'operator1';
+    public const OPERATOR_PASS  = 'Operator-2026!';
 
     public function run(): void
     {
@@ -82,6 +84,9 @@ class DemoSeeder extends Seeder
             }
         }
 
+        if (Db::value('SELECT id FROM admins WHERE username = ?', [self::OPERATOR_USER]) === null) {
+            service('auth')->saveAdmin(null, ['username' => self::OPERATOR_USER, 'name' => 'Slam Operator', 'role' => 'operator', 'slam_id' => $slamId, 'password' => self::OPERATOR_PASS, 'is_active' => 1], $admin);
+        }
         if (Db::value('SELECT id FROM volunteers WHERE username = ?', [self::VOLUNTEER_USER]) === null) {
             service('auth')->saveVolunteer(null, [
                 'username' => self::VOLUNTEER_USER, 'name' => 'Desk Volunteer', 'slam_id' => $slamId,

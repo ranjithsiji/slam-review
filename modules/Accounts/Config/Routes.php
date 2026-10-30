@@ -14,5 +14,20 @@ $routes->group('', ['namespace' => 'Modules\Accounts\Controllers'], static funct
         $routes->post('create', 'VolunteersController::save');
         $routes->get('(:num)/edit', 'VolunteersController::form/$1');
         $routes->post('(:num)', 'VolunteersController::save/$1');
+        $routes->post('(:num)/reset-password', 'VolunteersController::reset/$1');
     });
+
+    $routes->group('admin/users', ['filter' => 'auth:admin'], static function ($routes): void {
+        $routes->get('/', 'AdminsController::index');
+        $routes->get('new', 'AdminsController::form');
+        $routes->post('create', 'AdminsController::save');
+        $routes->get('(:num)/edit', 'AdminsController::form/$1');
+        $routes->post('(:num)', 'AdminsController::save/$1');
+        $routes->post('(:num)/reset-password', 'AdminsController::reset/$1');
+    });
+
+    $routes->post('operator/mode', 'OperatorController::mode', ['filter' => 'auth:admin']);
+    $routes->get('admin/account', 'AccountController::show', ['filter' => 'auth:admin']);
+    $routes->post('admin/account', 'AccountController::profile', ['filter' => 'auth:admin']);
+    $routes->post('admin/account/password', 'AccountController::password', ['filter' => 'auth:admin']);
 });

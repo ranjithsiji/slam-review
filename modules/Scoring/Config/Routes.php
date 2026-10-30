@@ -3,6 +3,8 @@
 /** @var \CodeIgniter\Router\RouteCollection $routes */
 $routes->group('', ['namespace' => 'Modules\Scoring\Controllers', 'filter' => 'auth:admin'], static function ($routes): void {
     $routes->get('admin/slams/(:num)/marks', 'MarksController::marks/$1');
+    $routes->get('admin/slams/(:num)/scores', 'MarksController::scores/$1');
+    $routes->get('admin/slams/(:num)/leaderboard', 'MarksController::leaderboard/$1');
     $routes->get('admin/slams/(:num)/stats', 'MarksController::stats/$1');
     $routes->get('api/slams/(:num)/stats', 'MarksController::statsData/$1');
     $routes->get('admin/slams/(:num)/mark-config', 'MarksController::config/$1');

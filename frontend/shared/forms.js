@@ -55,6 +55,14 @@ export function initForms(root = document) {
     sel.addEventListener('change', () => { if (sel.value) window.location.href = sel.value; });
   });
 
+  // <select data-toggle-target="#id" data-toggle-value="x">: show #id only while that option is chosen.
+  root.querySelectorAll('select[data-toggle-target]').forEach((sel) => {
+    const target = root.querySelector(sel.dataset.toggleTarget);
+    const sync = () => { if (target) target.hidden = sel.value !== sel.dataset.toggleValue; };
+    sel.addEventListener('change', sync);
+    sync();
+  });
+
   // <button data-copy="text">: copy to clipboard.
   root.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.addEventListener('click', async () => {

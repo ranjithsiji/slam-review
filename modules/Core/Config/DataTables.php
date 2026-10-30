@@ -21,6 +21,7 @@ class DataTables extends BaseConfig
         'attendees'          => \Modules\Attendees\DataTables\AttendeesTable::class,
         'import-rows'        => \Modules\Attendees\DataTables\ImportRowsTable::class,
         'import-batches'     => \Modules\Attendees\DataTables\ImportBatchesTable::class,
+        'admins'             => \Modules\Accounts\DataTables\AdminsTable::class,
         'volunteers'         => \Modules\Accounts\DataTables\VolunteersTable::class,
         'checkins'           => \Modules\Checkin\DataTables\CheckinsTable::class,
         'attendee-search'    => \Modules\Checkin\DataTables\AttendeeSearchTable::class,

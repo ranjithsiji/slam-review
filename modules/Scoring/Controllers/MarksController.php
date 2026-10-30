@@ -40,6 +40,57 @@ class MarksController extends BaseController
         ]);
     }
 
+    /**
+     * Result rows with breakdown and photo: the current mark run, or live provisional values before the first run.
+     *
+     * @return array{slam: array, run: ?array, rows: list<array>, weights: array, questions: array, official: bool}
+     */
+    private function scoreData(int $slamId, string $screen): array
+    {
+        $slam = service('slams')->find($slamId);
+        $run  = service('markRuns')->currentRun($slamId);
+        if ($run !== null) {
+            $data      = service('markRuns')->resultsWithDiff((int) $run['id']);
+            $rows      = $data['results'];
+            $weights   = $data['weights'];
+            $questions = $data['questions'];
+        } else {
+            $weights   = service('scoring')->weights($slamId);
+            $calc      = service('scoring')->compute($slamId);
+            $rows      = array_map(static fn ($r) => $r + ['breakdown' => ScoringService::breakdownFor($r, $weights)], $calc['results']);
+            $questions = $calc['question_weights'];
+        }
+        $photos = array_column(Db::rows('SELECT p.id, pr.photo_thumb_path FROM performances p JOIN presenters pr ON pr.id = p.presenter_id WHERE p.slam_id = ?', [$slamId]), 'photo_thumb_path', 'id');
+        foreach ($rows as &$r) {
+            $r['photo'] = $photos[$r['performance_id']] ?? null;
+        }
+        unset($r);
+        service('activityLog')->log($this->actor(), 'marks.viewed', ['slam_id' => $slamId, 'meta' => ['screen' => $screen, 'run_id' => $run['id'] ?? null]]);
+
+        return [
+            'slam' => $slam, 'run' => $run, 'rows' => $rows, 'weights' => $weights, 'questions' => $questions,
+            'official' => $run !== null && in_array($slam['status'], ['marks_calculated', 'ended'], true),
+        ];
+    }
+
+    /** Final presenter scores: one card per presenter that opens to the three groups' marks. */
+    public function scores(int $slamId): string
+    {
+        $d = $this->scoreData($slamId, 'scores');
+
+        return $this->render('Modules\Scoring\Views\scores', $d + ['title' => 'Scores — ' . $d['slam']['name']]);
+    }
+
+    /** Presenter leaderboard: ranked, best first. */
+    public function leaderboard(int $slamId): string
+    {
+        $d = $this->scoreData($slamId, 'leaderboard');
+        // Ranked presenters first (best to worst), then those without a mark yet in running order.
+        usort($d['rows'], static fn ($a, $b) => [$a['rank'] === null, $a['rank'] ?? 0] <=> [$b['rank'] === null, $b['rank'] ?? 0]);
+
+        return $this->render('Modules\Scoring\Views\leaderboard', $d + ['title' => 'Leaderboard — ' . $d['slam']['name'], 'judging' => service('scoring')->judging($slamId), 'judgeProgress' => service('judgeMarks')->progress($slamId)]);
+    }
+
     public function stats(int $slamId): string
     {
         $slam = service('slams')->find($slamId);

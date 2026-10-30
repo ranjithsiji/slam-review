@@ -15,6 +15,18 @@
             <input id="username" name="username" class="form-control<?= is_invalid($errors, 'username') ?>" required autocapitalize="none" value="<?= esc(old('username', $vol['username'] ?? '')) ?>">
             <?= field_error($errors, 'username') ?>
         </div>
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-md-7">
+                <label class="form-label" for="email">Email</label>
+                <input id="email" name="email" type="email" class="form-control<?= is_invalid($errors, 'email') ?>" maxlength="160" autocapitalize="none" value="<?= esc(old('email', $vol['email'] ?? '')) ?>">
+                <?= field_error($errors, 'email') ?>
+            </div>
+            <div class="col-12 col-md-5">
+                <label class="form-label" for="phone">Phone</label>
+                <input id="phone" name="phone" type="tel" class="form-control<?= is_invalid($errors, 'phone') ?>" maxlength="20" value="<?= esc(old('phone', $vol['phone'] ?? '')) ?>">
+                <?= field_error($errors, 'phone') ?>
+            </div>
+        </div>
         <div class="mb-3">
             <label class="form-label required" for="slam_id">Slam</label>
             <select id="slam_id" name="slam_id" class="form-select<?= is_invalid($errors, 'slam_id') ?>" required>
@@ -25,22 +37,28 @@
             </select>
             <?= field_error($errors, 'slam_id') ?>
         </div>
+        <?php if (! $vol): ?>
         <div class="mb-3">
-            <label class="form-label<?= $vol ? '' : ' required' ?>" for="password">Password</label>
-            <input id="password" name="password" type="password" class="form-control<?= is_invalid($errors, 'password') ?>" autocomplete="new-password" <?= $vol ? '' : 'required' ?> minlength="10">
-            <div class="form-hint"><?= $vol ? 'Leave blank to keep the current password.' : 'At least 10 characters.' ?></div>
+            <label class="form-label required" for="password">Password</label>
+            <input id="password" name="password" type="password" class="form-control<?= is_invalid($errors, 'password') ?>" autocomplete="new-password" required minlength="10">
+            <div class="form-hint">At least 10 characters.</div>
             <?= field_error($errors, 'password') ?>
         </div>
+        <?php endif ?>
         <label class="form-check form-switch">
             <input type="hidden" name="is_active" value="0">
             <input class="form-check-input" type="checkbox" name="is_active" value="1" <?= (int) old('is_active', $vol['is_active'] ?? 1) ? 'checked' : '' ?>>
             <span class="form-check-label">Active</span>
         </label>
+        <?php if ($vol): ?><div class="small text-secondary mt-3">Last sign-in: <?= $vol['last_login_at'] ? esc(local_time($vol['last_login_at'], 'd M Y H:i')) : 'never' ?></div><?php endif ?>
     </div>
     <div class="card-footer text-end">
         <a href="<?= site_url('admin/volunteers') ?>" class="btn btn-link">Cancel</a>
         <button class="btn btn-primary" type="submit"><?= icon('action.save') ?>Save</button>
     </div>
 </form>
+<?php if ($vol): ?>
+    <?= view('Modules\Accounts\Views\reset_card', ['action' => site_url("admin/volunteers/{$vol['id']}/reset-password"), 'errors' => $errors]) ?>
+<?php endif ?>
 </div></div>
 <?= $this->endSection() ?>

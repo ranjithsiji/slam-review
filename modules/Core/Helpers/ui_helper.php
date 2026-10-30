@@ -186,3 +186,23 @@ if (! function_exists('is_invalid')) {
         return isset($errors[$field]) ? ' is-invalid' : '';
     }
 }
+
+if (! function_exists('operator_slam')) {
+    /** The slam id when the signed-in account is a slam operator, otherwise null. */
+    function operator_slam(): ?int
+    {
+        $auth = session('auth');
+
+        return is_array($auth) && ($auth['role'] ?? null) === 'operator' ? (int) $auth['slam_id'] : null;
+    }
+}
+
+if (! function_exists('operator_mode')) {
+    /** 'prepare' | 'run' for a slam operator, null for everybody else. */
+    function operator_mode(): ?string
+    {
+        $slam = operator_slam();
+
+        return $slam === null ? null : \Modules\Core\Libraries\OperatorMode::current($slam);
+    }
+}

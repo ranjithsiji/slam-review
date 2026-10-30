@@ -61,12 +61,13 @@ Demo accounts created by the seeder (**change them before any real use**):
 | Role | Sign-in | Credentials |
 |---|---|---|
 | Admin | `/admin/login` | `admin` / `ChangeMe-2026!` |
+| Slam operator (demo slam) | `/admin/login` | `operator1` / `Operator-2026!` |
 | Volunteer (demo slam) | `/volunteer/login` | `volunteer1` / `Volunteer-2026!` |
 | Reviewer | `/checkin` | any badge ID from the attendee list (the check-in gate must be open) |
 
 The demo slam is set for tomorrow. To try the live flow now, edit the slam's times so the gates are open, or use **Control panel → Advance now**.
 
-Create real admins with `php spark slam:create-admin <username> "<Full name>"`.
+Create real admins with `php spark slam:create-admin <username> "<Full name>"`. Further admins and volunteers are managed in the panel (Administrators, Volunteers; password reset there, and each admin changes their own under *My account*). Run `php spark migrate --all` and `npm run build` after pulling. A **slam operator** (Administrators → Add slam operator) runs one slam, in Slam setup mode, Slam running mode or Slam after mode (the marks).
 
 ### Tests
 

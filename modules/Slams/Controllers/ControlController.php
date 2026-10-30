@@ -36,7 +36,8 @@ class ControlController extends BaseController
     {
         return $this->api(function () {
             session()->close();
-            $rows = Db::rows('SELECT id, name, status FROM slams WHERE status IN (' . implode(',', array_fill(0, count(self::RUNNING), '?')) . ') ORDER BY opens_at', self::RUNNING);
+            $only = operator_slam();
+            $rows = Db::rows('SELECT id, name, status FROM slams WHERE status IN (' . implode(',', array_fill(0, count(self::RUNNING), '?')) . ')' . ($only !== null ? ' AND id = ?' : '') . ' ORDER BY opens_at', $only !== null ? [...self::RUNNING, $only] : self::RUNNING);
             $out  = [];
             foreach ($rows as $r) {
                 $id = (int) $r['id'];

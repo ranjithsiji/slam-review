@@ -11,8 +11,12 @@ use Modules\Core\Libraries\Db;
 
 class SlamsController extends BaseController
 {
-    public function dashboard(): string
+    public function dashboard(): string|\CodeIgniter\HTTP\RedirectResponse
     {
+        // A slam operator's home is their own slam, in the mode they are working in.
+        if (($slam = operator_slam()) !== null) {
+            return redirect()->to(\Modules\Core\Libraries\OperatorMode::homeUrl($slam, \Modules\Core\Libraries\OperatorMode::current($slam)));
+        }
         $slams = service('slams')->all();
         foreach ($slams as &$s) {
             $s['counts'] = Db::row(

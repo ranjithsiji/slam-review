@@ -16,12 +16,21 @@ $items = [
 if (service('scoring')->judging($id)['timing'] === 'end_of_slam') {
     $items['judges'] = ["Judges' marks", "admin/slams/{$id}/judge-marks", 'person.judge'];
 }
-$items['marks'] = ['Marks', "admin/slams/{$id}/marks", 'nav.marks'];
-$items['stats'] = ['Statistics', "admin/slams/{$id}/stats", 'nav.stats'];
+$items['marks']  = ['Marks', "admin/slams/{$id}/marks", 'nav.marks'];
+$items['scores'] = ['Scores', "admin/slams/{$id}/scores", 'nav.marks'];
+$items['leaderboard'] = ['Leaderboard', "admin/slams/{$id}/leaderboard", 'nav.marks'];
+$items['stats']  = ['Statistics', "admin/slams/{$id}/stats", 'nav.stats'];
+// A slam operator sees only the screens of the mode they are in; they also get two extra screens.
+$mode = operator_mode();
+if ($mode !== null) {
+    $items['edit']    = ['Times & details', "admin/slams/{$id}/edit", 'nav.schedule'];
+    $items['weights'] = ['Mark weights', "admin/slams/{$id}/mark-config", 'nav.system'];
+    $items = array_intersect_key(array_replace(array_flip(\Modules\Core\Libraries\OperatorMode::TABS[$mode]), $items), array_flip(\Modules\Core\Libraries\OperatorMode::TABS[$mode]));
+}
 ?>
 <?php
 $tabLabel = ($active ?? 'overview') === 'overview' ? null : ($items[$active ?? '']['0'] ?? null);
-$crumbs   = [['Slams', 'admin/slams'], [$slam['name'], $tabLabel ? "admin/slams/{$id}" : null]];
+$crumbs   = $mode !== null ? [[$slam['name'], $tabLabel ? \Modules\Core\Libraries\OperatorMode::homeUrl($id, $mode) : null]] : [['Slams', 'admin/slams'], [$slam['name'], $tabLabel ? "admin/slams/{$id}" : null]];
 if ($tabLabel) {
     $crumbs[] = [$tabLabel, null];
 }
@@ -34,7 +43,7 @@ if ($tabLabel) {
                 <div class="page-pretitle"><?= esc(ucfirst($slam['type'])) ?> slam · <?= esc(local_time($slam['opens_at'], 'D, d M Y')) ?> · <?= esc($slam['venue_name']) ?></div>
                 <h2 class="page-title"><?= esc($slam['name']) ?></h2>
             </div>
-            <?php $others = array_filter(service('slams')->all(), static fn ($o) => (int) $o['id'] !== $id); ?>
+            <?php $others = $mode !== null ? [] : array_filter(service('slams')->all(), static fn ($o) => (int) $o['id'] !== $id); ?>
             <?php if ($others !== []): ?>
                 <div class="col-12 col-sm-auto">
                     <label class="visually-hidden" for="slam-switch">Switch slam</label>
@@ -44,6 +53,7 @@ if ($tabLabel) {
                     </select>
                 </div>
             <?php endif ?>
+            <?php if ($mode !== null): ?><div class="col-12 col-sm-auto"><?= view('Modules\Core\Views\partials\operator_mode', ['mode' => $mode]) ?></div><?php endif ?>
             <?php if (empty($hideBadge)): ?><div class="col-auto"><?= status_badge('phase', $slam['status']) ?></div><?php endif ?>
         </div>
         <div class="mt-3 overflow-auto">

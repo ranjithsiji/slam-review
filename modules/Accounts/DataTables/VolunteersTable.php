@@ -25,7 +25,9 @@ class VolunteersTable extends TableDefinition
             'name'      => ['sql' => 'v.name', 'search' => true, 'order' => true],
             'username'  => ['sql' => 'v.username', 'search' => true, 'order' => true],
             'slam_name' => ['sql' => 's.name', 'search' => true, 'order' => true],
+            'email'     => ['sql' => 'v.email', 'search' => true, 'order' => true],
             'is_active' => ['sql' => 'v.is_active', 'order' => true],
+            'last_login_at' => ['sql' => 'v.last_login_at', 'order' => true],
         ];
     }
 

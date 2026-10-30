@@ -15,6 +15,7 @@ final class Actor
         public readonly ?int $id = null,
         public readonly ?string $label = null,
         public readonly ?int $slamId = null,
+        public readonly ?string $role = null,   // 'operator' for a slam operator (type stays 'admin')
     ) {
     }
 
@@ -31,6 +32,12 @@ final class Actor
     public function isAdmin(): bool
     {
         return $this->type === 'admin';
+    }
+
+    /** A slam operator: an admin account limited to one slam (enforced by OperatorAccess). */
+    public function isOperator(): bool
+    {
+        return $this->type === 'admin' && $this->role === 'operator';
     }
 
     public function isVolunteer(): bool
@@ -54,7 +61,7 @@ final class Actor
         $session = session();
         $auth    = $session->get('auth');
         if (is_array($auth)) {
-            return new self($auth['type'], (int) $auth['id'], $auth['label'], isset($auth['slam_id']) ? (int) $auth['slam_id'] : null);
+            return new self($auth['type'], (int) $auth['id'], $auth['label'], isset($auth['slam_id']) ? (int) $auth['slam_id'] : null, $auth['role'] ?? null);
         }
         $reviewer = $session->get('reviewer');
         if (is_array($reviewer)) {

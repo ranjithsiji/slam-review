@@ -56,6 +56,7 @@
   "nav.stats": "chart-bar",
   "nav.qr": "qrcode",
   "nav.volunteers": "users-group",
+  "nav.admins": "shield-lock",
   "nav.log": "activity",
   "nav.checkins": "user-check",
   "nav.settings": "settings",

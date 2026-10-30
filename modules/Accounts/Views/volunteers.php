@@ -25,9 +25,11 @@
                 ['data' => 'name', 'title' => 'Name', 'priority' => 1],
                 ['data' => 'username', 'title' => 'Username', 'priority' => 3],
                 ['data' => 'slam_name', 'title' => 'Slam', 'priority' => 2],
+                ['data' => 'email', 'title' => 'Email', 'priority' => 6],
                 ['data' => 'is_active', 'title' => 'Status', 'render' => 'active', 'priority' => 4],
+                ['data' => 'last_login_at', 'title' => 'Last sign-in', 'render' => 'datetime', 'priority' => 5],
             ],
-            'actions' => [['label' => 'Edit', 'icon' => 'action.edit', 'href' => '/admin/volunteers/{id}/edit']],
+            'actions' => [['label' => 'Edit / reset password', 'icon' => 'action.edit', 'href' => '/admin/volunteers/{id}/edit']],
         ]), 'attr') ?>'></table>
     </div>
 </div>

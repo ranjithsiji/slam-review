@@ -17,7 +17,7 @@ class VolunteerController extends BaseController
     private function slamId(): int
     {
         $auth = session('auth');
-        if ($auth['type'] === 'volunteer') {
+        if ($auth['type'] === 'volunteer' || ($auth['role'] ?? null) === 'operator') {
             return (int) $auth['slam_id'];
         }
         $id = (int) ($this->request->getGet('slam') ?: $this->request->getPost('slam_id') ?: ($this->input()['slam_id'] ?? 0));

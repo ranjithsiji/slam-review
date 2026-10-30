@@ -24,11 +24,22 @@ $nav  = [
     ['admin/representatives' . $q, 'Audience representatives', 'nav.representatives', '#^/admin/slams/\d+/representatives#'],
     ['admin/volunteers', 'Volunteers', 'nav.volunteers', '#^/admin/volunteers#'],
     'Setup',
+    ['admin/users', 'Administrators', 'nav.admins', '#^/admin/users#'],
     ['admin/qr', 'Badges & QR', 'nav.qr', '#^/admin/qr#'],
     ['admin/questions/templates', 'Question templates', 'nav.questions', '#^/admin/questions#'],
     ['admin/activity-log', 'Activity log', 'nav.log', '#^/admin/activity-log#'],
     ['admin/settings', 'Settings', 'nav.system', '#^/admin/settings#'],
 ];
+// A slam operator gets a menu for their own slam only, in the mode they are working in.
+$opSlam = operator_slam();
+if ($opSlam !== null) {
+    $opMode = \Modules\Core\Libraries\OperatorMode::current($opSlam);
+    $nav    = [\Modules\Core\Libraries\OperatorMode::LABELS[$opMode]];
+    foreach (\Modules\Core\Libraries\OperatorMode::TABS[$opMode] as $key) {
+        [$label, $suffix, $ic] = \Modules\Core\Libraries\OperatorMode::LINKS[$key];
+        $nav[] = ["admin/slams/{$opSlam}{$suffix}", $label, $ic, '#^/admin/slams/' . $opSlam . preg_quote($suffix, '#') . ($suffix === '' ? '$' : '(/|$)') . '#'];
+    }
+}
 $userMenu = static function (array $auth, string $class): string {
     ob_start(); ?>
     <div class="nav-item dropdown <?= $class ?>">
@@ -40,6 +51,7 @@ $userMenu = static function (array $auth, string $class): string {
             </div>
         </a>
         <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+            <a class="dropdown-item" href="<?= site_url('admin/account') ?>"><?= icon('person.user', 'me-2') ?>My account</a>
             <a class="dropdown-item" href="<?= site_url('/') ?>"><?= icon('nav.home', 'me-2') ?>Public home page</a>
             <form method="post" action="<?= site_url('logout') ?>"><?= csrf_field() ?>
                 <button class="dropdown-item" type="submit"><?= icon('action.logout', 'me-2') ?>Sign out</button>
@@ -64,6 +76,7 @@ $userMenu = static function (array $auth, string $class): string {
                 <?= $userMenu($auth ?? [], '') ?>
             </div>
             <div class="collapse navbar-collapse" id="sidebar-menu">
+                <?php if ($opSlam !== null): ?><div class="px-3 pt-3 d-grid"><?= view('Modules\Core\Views\partials\operator_mode', ['mode' => $opMode, 'vertical' => true]) ?></div><?php endif ?>
                 <ul class="navbar-nav pt-lg-3">
                     <?php foreach ($nav as $entry):
                         if (is_string($entry)): ?>
@@ -81,7 +94,7 @@ $userMenu = static function (array $auth, string $class): string {
                 <div class="navbar-side px-3 pb-3 pt-4">
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <span class="avatar avatar-sm"><?= esc(mb_strtoupper(mb_substr($auth['name'] ?? '?', 0, 1))) ?></span>
-                        <div class="lh-sm min-w-0"><div class="text-truncate"><?= esc($auth['name'] ?? '') ?></div><div class="small text-secondary"><?= esc($auth['type'] ?? '') ?></div></div>
+                        <a href="<?= site_url('admin/account') ?>" class="lh-sm min-w-0 text-reset text-decoration-none" title="My account"><div class="text-truncate"><?= esc($auth['name'] ?? '') ?></div><div class="small text-secondary"><?= esc($auth['type'] ?? '') ?></div></a>
                     </div>
                     <form method="post" action="<?= site_url('logout') ?>"><?= csrf_field() ?>
                         <button class="btn btn-outline-secondary w-100" type="submit"><?= icon('action.logout') ?>Sign out</button>

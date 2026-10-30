@@ -208,3 +208,7 @@ html { scroll-padding-top: 5rem; scroll-padding-bottom: 8rem; }
 /* Stat tiles: a coloured left edge instead. */
 .card-accent-left { border-left: 4px solid var(--accent, var(--tblr-primary)); }
 .card-accent-left .h1 { color: color-mix(in srgb, var(--accent, var(--tblr-primary)) 85%, var(--tblr-body-color)); }
+
+/* Final scores: summary rows are the card header; hide the native marker. */
+.score-card > summary::-webkit-details-marker { display: none; }
+.score-card[open] { box-shadow: var(--tblr-box-shadow); }
