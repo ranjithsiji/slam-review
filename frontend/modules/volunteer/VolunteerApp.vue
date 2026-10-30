@@ -10,29 +10,31 @@
       <div class="text-center"><div class="h2 m-0">{{ st.counts?.checked_in ?? '–' }}</div><div class="small text-secondary">inside</div></div>
       <div class="text-center"><div class="h2 m-0">{{ st.counts?.registered ?? '–' }}</div><div class="small text-secondary">registered</div></div>
     </div>
-    <div v-if="st.slam && !gateOpen" class="card-footer small" :class="readOnly ? 'text-secondary' : 'text-warning'">
+    <div v-if="st.slam" class="card-footer small" :class="readOnly ? 'text-secondary' : gateOpen ? 'text-success' : 'text-warning'">
       <template v-if="readOnly">The slam has closed. This panel is read-only.</template>
       <template v-else-if="beforeGate">Check-in has not opened yet<span v-if="st.slam.checkin_opens_at"> (opens {{ time(st.slam.checkin_opens_at) }})</span>. You can still search.</template>
-      <template v-else>The check-in gate is closed. New check-ins need an admin late-entry override.</template>
+      <template v-else-if="gateOpen"><Icon name="qr.scan" cls="icon-inline me-1" />Gates are open: attendees check themselves in by scanning the QR code on their badge. Help them with search and check-outs.</template>
+      <template v-else>The gates are closed. Late arrivals: scan their badge or search, then <strong>Late check-in</strong>.</template>
     </div>
   </div>
 
   <div class="row row-cards">
     <div class="col-12 col-lg-6">
       <div class="card h-100">
-        <div class="card-header"><h3 class="card-title"><Icon name="qr.scan" cls="me-1" />Check in a badge</h3></div>
+        <div class="card-header"><h3 class="card-title"><Icon name="qr.scan" cls="me-1" />Late check-in</h3></div>
         <div class="card-body">
+          <p v-if="!lateOpen" class="text-secondary small">{{ gateOpen ? 'Not needed while the gates are open: attendees scan their own badge to check in.' : 'Available after Gate Close, until the slam closes.' }}</p>
           <div v-show="scanning" class="mb-3">
             <div id="qr-reader" class="rounded overflow-hidden" style="max-width:420px"></div>
             <button type="button" class="btn btn-outline-secondary w-100 mt-2" @click="stopScan">Stop camera</button>
           </div>
-          <button v-if="!scanning" type="button" class="btn btn-primary btn-lg w-100 mb-3" :disabled="!gateOpen || busy" @click="startScan">
+          <button v-if="!scanning" type="button" class="btn btn-primary btn-lg w-100 mb-3" :disabled="!lateOpen || busy" @click="startScan">
             <Icon name="media.camera" />Scan badge QR
           </button>
           <form class="d-flex gap-2" @submit.prevent="checkinCode(typed)">
             <label class="visually-hidden" for="typed-id">Badge ID</label>
-            <input id="typed-id" v-model="typed" class="form-control text-uppercase fw-bold" placeholder="Type ID, e.g. KR48213" maxlength="60" autocomplete="off" autocapitalize="characters" :disabled="!gateOpen">
-            <button class="btn btn-primary" type="submit" :disabled="!gateOpen || busy || typed.trim().length < 7">Check in</button>
+            <input id="typed-id" v-model="typed" class="form-control text-uppercase fw-bold" placeholder="Type ID, e.g. KR48213" maxlength="60" autocomplete="off" autocapitalize="characters" :disabled="!lateOpen">
+            <button class="btn btn-warning" type="submit" :disabled="!lateOpen || busy || typed.trim().length < 7">Late check-in</button>
           </form>
           <div v-if="scanError" class="alert alert-warning mt-3 mb-0">{{ scanError }}</div>
           <div v-if="result" class="alert mt-3 mb-0" :class="result.ok ? 'alert-success' : 'alert-danger'" role="status" aria-live="assertive">
@@ -68,8 +70,7 @@
                 </div>
                 <StatusBadge group="checkin" :value="Number(a.checked_in) ? 'checked_in' : a.last_state === 'forced' ? 'forced_out' : a.last_state ? 'checked_out' : 'never'" />
                 <div class="btn-list">
-                  <button v-if="!Number(a.checked_in) && gateOpen" type="button" class="btn btn-primary" :disabled="busy || !Number(a.is_active)" @click="checkinAttendee(a)">Check in</button>
-                  <button v-if="!Number(a.checked_in) && !gateOpen && boot.is_admin && !readOnly && !beforeGate" type="button" class="btn btn-warning" @click="lateEntry(a)">Late entry</button>
+                  <button v-if="!Number(a.checked_in) && lateOpen" type="button" class="btn btn-warning" :disabled="busy || !Number(a.is_active)" @click="checkinAttendee(a)">Late check-in</button>
                   <button v-if="Number(a.checked_in) && !readOnly" type="button" class="btn btn-outline-danger" @click="forceOut(a)">Force out</button>
                 </div>
               </div>
@@ -111,6 +112,8 @@ let lastAt = 0;
 const gateOpen = computed(() => st.slam?.status === 'checkin_open');
 const readOnly = computed(() => !!st.slam?.read_only);
 const beforeGate = computed(() => ['draft', 'scheduled', 'open'].includes(st.slam?.status));
+// Late check-in by the desk: after Gate Close until Slam Close (CheckinService::LATE_PHASES).
+const lateOpen = computed(() => ['checkin_closed', 'reviewing', 'reviews_complete', 'revision', 'revision_closed'].includes(st.slam?.status));
 
 const poll = createPoller(`/api/volunteer/state${slamQ}`, {
   interval: 5000,
@@ -128,11 +131,11 @@ async function doCheckin(body) {
   busy.value = true;
   try {
     const res = await post('/api/volunteer/checkin', { ...body, slam_id: boot.slam_id });
-    result.value = { ok: true, title: res.attendee.name, text: `${res.attendee.badge_id} · ${res.attendee.user_type === 'judge' ? 'Judge' : 'User'} — checked in. Ask them to scan their badge on their own phone to start reviewing.` };
+    result.value = { ok: true, title: res.attendee.name, text: `${res.attendee.badge_id} · ${res.attendee.user_type === 'judge' ? 'Judge' : 'User'}: late check-in done. Ask them to scan their badge on their own phone to start reviewing.` };
     if (navigator.vibrate) navigator.vibrate(60);
     refreshLists();
   } catch (e) {
-    result.value = { ok: false, title: e.reason === 'already_checked_in' ? 'Already checked in' : e.reason === 'not_registered' ? 'Not registered' : 'Not checked in', text: e.message };
+    result.value = { ok: false, title: e.reason === 'already_checked_in' ? 'Already checked in' : e.reason === 'not_registered' ? 'Not registered' : e.reason === 'self_checkin' ? 'Gates are open' : 'Not checked in', text: e.message };
     if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
   } finally {
     busy.value = false;
@@ -188,16 +191,6 @@ async function forceOut(a) {
   try {
     await post(`/api/force-checkout/${a.id}`, { reason });
     toast('Checked out.');
-    refreshLists();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-async function lateEntry(a) {
-  const reason = await dialog({ title: `Late entry: ${a.name}`, message: 'Admin override after Gate Close. A reason is required and logged.', reason: true, confirmText: 'Allow late entry' });
-  if (reason === null) return;
-  try {
-    await post('/api/checkin/late-override', { attendee_id: a.id, reason });
-    toast('Late entry allowed. Ask them to scan their badge on their phone.');
     refreshLists();
   } catch (e) { toast(e.message, 'error'); }
 }

@@ -1,5 +1,6 @@
-// Activity log page: row → detail drawer, IST date range → UTC filters, live tail.
+// Activity log page: row → detail drawer, local date range → UTC filters, live tail.
 import { Offcanvas } from '@tabler/core/dist/js/tabler.esm.js';
+import { localToIso } from './clock.js';
 
 export function initActivityLog(dt) {
   const table = document.getElementById('activity-log');
@@ -17,9 +18,9 @@ export function initActivityLog(dt) {
   table.querySelector('tbody')?.style.setProperty('cursor', 'pointer');
 
   const form = document.getElementById('al-filters');
-  form?.querySelectorAll('[data-ist-to]').forEach((input) => input.addEventListener('change', () => {
-    const hidden = form.querySelector(`input[name="${input.dataset.istTo}"]`);
-    hidden.value = input.value ? new Date(`${input.value}:00+05:30`).toISOString() : '';
+  form?.querySelectorAll('[data-local-to]').forEach((input) => input.addEventListener('change', () => {
+    const hidden = form.querySelector(`input[name="${input.dataset.localTo}"]`);
+    hidden.value = input.value ? localToIso(input.value.slice(0, 10), input.value.slice(11, 16)) : '';
     form.dispatchEvent(new Event('change'));
   }));
 

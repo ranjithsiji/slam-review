@@ -12,7 +12,7 @@
     'slam_id' => $slam ? (int) $slam['id'] : null, 'locked' => $locked,
     'questions' => array_map(static fn ($list) => array_map(static fn ($q) => [
         'id' => (int) $q['id'], 'text' => $q['text'], 'text_ml' => $q['text_ml'], 'help_text' => $q['help_text'],
-        'weight' => (float) $q['weight'], 'is_active' => (bool) $q['is_active'],
+        'weight' => (float) $q['weight'], 'max_score' => (int) $q['max_score'], 'is_active' => (bool) $q['is_active'],
     ], $list), $questions),
     'other_slams' => array_map(static fn ($s) => ['id' => (int) $s['id'], 'name' => $s['name']], $otherSlams),
 ]) ?><?= $this->endSection() ?>

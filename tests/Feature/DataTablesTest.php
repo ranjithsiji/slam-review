@@ -28,7 +28,7 @@ final class DataTablesTest extends SlamTestCase
         $this->assertSame(7, $res['draw']);
         $this->assertSame(120, $res['recordsTotal']);
         $this->assertCount(100, $res['data']);
-        $this->assertSame(['id', 'name', 'badge_id', 'user_type', 'mobile', 'email', 'checked_in', 'badge_print_count', 'import_batch_id', 'is_active'], array_keys($res['data'][0]));
+        $this->assertSame(['id', 'name', 'badge_id', 'user_type', 'mobile', 'email', 'checked_in', 'badge_print_count', 'import_batch_id', 'is_active', 'reviews', 'opened', 'complete', 'is_representative', 'can_make_rep'], array_keys($res['data'][0]));
     }
 
     public function testUnknownColumnFilterAndUnsortableAreRejected(): void

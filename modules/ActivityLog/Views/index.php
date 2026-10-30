@@ -18,8 +18,8 @@
                 <?php foreach (['auth.*', 'checkin.*', 'checkout.*', 'review.*', 'revision.*', 'window.*', 'schedule.*', 'slam.*', 'phase.*', 'marks.*', 'attendee.*', 'badge.*', 'question.*', 'system.*'] as $a): ?>
                     <option value="<?= $a ?>" <?= ($preset['action'] ?? '') === $a ? 'selected' : '' ?>><?= $a ?></option>
                 <?php endforeach ?></select></div>
-            <div class="col-6 col-md-3"><label class="form-label small mb-0" for="al-from">From (IST)</label><input id="al-from" type="datetime-local" class="form-control" data-ist-to="from"></div>
-            <div class="col-6 col-md-3"><label class="form-label small mb-0" for="al-to">To (IST)</label><input id="al-to" type="datetime-local" class="form-control" data-ist-to="to"></div>
+            <div class="col-6 col-md-3"><label class="form-label small mb-0" for="al-from">From (<?= esc(tz_label()) ?>)</label><input id="al-from" type="datetime-local" class="form-control" data-local-to="from"></div>
+            <div class="col-6 col-md-3"><label class="form-label small mb-0" for="al-to">To (<?= esc(tz_label()) ?>)</label><input id="al-to" type="datetime-local" class="form-control" data-local-to="to"></div>
             <input type="hidden" name="from"><input type="hidden" name="to">
             <?php foreach (['target_type', 'target_id', 'actor_id', 'ip'] as $k): if (isset($preset[$k])): ?><input type="hidden" name="<?= $k ?>" value="<?= esc((string) $preset[$k]) ?>"><?php endif; endforeach ?>
             <div class="col-12 col-md-6 d-flex align-items-end gap-2">
@@ -33,7 +33,7 @@
             'endpoint' => 'activity-log', 'filterForm' => '#al-filters', 'exportLink' => '#al-export', 'order' => [[0, 'desc']],
             'columns' => [
                 ['data' => 'id', 'title' => '#', 'priority' => 3],
-                ['data' => 'occurred_at', 'title' => 'When (IST)', 'render' => 'datetime', 'priority' => 1],
+                ['data' => 'occurred_at', 'title' => 'When (' . tz_label() . ')', 'render' => 'datetime', 'priority' => 1],
                 ['data' => 'actor_type', 'title' => 'Actor', 'priority' => 5],
                 ['data' => 'actor_label', 'title' => 'Who', 'priority' => 4],
                 ['data' => 'action', 'title' => 'Action', 'priority' => 2],

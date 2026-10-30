@@ -53,6 +53,8 @@ class LiveStateService
                 'projected_start_at' => Clock::iso($it['projected_start_at']),
                 'duration_minutes'   => (int) $it['duration_minutes'],
                 'status'             => $it['status'],
+                // On stage right now (started, not yet ended); the review may open before, during or after.
+                'performing'         => ! empty($it['performing_started_at']) && empty($it['performing_ended_at']) && $it['status'] !== 'skipped',
             ];
             $byId[(int) $it['id']] = $row;
             $order[] = $row;
@@ -71,6 +73,18 @@ class LiveStateService
             ] + $p;
         } elseif (($b = $phase->runningBreak($slamId)) !== null) {
             $current = ['kind' => 'break', 'schedule_item_id' => (int) $b['id'], 'break_type' => $b['break_type'], 'label' => $b['label'], 'ends_at' => Clock::iso($b['ends_at'])];
+        }
+
+        if ($current !== null && $current['kind'] === 'performance') {
+            $current['performing'] = (bool) ($byId[$current['schedule_item_id']]['performing'] ?? false);
+        }
+        // Presenter on stage but the review has not opened yet.
+        $presenting = null;
+        foreach ($order as $row) {
+            if ($row['performing'] && $row['status'] === 'pending' && $row['kind'] === 'performance') {
+                $presenting = $row;
+                break;
+            }
         }
 
         $next = null;
@@ -98,10 +112,12 @@ class LiveStateService
             'phase'         => $slam['status'],
             'phase_label'   => SlamPhaseService::LABELS[$slam['status']] ?? $slam['status'],
             'current'       => $current,
+            'presenting'    => $presenting,
             'next'          => $next,
             'running_order' => $order,
             'late_minutes'  => $proj['late_minutes'],
             'revision'      => $revision,
+            'judging'       => service('scoring')->judging($slamId),
             'questions'     => [
                 'user'  => QuestionService::forClient(service('questions')->active($slamId, 'user')),
                 'judge' => QuestionService::forClient(service('questions')->active($slamId, 'judge')),
@@ -150,7 +166,7 @@ class LiveStateService
             $r = Db::row('SELECT id FROM reviews WHERE attendee_id = ? AND schedule_item_id = ?', [$attendee['id'], $itemId]);
             if ($r !== null) {
                 $mine = ['review_id' => (int) $r['id'], 'answers' => array_map(
-                    static fn ($a) => ['question_id' => (int) $a['question_id'], 'score' => (int) $a['score']],
+                    static fn ($a) => ['question_id' => (int) $a['question_id'], 'score' => (float) $a['score']],
                     Db::rows('SELECT question_id, score FROM review_answers WHERE review_id = ?', [$r['id']]),
                 )];
             }
@@ -159,6 +175,11 @@ class LiveStateService
 
         $body              = $shared;
         $body['questions'] = $shared['questions'][$attendee['user_type']] ?? [];
+        // Judges whose marks are entered by the organisers get no review form.
+        $body['judge_offline'] = $attendee['user_type'] === 'judge' && $shared['judging']['timing'] === 'end_of_slam';
+        if ($body['judge_offline']) {
+            $body['questions'] = [];
+        }
         $body['me']        = [
             'name' => $attendee['name'], 'badge_id' => $attendee['badge_id'], 'user_type' => $attendee['user_type'],
             'checked_in' => true, 'reviewed_count' => $reviewed,

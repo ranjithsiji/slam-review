@@ -36,7 +36,7 @@ class DemoSeeder extends Seeder
         $this->seedTemplates();
 
         // Slam tomorrow (IST): open 08:30, gates 09:00–10:00, reviews 10:15, close 17:00.
-        $day = Clock::now()->setTimezone(new \DateTimeZone(Clock::DISPLAY_TZ))->modify('+1 day')->format('Y-m-d');
+        $day = Clock::now()->setTimezone(new \DateTimeZone(Clock::tz()))->modify('+1 day')->format('Y-m-d');
         $slamId = (int) (Db::value('SELECT id FROM slams WHERE slug = ?', ['demo-regional-slam']) ?? 0);
         if ($slamId === 0) {
             $slamId = service('slams')->create([
@@ -45,9 +45,9 @@ class DemoSeeder extends Seeder
                 'venue_name' => 'Demo Auditorium', 'address_line' => 'University Campus', 'city' => 'Thiruvananthapuram',
                 'district' => 'Thiruvananthapuram', 'state' => 'Kerala', 'pincode' => '695034',
                 'map_url' => 'https://www.openstreetmap.org/', 'contact_name' => 'Organising Desk', 'contact_phone' => '9447000000',
-                'opens_at' => Clock::fromIst($day, '08:30'), 'checkin_opens_at' => Clock::fromIst($day, '09:00'),
-                'checkin_closes_at' => Clock::fromIst($day, '10:00'), 'reviews_start_at' => Clock::fromIst($day, '10:15'),
-                'closes_at' => Clock::fromIst($day, '17:00'),
+                'opens_at' => Clock::fromLocal($day, '08:30'), 'checkin_opens_at' => Clock::fromLocal($day, '09:00'),
+                'checkin_closes_at' => Clock::fromLocal($day, '10:00'), 'reviews_start_at' => Clock::fromLocal($day, '10:15'),
+                'closes_at' => Clock::fromLocal($day, '17:00'),
                 'default_review_minutes' => 5, 'changeover_minutes' => 2, 'edit_window_minutes' => 10, 'close_grace_minutes' => 5,
                 'default_tea_break_minutes' => 15, 'default_lunch_break_minutes' => 45,
             ], $admin);
@@ -103,16 +103,19 @@ class DemoSeeder extends Seeder
         }
         $db  = db_connect();
         $now = Clock::db();
+        // Audience: 2 questions × 5 marks (wording still to come). Judges: the organisers' evaluation criteria.
         $rows = [
-            ['user', 'Question 1 (placeholder — replace before the first slam)', 10],
-            ['user', 'Question 2 (placeholder — replace before the first slam)', 20],
-            ['judge', 'Judge question 1 (placeholder)', 10],
-            ['judge', 'Judge question 2 (placeholder)', 20],
-            ['judge', 'Judge question 3 (placeholder)', 30],
+            ['user', 'Question 1 (placeholder — replace before the first slam)', 10, 5, null],
+            ['user', 'Question 2 (placeholder — replace before the first slam)', 20, 5, null],
+            ['judge', 'Communication', 10, 3, 'Effective for the general public: little or no jargon or technical terms, the overall idea is not lost, no false, pseudo or pseudoscientific information.'],
+            ['judge', 'Engagement', 20, 3, "An engaging story; a pause for a question and the audience's response to it; models, experiments, tricks, song, dance or anything else that draws the public in."],
+            ['judge', 'Depth of knowledge', 30, 3, 'Subject knowledge, novelty of the research idea, importance of the results and the way they are communicated. Give a lower mark for any wrong concept.'],
+            ['judge', 'Audience response', 40, 1, "Based on the audience's reactions (emoji or memes) during the talk."],
         ];
-        foreach ($rows as [$aud, $text, $pos]) {
+        foreach ($rows as [$aud, $text, $pos, $max, $help]) {
             $db->table('review_questions')->insert([
-                'slam_id' => null, 'audience' => $aud, 'text' => $text, 'weight' => 1, 'position' => $pos, 'is_active' => 1,
+                'slam_id' => null, 'audience' => $aud, 'text' => $text, 'help_text' => $help, 'weight' => 1, 'position' => $pos, 'is_active' => 1,
+                'max_score' => $max,
                 'created_at' => $now, 'updated_at' => $now,
             ]);
         }

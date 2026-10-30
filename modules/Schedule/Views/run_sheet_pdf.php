@@ -9,15 +9,15 @@
     .num { white-space: nowrap; }
 </style>
 <h1><?= esc($slam['name']) ?> — run-sheet</h1>
-<div class="meta"><?= esc(ist($slam['opens_at'], 'l, d F Y')) ?> · <?= esc($slam['venue_name']) ?> · times in IST · printed <?= esc(ist(\Modules\Core\Libraries\Clock::db(), 'd M H:i')) ?></div>
+<div class="meta"><?= esc(local_time($slam['opens_at'], 'l, d F Y')) ?> · <?= esc($slam['venue_name']) ?> · times in <?= esc(tz_label()) ?> · printed <?= esc(local_time(\Modules\Core\Libraries\Clock::db(), 'd M H:i')) ?></div>
 <table>
     <thead><tr><th>#</th><th>Start</th><th>End</th><th>Min</th><th>Presenter / break</th><th>Topic</th></tr></thead>
     <tbody>
     <?php $n = 0; foreach ($rows as $r): $isBreak = $r['item_type'] === 'break'; ?>
         <tr class="<?= $isBreak ? 'brk' : '' ?>">
             <td class="num"><?= $isBreak ? '' : ++$n ?></td>
-            <td class="num"><?= esc(ist($r['planned_start_at'], 'H:i')) ?><?= $r['is_pinned'] ? ' *' : '' ?></td>
-            <td class="num"><?= esc(ist(\Modules\Core\Libraries\Clock::addMinutes($r['planned_start_at'], (int) $r['duration_minutes']), 'H:i')) ?></td>
+            <td class="num"><?= esc(local_time($r['planned_start_at'], 'H:i')) ?><?= $r['is_pinned'] ? ' *' : '' ?></td>
+            <td class="num"><?= esc(local_time(\Modules\Core\Libraries\Clock::addMinutes($r['planned_start_at'], (int) $r['duration_minutes']), 'H:i')) ?></td>
             <td class="num"><?= (int) $r['duration_minutes'] ?></td>
             <td><?= $isBreak ? '<b>' . esc($r['label']) . '</b>' : esc($r['presenter_name']) ?></td>
             <td><?= $isBreak ? '' : esc($r['topic']) ?></td>

@@ -14,6 +14,13 @@ class Slam extends BaseConfig
     /** Base URL printed in badge QR codes: {checkinUrl}/in/{BADGE_ID}. */
     public string $checkinUrl = 'http://localhost:8080';
 
+    /**
+     * Defaults for the admin settings page (Admin → Settings overrides them):
+     * the timezone every time is entered and shown in, and 24h / 12h clock.
+     */
+    public string $timezone = 'Asia/Kolkata';
+    public string $timeFormat = '24h';
+
     /** Reviewer login throttling (per submitted ID). */
     public int $idMaxFailures = 5;
     public int $idWindowMinutes = 10;

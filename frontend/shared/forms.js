@@ -24,9 +24,14 @@ export function initForms(root = document) {
     });
   });
 
-  // <button data-api-post="/api/..." data-confirm="..." data-reason data-reload>: JSON POST action.
+  // <button data-api-post="/api/..." data-confirm="..." data-reason data-reload data-form="#id">: JSON POST action
+  // (data-form adds that form's fields to the body).
   root.querySelectorAll('[data-api-post]').forEach((btn) => {
+    const ownForm = btn.dataset.form ? document.querySelector(btn.dataset.form) : null;
+    // Enter in the form runs the button instead of a page submit.
+    ownForm?.addEventListener('submit', (ev) => { ev.preventDefault(); btn.click(); });
     btn.addEventListener('click', async () => {
+      if (ownForm && !ownForm.reportValidity()) return;
       let reason = '';
       if (btn.dataset.confirm !== undefined || btn.dataset.reason !== undefined) {
         const r = await dialog({ title: btn.dataset.title || btn.textContent.trim(), message: btn.dataset.confirm || '', danger: 'danger' in btn.dataset, reason: btn.dataset.reason !== undefined });
@@ -35,13 +40,19 @@ export function initForms(root = document) {
       }
       try {
         const extra = btn.dataset.body ? JSON.parse(btn.dataset.body) : {};
-        await post(btn.dataset.apiPost, { reason, ...extra });
-        toast(btn.dataset.success || 'Done.');
+        const fields = ownForm ? Object.fromEntries(new FormData(ownForm).entries()) : {};
+        const res = await post(btn.dataset.apiPost, { reason, ...fields, ...extra });
+        toast(btn.dataset.success || res?.message || 'Done.');
         if ('reload' in btn.dataset) setTimeout(() => window.location.reload(), 600);
       } catch (e) {
         toast(e.message, 'error');
       }
     });
+  });
+
+  // <select data-nav-select>: choosing an option opens its URL (slam switcher).
+  root.querySelectorAll('select[data-nav-select]').forEach((sel) => {
+    sel.addEventListener('change', () => { if (sel.value) window.location.href = sel.value; });
   });
 
   // <button data-copy="text">: copy to clipboard.

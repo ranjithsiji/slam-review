@@ -2,7 +2,7 @@
 <?= $this->extend('Modules\Core\Views\layouts\public') ?>
 <?= $this->section('content') ?>
 <div class="text-center mb-4">
-    <a href="<?= site_url('/') ?>" class="navbar-brand fw-bold"><?= icon('status.live', 'text-primary me-1') ?>Science Slam</a>
+    <a href="<?= site_url('/') ?>" class="d-inline-block"><?= brand_logo('brand-logo-card') ?></a>
 </div>
 <form class="card card-md" method="post" action="<?= site_url($kind . '/login') ?>" autocomplete="on" data-once>
     <?= csrf_field() ?>
@@ -19,4 +19,5 @@
         <button class="btn btn-primary w-100" type="submit">Sign in</button>
     </div>
 </form>
+<p class="text-center small mt-3"><a href="<?= site_url('/') ?>" class="text-secondary">← Back to home</a></p>
 <?= $this->endSection() ?>

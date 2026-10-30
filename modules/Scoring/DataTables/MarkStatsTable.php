@@ -8,7 +8,7 @@ use Modules\Core\DataTables\TableDefinition;
 use Modules\Core\Libraries\Actor;
 use Modules\Core\Libraries\DomainException;
 
-/** Per-question averages by group, per performance (provisional, from current answers). */
+/** Per-question average points by group, per performance (provisional, from current answers). */
 class MarkStatsTable extends TableDefinition
 {
     public function roles(): array
@@ -25,7 +25,7 @@ class MarkStatsTable extends TableDefinition
         $db = db_connect();
         $db->query('DROP TEMPORARY TABLE IF EXISTS tmp_mark_stats');
         $db->query('CREATE TEMPORARY TABLE tmp_mark_stats (presenter_name VARCHAR(120), topic VARCHAR(200), audience VARCHAR(10),
-            question VARCHAR(500), avg_user DOUBLE NULL, avg_judge DOUBLE NULL, avg_complete DOUBLE NULL) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4');
+            question VARCHAR(500), max_score INT, avg_general DOUBLE NULL, avg_representative DOUBLE NULL, avg_judge DOUBLE NULL) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4');
         $calc = service('scoring')->compute($slamId);
         foreach ($calc['results'] as $r) {
             foreach ($r['per_question'] as $qid => $groups) {
@@ -34,8 +34,8 @@ class MarkStatsTable extends TableDefinition
                     continue;
                 }
                 $db->table('tmp_mark_stats')->insert([
-                    'presenter_name' => $r['presenter_name'], 'topic' => $r['topic'], 'audience' => $q['audience'], 'question' => $q['text'],
-                    'avg_user' => $groups['user'] ?? null, 'avg_judge' => $groups['judge'] ?? null, 'avg_complete' => $groups['complete'] ?? null,
+                    'presenter_name' => $r['presenter_name'], 'topic' => $r['topic'], 'audience' => $q['audience'], 'question' => $q['text'], 'max_score' => $q['max_score'],
+                    'avg_general' => $groups['general'] ?? null, 'avg_representative' => $groups['representative'] ?? null, 'avg_judge' => $groups['judge'] ?? null,
                 ]);
             }
         }
@@ -53,9 +53,10 @@ class MarkStatsTable extends TableDefinition
             'topic'          => ['sql' => 't.topic', 'search' => true],
             'audience'       => ['sql' => 't.audience', 'order' => true],
             'question'       => ['sql' => 't.question', 'search' => true, 'order' => true],
-            'avg_user'       => ['sql' => 't.avg_user', 'order' => true],
-            'avg_judge'      => ['sql' => 't.avg_judge', 'order' => true],
-            'avg_complete'   => ['sql' => 't.avg_complete', 'order' => true],
+            'max_score'          => ['sql' => 't.max_score'],
+            'avg_general'        => ['sql' => 't.avg_general', 'order' => true],
+            'avg_representative' => ['sql' => 't.avg_representative', 'order' => true],
+            'avg_judge'          => ['sql' => 't.avg_judge', 'order' => true],
         ];
     }
 
@@ -66,7 +67,7 @@ class MarkStatsTable extends TableDefinition
 
     public function transform(array $row): array
     {
-        foreach (['avg_user', 'avg_judge', 'avg_complete'] as $k) {
+        foreach (['avg_general', 'avg_representative', 'avg_judge'] as $k) {
             $row[$k] = $row[$k] === null ? null : round((float) $row[$k], 2);
         }
 

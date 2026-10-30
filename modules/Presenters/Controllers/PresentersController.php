@@ -54,7 +54,7 @@ class PresentersController extends BaseController
     {
         $in = $this->input();
         if (! empty($in['planned_start_at'])) {
-            $in['planned_start_at'] = Clock::fromIstLocal((string) $in['planned_start_at']);
+            $in['planned_start_at'] = Clock::fromLocalInput((string) $in['planned_start_at']);
         }
 
         return $this->formAction(function () use ($slamId, $in) {

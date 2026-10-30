@@ -5,7 +5,13 @@ $routes->group('', ['namespace' => 'Modules\Checkin\Controllers'], static functi
     // Public check-in (no login). The ID in the URL is a credential: no-store, no-referrer.
     $routes->get('checkin', 'PublicCheckinController::typeId', ['filter' => 'nostore']);
     $routes->get('in/(:segment)', 'PublicCheckinController::landing/$1', ['filter' => 'nostore']);
-    $routes->post('checkin', 'PublicCheckinController::submit', ['filter' => ['ratelimit:checkin', 'nostore']]);
+    // Step 1 shows the attendee's name and masked mobile; step 2 (confirm) checks them in.
+    $routes->post('checkin', 'PublicCheckinController::verify', ['filter' => ['ratelimit:checkin', 'nostore']]);
+    $routes->get('checkin/confirm', 'PublicCheckinController::confirmPage', ['filter' => 'nostore']);
+    $routes->post('checkin/confirm', 'PublicCheckinController::submit', ['filter' => ['ratelimit:checkin', 'nostore']]);
+    $routes->get('registered', 'PublicCheckinController::registered', ['filter' => 'nostore']);
+    $routes->post('registered', 'PublicCheckinController::registered', ['filter' => ['ratelimit:lookup', 'nostore']]);
+    $routes->get('checkin/not-me', 'PublicCheckinController::notMe', ['filter' => 'nostore']);
     $routes->post('api/checkin', 'PublicCheckinController::submit', ['filter' => ['ratelimit:checkin', 'nostore']]);
     $routes->post('api/checkout', 'PublicCheckinController::checkout', ['filter' => 'reviewer']);
 
@@ -17,6 +23,6 @@ $routes->group('', ['namespace' => 'Modules\Checkin\Controllers'], static functi
     });
     $routes->post('api/force-checkout/(:num)', 'VolunteerController::forceCheckout/$1', ['filter' => 'auth:volunteer,admin']);
     $routes->get('api/attendees/search', 'VolunteerController::search', ['filter' => ['auth:volunteer,admin', 'ratelimit:search']]);
-    $routes->post('api/checkin/late-override', 'VolunteerController::lateOverride', ['filter' => 'auth:admin']);
+    $routes->post('api/checkin/late-override', 'VolunteerController::lateOverride', ['filter' => 'auth:volunteer,admin']);
     $routes->get('admin/slams/(:num)/checkins', 'VolunteerController::monitor/$1', ['filter' => 'auth:admin']);
 });

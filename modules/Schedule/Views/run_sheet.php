@@ -3,7 +3,7 @@
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     <div class="me-auto">
         <h2 class="mb-0">Run-sheet</h2>
-        <div class="text-secondary"><?= esc($slam['name']) ?> · <?= esc(ist($slam['opens_at'], 'D, d M Y')) ?> · <?= status_badge('phase', $slam['status']) ?></div>
+        <div class="text-secondary"><?= esc($slam['name']) ?> · <?= esc(local_time($slam['opens_at'], 'D, d M Y')) ?> · <?= status_badge('phase', $slam['status']) ?></div>
     </div>
     <button type="button" class="btn no-print" data-print><?= icon('action.print') ?>Print</button>
 </div>
@@ -13,7 +13,7 @@
             <div class="list-group-item slot-card slot-<?= $isBreak ? 'break' : esc($r['status']) ?>">
                 <div class="d-flex gap-3 align-items-center">
                     <div class="text-center" style="min-width:4.5rem">
-                        <div class="h3 m-0"><?= esc(ist($r['planned_start_at'], 'H:i')) ?></div>
+                        <div class="h3 m-0"><?= esc(local_time($r['planned_start_at'], 'H:i')) ?></div>
                         <div class="small text-secondary"><?= (int) $r['duration_minutes'] ?> min</div>
                     </div>
                     <?php if ($isBreak): ?>

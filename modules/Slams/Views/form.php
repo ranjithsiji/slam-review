@@ -1,16 +1,27 @@
 <?= $this->extend('Modules\Core\Views\layouts\admin') ?>
 <?php
 $v   = static fn (string $f, $default = '') => old($f, $slam[$f] ?? $default);
-$dt  = static fn (string $f) => old($f, isset($slam[$f]) ? ist_input($slam[$f]) : '');
+$dt  = static fn (string $f) => old($f, isset($slam[$f]) ? local_input($slam[$f]) : '');
 $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
 ?>
+<?php $backUrl = $slam ? 'admin/slams/' . $slam['id'] : 'admin/slams'; ?>
+<?= $this->section('header') ?>
+<div class="page-header d-print-none"><div class="container-fluid">
+    <?= view('Modules\Core\Views\partials\breadcrumb', ['crumbs' => $slam ? [['Slams', 'admin/slams'], [$slam['name'], 'admin/slams/' . $slam['id']], ['Edit', null]] : [['Slams', 'admin/slams'], ['New slam', null]]]) ?>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <h2 class="page-title me-auto"><?= $slam ? 'Edit slam' : 'New slam' ?></h2>
+        <a href="<?= site_url($backUrl) ?>" class="btn"><?= icon('action.close') ?>Cancel</a>
+        <button type="submit" form="slam-form" class="btn btn-primary"><?= icon('action.save') ?>Save slam</button>
+    </div>
+</div></div>
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
-<form method="post" action="<?= site_url($slam ? 'admin/slams/' . $slam['id'] : 'admin/slams/create') ?>">
+<form id="slam-form" method="post" action="<?= site_url($slam ? 'admin/slams/' . $slam['id'] : 'admin/slams/create') ?>">
     <?= csrf_field() ?>
     <div class="row row-cards">
         <div class="col-12 col-lg-6">
             <div class="card">
-                <div class="card-header"><h3 class="card-title"><?= esc($title) ?></h3></div>
+                <div class="card-header"><h3 class="card-title">Slam details</h3></div>
                 <div class="card-body">
                     <div class="mb-3">
                         <label class="form-label required" for="name">Name</label>
@@ -57,24 +68,43 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
         </div>
         <div class="col-12 col-lg-6">
             <div class="card mb-3">
-                <div class="card-header"><h3 class="card-title">Slam times (IST)</h3></div>
+                <div class="card-header"><h3 class="card-title">When &amp; how it runs (<?= esc(tz_label()) ?>)</h3></div>
                 <div class="card-body">
-                    <p class="text-secondary small">Order: slam open ≤ gates open &lt; gate close ≤ reviews start &lt; slam close. Leave the gate times blank to open and close check-in by hand. A slam may cross midnight.</p>
-                    <?php foreach ([
-                        ['opens_at', 'Slam open', true, 'Admin and volunteer panels go live (if the readiness check passes).'],
-                        ['checkin_opens_at', 'Gates open (check-in)', false, ''],
-                        ['checkin_closes_at', 'Gate close (check-in stops)', false, ''],
-                        ['reviews_start_at', 'Reviews start (first performance)', false, 'Prefills the first slot in the schedule.'],
-                        ['closes_at', 'Slam close — hard stop', true, 'Anything still open ends at this moment.'],
-                        ['event_ends_at', 'Event ends automatically (optional)', false, 'Ending is irreversible; leave blank to end by hand.'],
-                    ] as [$f, $label, $req, $hint]): ?>
-                        <div class="mb-3">
-                            <label class="form-label<?= $req ? ' required' : '' ?>" for="<?= $f ?>"><?= esc($label) ?></label>
-                            <input id="<?= $f ?>" name="<?= $f ?>" type="datetime-local" class="form-control<?= is_invalid($errors, $f) ?>" value="<?= esc($dt($f)) ?>" <?= $req ? 'required' : '' ?>>
-                            <?php if ($hint): ?><div class="form-hint"><?= esc($hint) ?></div><?php endif ?>
-                            <?= field_error($errors, $f) ?>
+                    <div class="mb-3">
+                        <label class="form-label required" for="opens_at">Slam date and start</label>
+                        <input id="opens_at" name="opens_at" type="datetime-local" class="form-control<?= is_invalid($errors, 'opens_at') ?>" value="<?= esc($dt('opens_at')) ?>" required>
+                        <div class="form-hint">The day of the slam and its planned start. In automatic mode the slam opens at this time; in manual mode you open it from the Status screen. A slam may cross midnight.</div>
+                        <?= field_error($errors, 'opens_at') ?>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-label">How will the slam run?</div>
+                        <?php $mode = old('auto_mode', $slam['auto_mode'] ?? 'manual'); ?>
+                        <div class="form-selectgroup form-selectgroup-boxes d-flex flex-column gap-2">
+                            <label class="form-selectgroup-item"><input type="radio" name="auto_mode" value="manual" class="form-selectgroup-input" <?= $mode === 'manual' ? 'checked' : '' ?>>
+                                <span class="form-selectgroup-label d-flex text-start p-3"><span><strong>I'll run it live from the Status screen</strong> <span class="badge bg-green-lt">recommended</span><span class="d-block small text-secondary">Real events never match a plan. Every step (open gates, close gates, each performance, edit window, close) starts when you press its button.</span></span></span></label>
+                            <label class="form-selectgroup-item"><input type="radio" name="auto_mode" value="auto" class="form-selectgroup-input" <?= $mode === 'auto' ? 'checked' : '' ?>>
+                                <span class="form-selectgroup-label d-flex text-start p-3"><span><strong>Automatic from planned times</strong><span class="d-block small text-secondary">Steps start by themselves at the planned times below and each performance's planned start. You can still step in with the buttons.</span></span></span></label>
                         </div>
-                    <?php endforeach ?>
+                        <div class="form-hint mt-1">You can switch at any time on the Status screen.</div>
+                    </div>
+                    <details class="mb-1" <?= array_filter([$dt('checkin_opens_at'), $dt('checkin_closes_at'), $dt('reviews_start_at'), $dt('event_ends_at')]) !== [] || $errors !== [] ? 'open' : '' ?>>
+                        <summary class="fw-bold mb-3" style="cursor:pointer">Planned times <span class="text-secondary fw-normal">(optional, only used in automatic mode)</span></summary>
+                        <p class="text-secondary small">Leave any of these blank. Order: gates open &lt; gate close &le; reviews start &lt; slam close.</p>
+                        <?php foreach ([
+                            ['checkin_opens_at', 'Gates open (check-in)', 'Blank: you open the gates.'],
+                            ['checkin_closes_at', 'Gate close (check-in stops)', 'Blank: you close the gates.'],
+                            ['reviews_start_at', 'Reviews start (first performance)', 'Prefills the first slot in the schedule.'],
+                            ['closes_at', 'Slam close: hard stop', 'A safety limit: anything still open ends here. Blank: ' . \Modules\Slams\Services\SlamService::DEFAULT_HARD_STOP_HOURS . ' hours after the slam starts. You normally close the slam yourself.'],
+                            ['event_ends_at', 'Event ends automatically', 'Ending is irreversible; blank: you end the event.'],
+                        ] as [$f, $label, $hint]): ?>
+                            <div class="mb-3">
+                                <label class="form-label" for="<?= $f ?>"><?= esc($label) ?></label>
+                                <input id="<?= $f ?>" name="<?= $f ?>" type="datetime-local" class="form-control<?= is_invalid($errors, $f) ?>" value="<?= esc($dt($f)) ?>">
+                                <div class="form-hint"><?= esc($hint) ?></div>
+                                <?= field_error($errors, $f) ?>
+                            </div>
+                        <?php endforeach ?>
+                    </details>
                 </div>
             </div>
             <div class="card">

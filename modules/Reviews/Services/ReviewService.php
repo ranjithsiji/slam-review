@@ -18,7 +18,9 @@ use Modules\Slams\Services\ReviewWindowService;
 class ReviewService
 {
     /**
-     * Validate answers: exactly the active questions for the audience, integers 1–10.
+     * Validate answers: exactly the active questions for the audience. Audience
+     * scores are whole numbers from 1 to the question's max_score; judges may use
+     * one decimal place, from 0.1 to max_score (never 0).
      *
      * @param list<array{question_id: mixed, score: mixed}>|mixed $answers
      * @return array<int, int> question_id => score
@@ -28,16 +30,20 @@ class ReviewService
         if (! is_array($answers)) {
             throw new DomainException('invalid_score', 'Answers are missing.');
         }
-        $expected = array_map(static fn ($q) => (int) $q['id'], service('questions')->active($slamId, $audience));
+        $max      = array_column(service('questions')->active($slamId, $audience), 'max_score', 'id');
+        $expected = array_map('intval', array_keys($max));
         $out      = [];
         foreach ($answers as $a) {
             if (! is_array($a) || ! isset($a['question_id'], $a['score'])) {
                 throw new DomainException('invalid_score', 'Each answer needs a question and a score.');
             }
             $qid   = filter_var($a['question_id'], FILTER_VALIDATE_INT);
-            $score = filter_var($a['score'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 10]]);
-            if ($qid === false || $score === false) {
-                throw new DomainException('invalid_score', 'Every score must be a whole number from 1 to 10.');
+            $top   = $qid === false ? 10 : (int) ($max[$qid] ?? 10);
+            $score = self::parseScore($a['score'], $audience, $top);
+            if ($qid === false || $score === null) {
+                throw new DomainException('invalid_score', $audience === 'judge'
+                    ? "Every mark must be from 0.1 to {$top}, with at most one decimal place."
+                    : "Every score must be a whole number from 1 to {$top}.");
             }
             if (isset($out[$qid])) {
                 throw new DomainException('invalid_score', 'A question was answered twice.');
@@ -52,6 +58,25 @@ class ReviewService
         }
 
         return $out;
+    }
+
+    /** A valid score as int (audience) or one-decimal float (judges), or null. */
+    public static function parseScore(mixed $v, string $audience, int $max): int|float|null
+    {
+        if ($audience !== 'judge') {
+            $i = filter_var($v, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => $max]]);
+
+            return $i === false ? null : $i;
+        }
+        if (! is_int($v) && ! is_float($v) && ! (is_string($v) && preg_match('/^\d{1,2}(\.\d)?$/', trim($v)))) {
+            return null;
+        }
+        $f = round((float) $v, 1);
+        if (abs($f - (float) $v) > 1e-9 || $f < 0.1 || $f > $max) {
+            return null;
+        }
+
+        return $f;
     }
 
     private static function cleanComment(mixed $c): ?string
@@ -84,6 +109,9 @@ class ReviewService
                 }
                 if ($slam['status'] !== 'reviewing') {
                     throw new DomainException('no_open_window', 'Reviews are not open right now.', 409);
+                }
+                if ($attendee['user_type'] === 'judge' && service('scoring')->judging($slamId)['timing'] === 'end_of_slam') {
+                    throw new DomainException('judge_marks_offline', "Judges' marks for this slam are entered by the organisers after the slam.", 409);
                 }
                 // Lock the window row so a concurrent close cannot interleave.
                 $window = Db::row(
@@ -163,12 +191,12 @@ class ReviewService
                 $scores = $this->validateAnswers($slamId, $attendee['user_type'], $answers);
                 $old    = [];
                 foreach (Db::rows('SELECT question_id, score FROM review_answers WHERE review_id = ?', [$reviewId]) as $a) {
-                    $old[(int) $a['question_id']] = (int) $a['score'];
+                    $old[(int) $a['question_id']] = (float) $a['score'];
                 }
                 $now     = Clock::db();
                 $changes = [];
                 foreach ($scores as $qid => $score) {
-                    if (($old[$qid] ?? null) !== $score) {
+                    if (! isset($old[$qid]) || abs($old[$qid] - $score) > 1e-9) {
                         $db->table('review_answers')->where('review_id', $reviewId)->where('question_id', $qid)->update(['score' => $score]);
                         $db->table('review_revisions')->insert([
                             'review_id' => $reviewId, 'question_id' => $qid, 'old_score' => $old[$qid] ?? null, 'new_score' => $score,
@@ -215,7 +243,7 @@ class ReviewService
         if ($rows !== []) {
             $ids = implode(',', array_map(static fn ($r) => (int) $r['id'], $rows));
             foreach (Db::rows("SELECT review_id, question_id, score FROM review_answers WHERE review_id IN ({$ids})") as $a) {
-                $answers[(int) $a['review_id']][] = ['question_id' => (int) $a['question_id'], 'score' => (int) $a['score']];
+                $answers[(int) $a['review_id']][] = ['question_id' => (int) $a['question_id'], 'score' => (float) $a['score']];
             }
         }
 

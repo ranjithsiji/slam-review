@@ -52,7 +52,7 @@ const draftComment = ref('');
 const busy = ref(false);
 const error = ref('');
 const saved = reactive({});
-const complete = computed(() => props.questions.every((q) => Number.isInteger(draft[q.id])));
+const complete = computed(() => props.questions.every((q) => typeof draft[q.id] === 'number' && draft[q.id] > 0));
 
 async function load() {
   try {

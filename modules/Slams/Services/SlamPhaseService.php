@@ -700,6 +700,60 @@ class SlamPhaseService
         });
     }
 
+    /**
+     * The presenter walks on stage. The review can be opened while the
+     * performance is running (and keeps going after it ends). Only one
+     * performance is on stage at a time, and not while another is being reviewed.
+     */
+    public function startPerformance(int $slamId, ?int $itemId, Actor $actor, bool $closeGateFirst = false): array
+    {
+        return $this->override($slamId, $actor, function (array $s) use ($itemId, $actor, $closeGateFirst): void {
+            if ($closeGateFirst && $s['status'] === 'checkin_open') {
+                $s = $this->transition($s, 'checkin_closed', 'manual_override', $actor, 'Close check-in and start the first performance');
+            }
+            if (! in_array($s['status'], ['checkin_closed', 'reviewing'], true)) {
+                throw new DomainException('gate_open', $s['status'] === 'checkin_open'
+                    ? 'Close the check-in gate before starting a performance.'
+                    : 'Performances can only be started between Gate Close and All Review Close.', 409);
+            }
+            $item = $itemId !== null
+                ? Db::row('SELECT * FROM schedule_items WHERE id = ? AND slam_id = ?', [$itemId, $s['id']])
+                : $this->firstPendingPerformance((int) $s['id']);
+            if ($item === null || $item['item_type'] !== 'performance' || $item['status'] !== 'pending') {
+                throw new DomainException('item_not_pending', 'Only a pending performance can be started.');
+            }
+            if ($item['performing_started_at'] !== null && $item['performing_ended_at'] === null) {
+                throw new DomainException('performance_running', 'This performance is already on stage.');
+            }
+            if ($this->windows->openWindow((int) $s['id']) !== null) {
+                throw new DomainException('window_open', 'Close the open review window before starting the next performance.', 409);
+            }
+            $other = Db::value('SELECT id FROM schedule_items WHERE slam_id = ? AND id <> ? AND performing_started_at IS NOT NULL AND performing_ended_at IS NULL', [$s['id'], $item['id']]);
+            if ($other !== null) {
+                throw new DomainException('performance_running', 'End the performance that is on stage before starting the next one.', 409);
+            }
+            $this->endRunningBreak($s);
+            if ($s['status'] === 'checkin_closed') {
+                $s = $this->transition($s, 'reviewing', 'manual_override', $actor, 'First performance started');
+            }
+            db_connect()->table('schedule_items')->where('id', $item['id'])->update(['performing_started_at' => Clock::db(), 'performing_ended_at' => null, 'updated_at' => Clock::db()]);
+            service('activityLog')->log($actor, 'performance.started', ['slam_id' => (int) $s['id'], 'target_type' => 'schedule_item', 'target_id' => (int) $item['id']]);
+        });
+    }
+
+    /** The presenter leaves the stage; an open review window keeps running. */
+    public function endPerformance(int $slamId, int $itemId, Actor $actor): array
+    {
+        return $this->override($slamId, $actor, function (array $s) use ($itemId, $actor): void {
+            $item = Db::row('SELECT * FROM schedule_items WHERE id = ? AND slam_id = ?', [$itemId, $s['id']]);
+            if ($item === null || $item['performing_started_at'] === null || $item['performing_ended_at'] !== null) {
+                throw new DomainException('not_performing', 'This performance is not on stage.');
+            }
+            db_connect()->table('schedule_items')->where('id', $itemId)->update(['performing_ended_at' => Clock::db(), 'updated_at' => Clock::db()]);
+            service('activityLog')->log($actor, 'performance.ended', ['slam_id' => (int) $s['id'], 'target_type' => 'schedule_item', 'target_id' => $itemId]);
+        });
+    }
+
     /** Open a performance's review window by hand (defaults to the next pending one). */
     public function openWindow(int $slamId, ?int $itemId, ?int $minutes, ?string $closesAtUtc, Actor $actor, bool $closeGateFirst = false): array
     {
@@ -719,6 +773,11 @@ class SlamPhaseService
                 throw new DomainException('no_pending_item', 'There is no pending performance to open.');
             }
             $close = $this->windows->resolveCloseTime($s, $minutes ?? (int) $item['duration_minutes'], $closesAtUtc);
+            // Another performance still on stage? It must end first (the same one may be reviewed while presenting).
+            $other = Db::value('SELECT id FROM schedule_items WHERE slam_id = ? AND id <> ? AND performing_started_at IS NOT NULL AND performing_ended_at IS NULL', [$s['id'], $item['id']]);
+            if ($other !== null) {
+                throw new DomainException('performance_running', 'End the performance that is on stage before opening another review.', 409);
+            }
             $this->endRunningBreak($s);
             if ($s['status'] === 'checkin_closed') {
                 $s = $this->transition($s, 'reviewing', 'manual_override', $actor);
@@ -755,7 +814,7 @@ class SlamPhaseService
             if ($item === null || $item['status'] !== 'pending') {
                 throw new DomainException('item_not_pending', 'Only a pending item can be skipped.');
             }
-            db_connect()->table('schedule_items')->where('id', $itemId)->update(['status' => 'skipped', 'updated_at' => Clock::db()]);
+            db_connect()->query("UPDATE schedule_items SET status = 'skipped', performing_ended_at = COALESCE(performing_ended_at, ?), updated_at = ? WHERE id = ?", [$item['performing_started_at'] !== null ? Clock::db() : null, Clock::db(), $itemId]);
             service('activityLog')->log($actor, 'schedule.item_skipped', ['slam_id' => (int) $s['id'], 'target_type' => 'schedule_item', 'target_id' => $itemId, 'reason' => $reason]);
             $this->bumpScheduleVersion($s);
         });
@@ -812,7 +871,7 @@ class SlamPhaseService
             }
             $pending = Db::rows("SELECT id FROM schedule_items WHERE slam_id = ? AND status = 'pending'", [$s['id']]);
             foreach ($pending as $p) {
-                db_connect()->table('schedule_items')->where('id', $p['id'])->update(['status' => 'skipped', 'updated_at' => Clock::db()]);
+                db_connect()->query("UPDATE schedule_items SET status = 'skipped', performing_ended_at = IF(performing_started_at IS NOT NULL, COALESCE(performing_ended_at, ?), NULL), updated_at = ? WHERE id = ?", [Clock::db(), Clock::db(), $p['id']]);
                 service('activityLog')->log($actor, 'schedule.item_skipped', ['slam_id' => (int) $s['id'], 'target_type' => 'schedule_item', 'target_id' => (int) $p['id'], 'reason' => $reason]);
             }
             $this->endRunningBreak($s);

@@ -35,16 +35,18 @@ abstract class SlamTestCase extends CIUnitTestCase
         $cache          = config('Cache');
         $cache->handler = 'dummy';
         Services::resetSingle('cache');
-        foreach (['slams', 'slamPhase', 'schedule', 'checkins', 'reviews', 'questions', 'liveState', 'scoring', 'markRuns', 'throttle', 'attendees', 'presenters', 'publicCache', 'activityLog'] as $s) {
+        foreach (['slams', 'slamPhase', 'schedule', 'checkins', 'reviews', 'questions', 'liveState', 'scoring', 'representatives', 'judgeMarks', 'markRuns', 'throttle', 'attendees', 'presenters', 'publicCache', 'activityLog', 'appSettings'] as $s) {
             Services::resetSingle($s);
         }
         Clock::set('2026-11-01 03:00:00');
+        Clock::resetDisplay();
         $this->admin = new Actor('admin', $this->createAdmin(), 'admin');
     }
 
     protected function tearDown(): void
     {
         Clock::set(null);
+        Clock::resetDisplay();
         parent::tearDown();
     }
 
@@ -102,6 +104,8 @@ abstract class SlamTestCase extends CIUnitTestCase
                 $j[] = $row;
             }
         }
+        // Most tests exercise judges reviewing live on their phones (the default is end of slam).
+        db_connect()->table('score_config')->where('slam_id', $id)->update(['judge_timing' => $overrides['judge_timing'] ?? 'live', 'judge_mode' => $overrides['judge_mode'] ?? 'detailed']);
         service('slamPhase')->markReady($id, $this->admin);
 
         return ['id' => $id, 'items' => $itemIds, 'perfs' => $perfIds, 'users' => $u, 'judges' => $j];

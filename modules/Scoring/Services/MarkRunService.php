@@ -47,16 +47,16 @@ class MarkRunService
         $db->table('mark_runs')->insert([
             'slam_id' => $slam['id'], 'calculated_at' => Clock::db(), 'calculated_by' => $actor->isAdmin() ? $actor->id : null,
             'weights_snapshot' => json_encode($calc['weights']), 'question_weights_snapshot' => json_encode($calc['question_weights'], JSON_UNESCAPED_UNICODE),
-            'counts_snapshot' => json_encode($calc['counts']), 'is_current' => 1, 'is_final' => 0,
+            'counts_snapshot' => json_encode($calc['counts']), 'representatives_snapshot' => json_encode($calc['representatives']), 'is_current' => 1, 'is_final' => 0,
             'note' => $note !== null ? mb_substr($note, 0, 255) : null,
         ]);
         $runId = (int) $db->insertID();
         foreach ($calc['results'] as $r) {
             $db->table('mark_results')->insert([
                 'mark_run_id' => $runId, 'performance_id' => $r['performance_id'],
-                'avg_user' => $r['avg_user'], 'avg_judge' => $r['avg_judge'], 'avg_complete' => $r['avg_complete'],
+                'avg_general' => $r['avg_general'], 'avg_representative' => $r['avg_representative'], 'avg_judge' => $r['avg_judge'],
                 'final_mark' => $r['final_mark'] !== null ? round($r['final_mark'], 4) : null, 'rank' => $r['rank'],
-                'n_user' => $r['n_user'], 'n_judge' => $r['n_judge'], 'n_complete' => $r['n_complete'],
+                'n_general' => $r['n_general'], 'n_representative' => $r['n_representative'], 'n_judge' => $r['n_judge'],
                 'per_question' => json_encode($r['per_question']),
             ]);
         }
@@ -92,7 +92,9 @@ class MarkRunService
              JOIN presenters pr ON pr.id = p.presenter_id WHERE mr.mark_run_id = ? ORDER BY mr.`rank` IS NULL, mr.`rank`, mr.id',
             [$runId],
         );
+        $weights = self::snapshotWeights($run);
         foreach ($rows as &$r) {
+            $r['breakdown'] = ScoringService::breakdownFor($r, $weights);
             $o = $old[(int) $r['performance_id']] ?? null;
             $r['prev_final'] = $o['final_mark'] ?? null;
             $r['prev_rank']  = $o['rank'] ?? null;
@@ -100,6 +102,20 @@ class MarkRunService
         }
         unset($r);
 
-        return ['run' => $run, 'previous_run_id' => $prev['id'] ?? null, 'results' => $rows];
+        $questions = json_decode((string) $run['question_weights_snapshot'], true) ?: [];
+
+        return ['run' => $run, 'weights' => $weights, 'questions' => $questions, 'previous_run_id' => $prev['id'] ?? null, 'results' => $rows];
+    }
+
+    /** Weights stored with a run (runs made before the three-group model used w_user / w_complete). */
+    public static function snapshotWeights(array $run): array
+    {
+        $w = json_decode((string) $run['weights_snapshot'], true) ?: [];
+
+        return [
+            'w_general'        => (float) ($w['w_general'] ?? $w['w_user'] ?? 0),
+            'w_representative' => (float) ($w['w_representative'] ?? $w['w_complete'] ?? 0),
+            'w_judge'          => (float) ($w['w_judge'] ?? 0),
+        ];
     }
 }

@@ -12,7 +12,11 @@ $routes->group('', ['namespace' => 'Modules\Slams\Controllers'], static function
         $routes->post('slams/(:num)', 'SlamsController::save/$1');
         $routes->post('slams/(:num)/publish', 'SlamsController::publish/$1');
         $routes->get('slams/(:num)/control', 'ControlController::page/$1');
+        $routes->get('slams/(:num)/status', 'ControlController::statusPage/$1');
     });
+
+    // Live top bar on every organiser page: what is going on in each running slam.
+    $routes->get('api/admin/live', 'ControlController::liveBar', ['filter' => 'auth:admin']);
 
     // Phase control API (admin only; every action goes through SlamPhaseService).
     $routes->group('api/slams/(:num)', ['filter' => 'auth:admin'], static function ($routes): void {
@@ -23,6 +27,7 @@ $routes->group('', ['namespace' => 'Modules\Slams\Controllers'], static function
         $routes->post('checkin-gate/(:segment)', 'ControlController::gate/$1/$2');
         $routes->post('window/(:segment)', 'ControlController::window/$1/$2');
         $routes->post('items/(:num)/skip', 'ControlController::skip/$1/$2');
+        $routes->post('items/(:num)/perform/(start|end)', 'ControlController::perform/$1/$2/$3');
         $routes->post('end-reviewing', 'ControlController::action/$1/end-reviewing');
         $routes->post('revision/(:segment)', 'ControlController::revision/$1/$2');
         $routes->post('close', 'ControlController::action/$1/close');

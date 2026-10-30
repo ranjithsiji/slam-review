@@ -11,23 +11,33 @@ use Modules\Core\Libraries\Db;
 use Modules\Core\Libraries\DomainException;
 
 /**
- * Marks are always computed from the current answers:
- *   answers → per-review mark (weighted average of its answers, 1–10)
- *   → group averages A_u (users), A_j (judges), A_c (complete reviewers)
- *   → final = Σ w_g·A_g / Σ w_g over groups that actually have votes.
+ * Marks are always computed from the current answers, in three groups:
+ *   general reviewers (audience users who are not representatives),
+ *   audience representatives (see RepresentativeService) and judges.
+ *
+ *   answers → per-review mark out of 10 = 10 · Σ(w_q · score_q) / Σ(w_q · max_q)
+ *   → group averages A_general, A_rep, A_judge
+ *   → final = Σ w_g·A_g / Σ w_g over the groups that actually have votes.
  * Full precision is kept; rounding happens only for display.
  */
 class ScoringService
 {
-    /** @return array{w_user: float, w_judge: float, w_complete: float} */
+    /** Group key => [weight key, label]. Order is the display order. */
+    public const GROUPS = [
+        'general'        => ['w_general', 'General reviewers'],
+        'representative' => ['w_representative', 'Audience representatives'],
+        'judge'          => ['w_judge', 'Judges'],
+    ];
+
+    /** @return array{w_general: float, w_representative: float, w_judge: float} */
     public function weights(int $slamId): array
     {
         $c = Db::row('SELECT * FROM score_config WHERE slam_id = ?', [$slamId]);
 
         return [
-            'w_user'     => (float) ($c['w_user'] ?? 40),
-            'w_judge'    => (float) ($c['w_judge'] ?? 40),
-            'w_complete' => (float) ($c['w_complete_reviewer'] ?? 20),
+            'w_general'        => (float) ($c['w_general'] ?? 40),
+            'w_representative' => (float) ($c['w_representative'] ?? 20),
+            'w_judge'          => (float) ($c['w_judge'] ?? 40),
         ];
     }
 
@@ -38,7 +48,7 @@ class ScoringService
             throw new DomainException('read_only', 'The event has ended; weights are locked.', 409);
         }
         $vals = [];
-        foreach (['w_user', 'w_judge', 'w_complete_reviewer'] as $k) {
+        foreach (['w_general', 'w_representative', 'w_judge'] as $k) {
             $v = $in[$k] ?? null;
             if (! is_numeric($v) || (float) $v < 0 || (float) $v > 100) {
                 throw new DomainException('validation', 'Each weight must be between 0 and 100.', 422, [$k => 'Invalid weight.']);
@@ -46,19 +56,102 @@ class ScoringService
             $vals[$k] = round((float) $v, 2);
         }
         if (abs(array_sum($vals) - 100) > 0.001) {
-            throw new DomainException('validation', 'The three weights must add up to 100.', 422, ['w_user' => 'Weights must sum to 100.']);
+            throw new DomainException('validation', 'The three weights must add up to 100.', 422, ['w_general' => 'Weights must sum to 100.']);
         }
         $old = Db::row('SELECT * FROM score_config WHERE slam_id = ?', [$slamId]) ?? [];
         Db::tx(function ($db) use ($slamId, $vals, $actor, $old): void {
-            $row = $vals + ['updated_by' => $actor->id, 'updated_at' => Clock::db()];
-            if ($old === []) {
-                $db->table('score_config')->insert($row + ['slam_id' => $slamId]);
-            } else {
-                $db->table('score_config')->where('slam_id', $slamId)->update($row);
-            }
+            $this->saveConfig($db, $slamId, $vals, $actor, $old !== []);
             [$o, $n] = ActivityLogService::diff($old, $vals);
             service('activityLog')->log($actor, 'score_config.updated', ['slam_id' => $slamId, 'target_type' => 'slam', 'target_id' => $slamId, 'old' => $o, 'new' => $n]);
         });
+    }
+
+    /** Insert or update the slam's score_config row (defaults fill a new row). */
+    public function saveConfig($db, int $slamId, array $vals, Actor $actor, ?bool $exists = null): void
+    {
+        $exists ??= Db::value('SELECT id FROM score_config WHERE slam_id = ?', [$slamId]) !== null;
+        $row = $vals + ['updated_by' => $actor->isAdmin() ? $actor->id : null, 'updated_at' => Clock::db()];
+        if ($exists) {
+            $db->table('score_config')->where('slam_id', $slamId)->update($row);
+        } else {
+            $db->table('score_config')->insert($row + $this->weights($slamId) + ['slam_id' => $slamId]);
+        }
+    }
+
+    public const JUDGE_TIMINGS = ['end_of_slam', 'live'];
+    public const JUDGE_MODES   = ['detailed', 'consolidated'];
+    /** Judging can be changed only before any performance has been reviewed. */
+    public const JUDGING_EDITABLE_PHASES = ['draft', 'scheduled', 'open', 'checkin_open', 'checkin_closed'];
+
+    /**
+     * How judges' marks reach the system for a slam.
+     *   timing end_of_slam: an admin enters each judge's consolidated mark after the reviews close.
+     *   timing live:        judges score on their phones; mode detailed (criteria) or consolidated (one mark).
+     *
+     * @return array{timing: string, mode: string, consolidated: bool}
+     */
+    public function judging(int $slamId): array
+    {
+        $c      = Db::row('SELECT judge_timing, judge_mode FROM score_config WHERE slam_id = ?', [$slamId]);
+        $timing = $c['judge_timing'] ?? 'end_of_slam';
+        $mode   = $c['judge_mode'] ?? 'detailed';
+
+        return ['timing' => $timing, 'mode' => $mode, 'consolidated' => $timing === 'end_of_slam' || $mode === 'consolidated'];
+    }
+
+    /** Why judging cannot be changed for this slam, or null when it can. */
+    public function judgingLockedReason(array $slam): ?string
+    {
+        if (! in_array($slam['status'], self::JUDGING_EDITABLE_PHASES, true)) {
+            return 'Judges\' marking is fixed once reviewing starts.';
+        }
+        if (Db::value("SELECT r.id FROM reviews r JOIN attendees a ON a.id = r.attendee_id WHERE a.slam_id = ? AND a.user_type = 'judge' LIMIT 1", [$slam['id']]) !== null) {
+            return 'Judges have already submitted marks.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Set judges' marking for one or more slams (bulk). Slams that can no longer
+     * change are skipped and reported.
+     *
+     * @param list<int> $slamIds
+     * @return array{updated: list<int>, skipped: array<int, string>}
+     */
+    public function updateJudging(array $slamIds, array $in, Actor $actor): array
+    {
+        if (! $actor->isAdmin()) {
+            throw new DomainException('forbidden', 'Only an admin can change judges\' marking.', 403);
+        }
+        $timing = (string) ($in['judge_timing'] ?? '');
+        $mode   = (string) ($in['judge_mode'] ?? 'detailed');
+        if (! in_array($timing, self::JUDGE_TIMINGS, true) || ! in_array($mode, self::JUDGE_MODES, true)) {
+            throw new DomainException('validation', 'Choose when judges mark and how.', 422, ['judge_timing' => 'Choose an option.']);
+        }
+        $out = ['updated' => [], 'skipped' => []];
+        foreach (array_unique(array_map('intval', $slamIds)) as $slamId) {
+            Db::tx(function ($db) use ($slamId, $timing, $mode, $actor, &$out): void {
+                $slam = Db::lockSlam($slamId);
+                if (($why = $this->judgingLockedReason($slam)) !== null) {
+                    $out['skipped'][$slamId] = $why;
+
+                    return;
+                }
+                $old = $this->judging($slamId);
+                $this->saveConfig($db, $slamId, ['judge_timing' => $timing, 'judge_mode' => $mode], $actor);
+                if ($old['timing'] !== $timing || $old['mode'] !== $mode) {
+                    service('activityLog')->log($actor, 'score_config.judging_changed', [
+                        'slam_id' => $slamId, 'target_type' => 'slam', 'target_id' => $slamId,
+                        'old' => ['judge_timing' => $old['timing'], 'judge_mode' => $old['mode']], 'new' => ['judge_timing' => $timing, 'judge_mode' => $mode],
+                    ]);
+                }
+                $out['updated'][] = $slamId;
+            });
+            service('publicCache')->purge($slamId);
+        }
+
+        return $out;
     }
 
     /** Schedule items that count for "complete reviewer": performances that were opened (not skipped). */
@@ -89,19 +182,43 @@ class ScoringService
     }
 
     /**
+     * Per-review mark out of 10: 10 · Σ(w_q · score_q) / Σ(w_q · max_q).
+     * With weight 1 everywhere this is the marks given scaled to 10: two audience
+     * questions of 5 give score_1 + score_2; judge criteria of 3+3+3+1 add up.
+     *
+     * @param array<int, float|int> $scores question_id => score
+     * @param array<int, array{weight: float, max_score: int}> $questions
+     */
+    public static function reviewMark(array $scores, array $questions): ?float
+    {
+        $num = 0.0;
+        $den = 0.0;
+        foreach ($scores as $qid => $score) {
+            if (! isset($questions[$qid])) {
+                continue;
+            }
+            $num += $questions[$qid]['weight'] * $score;
+            $den += $questions[$qid]['weight'] * $questions[$qid]['max_score'];
+        }
+
+        return $den > 0 ? 10 * $num / $den : null;
+    }
+
+    /**
      * Full calculation for a slam.
      *
-     * @return array{results: list<array<string,mixed>>, weights: array<string,float>, question_weights: array<int,array<string,mixed>>, counts: array<string,int>}
+     * @return array{results: list<array<string,mixed>>, weights: array<string,float>, question_weights: array<int,array<string,mixed>>, representatives: list<int>, distribution: array<int, array<string,int>>, counts: array<string,int>}
      */
     public function compute(int $slamId): array
     {
         $weights = $this->weights($slamId);
-        $qrows   = Db::rows('SELECT id, audience, text, weight, position FROM review_questions WHERE slam_id = ? AND is_active = 1 ORDER BY audience, position', [$slamId]);
+        $qrows   = Db::rows('SELECT id, audience, kind, text, weight, max_score, position FROM review_questions WHERE slam_id = ? AND is_active = 1 ORDER BY audience, kind, position', [$slamId]);
         $qw      = [];
         foreach ($qrows as $q) {
-            $qw[(int) $q['id']] = ['audience' => $q['audience'], 'text' => $q['text'], 'weight' => (float) $q['weight']];
+            $qw[(int) $q['id']] = ['audience' => $q['audience'], 'kind' => $q['kind'], 'text' => $q['text'], 'weight' => (float) $q['weight'], 'max_score' => (int) $q['max_score']];
         }
-        $complete = array_flip($this->completeReviewerIds($slamId));
+        $repIds = service('representatives')->ids($slamId);
+        $reps   = array_flip($repIds);
 
         $answers = Db::rows(
             "SELECT r.id AS review_id, r.attendee_id, si.performance_id, a.user_type, ans.question_id, ans.score
@@ -110,18 +227,12 @@ class ScoringService
              WHERE si.slam_id = ?",
             [$slamId],
         );
-        // Per review: weighted average over its answers to active questions.
         $reviews = [];
         foreach ($answers as $a) {
-            $qid = (int) $a['question_id'];
-            if (! isset($qw[$qid])) {
-                continue;
-            }
-            $rid = (int) $a['review_id'];
-            $reviews[$rid] ??= ['perf' => (int) $a['performance_id'], 'type' => $a['user_type'], 'attendee' => (int) $a['attendee_id'], 'num' => 0.0, 'den' => 0.0, 'scores' => []];
-            $reviews[$rid]['num'] += $qw[$qid]['weight'] * (int) $a['score'];
-            $reviews[$rid]['den'] += $qw[$qid]['weight'];
-            $reviews[$rid]['scores'][$qid] = (int) $a['score'];
+            $rid   = (int) $a['review_id'];
+            $group = $a['user_type'] === 'judge' ? 'judge' : (isset($reps[(int) $a['attendee_id']]) ? 'representative' : 'general');
+            $reviews[$rid] ??= ['perf' => (int) $a['performance_id'], 'group' => $group, 'attendee' => (int) $a['attendee_id'], 'scores' => []];
+            $reviews[$rid]['scores'][(int) $a['question_id']] = (float) $a['score'];
         }
 
         $perfs = Db::rows(
@@ -132,22 +243,20 @@ class ScoringService
         );
         $acc = [];
         foreach ($perfs as $p) {
-            $acc[(int) $p['id']] = ['user' => [], 'judge' => [], 'complete' => [], 'q' => []];
+            $acc[(int) $p['id']] = ['general' => [], 'representative' => [], 'judge' => [], 'q' => []];
         }
+        // Review marks out of 10, rounded to whole marks, per group (statistics chart).
+        $dist = array_fill(1, 10, ['general' => 0, 'representative' => 0, 'judge' => 0]);
         foreach ($reviews as $r) {
-            if (! isset($acc[$r['perf']]) || $r['den'] <= 0) {
+            $mark = self::reviewMark($r['scores'], $qw);
+            if (! isset($acc[$r['perf']]) || $mark === null) {
                 continue;
             }
-            $mark = $r['num'] / $r['den'];
-            $acc[$r['perf']][$r['type']][] = $mark;
-            $groups = [$r['type']];
-            if ($r['type'] === 'user' && isset($complete[$r['attendee']])) {
-                $acc[$r['perf']]['complete'][] = $mark;
-                $groups[] = 'complete';
-            }
+            $acc[$r['perf']][$r['group']][] = $mark;
+            $dist[max(1, min(10, (int) round($mark)))][$r['group']]++;
             foreach ($r['scores'] as $qid => $s) {
-                foreach ($groups as $g) {
-                    $acc[$r['perf']]['q'][$qid][$g][] = $s;
+                if (isset($qw[$qid])) {
+                    $acc[$r['perf']]['q'][$qid][$r['group']][] = $s;
                 }
             }
         }
@@ -155,64 +264,87 @@ class ScoringService
         $avg     = static fn (array $xs): ?float => $xs === [] ? null : array_sum($xs) / count($xs);
         $results = [];
         foreach ($perfs as $p) {
-            $a   = $acc[(int) $p['id']];
-            $au  = $avg($a['user']);
-            $aj  = $avg($a['judge']);
-            $ac  = $avg($a['complete']);
+            $a    = $acc[(int) $p['id']];
+            $avgs = ['general' => $avg($a['general']), 'representative' => $avg($a['representative']), 'judge' => $avg($a['judge'])];
             $results[] = [
                 'performance_id' => (int) $p['id'], 'presenter_name' => $p['presenter_name'], 'topic' => $p['topic'],
-                'avg_user' => $au, 'avg_judge' => $aj, 'avg_complete' => $ac,
-                'final_mark' => self::finalMark($au, $aj, $ac, $weights),
-                'n_user' => count($a['user']), 'n_judge' => count($a['judge']), 'n_complete' => count($a['complete']),
+                'avg_general' => $avgs['general'], 'avg_representative' => $avgs['representative'], 'avg_judge' => $avgs['judge'],
+                'final_mark' => self::breakdown($avgs, $weights)['final'],
+                'n_general' => count($a['general']), 'n_representative' => count($a['representative']), 'n_judge' => count($a['judge']),
                 'per_question' => array_map(static fn ($g) => array_map($avg, $g), $a['q']),
             ];
         }
         $results = self::rank($results);
+        $byGroup = static fn (string $g) => count(array_unique(array_column(array_filter($reviews, static fn ($r) => $r['group'] === $g), 'attendee')));
 
         return [
             'results'          => $results,
             'weights'          => $weights,
             'question_weights' => $qw,
+            'representatives'  => $repIds,
+            'distribution'     => $dist,
             'counts'           => [
-                'reviews' => count($reviews), 'complete_reviewers' => count($complete),
-                'opened_performances' => count($this->openedItemIds($slamId)),
-                'users_reviewing'  => count(array_unique(array_column(array_filter($reviews, static fn ($r) => $r['type'] === 'user'), 'attendee'))),
-                'judges_reviewing' => count(array_unique(array_column(array_filter($reviews, static fn ($r) => $r['type'] === 'judge'), 'attendee'))),
+                'reviews' => count($reviews), 'complete_reviewers' => count($this->completeReviewerIds($slamId)),
+                'representatives' => count($repIds), 'opened_performances' => count($this->openedItemIds($slamId)),
+                'general_reviewing' => $byGroup('general'), 'representatives_reviewing' => $byGroup('representative'), 'judges_reviewing' => $byGroup('judge'),
             ],
         ];
     }
 
     /**
-     * Weighted final mark, re-normalised over the groups that have votes:
-     * a group with no votes drops out and the remaining weights are scaled up.
+     * How the final mark is built, group by group. A group with no votes (or a
+     * zero weight) drops out and the remaining weights are re-normalised, so
+     * each group's effective share is w_g / Σ w over the groups that count.
+     *
+     * @param array{general: ?float, representative: ?float, judge: ?float} $avgs
+     * @return array{groups: array<string, array{label: string, avg: ?float, weight: float, share: ?float, contribution: ?float}>, final: ?float, weight_used: float}
      */
-    public static function finalMark(?float $au, ?float $aj, ?float $ac, array $w): ?float
+    public static function breakdown(array $avgs, array $weights): array
     {
-        $num = 0.0;
-        $den = 0.0;
-        foreach ([[$au, $w['w_user']], [$aj, $w['w_judge']], [$ac, $w['w_complete']]] as [$a, $wt]) {
-            if ($a !== null && $wt > 0) {
-                $num += $wt * $a;
-                $den += $wt;
+        $used = 0.0;
+        foreach (self::GROUPS as $g => [$wk]) {
+            if (($avgs[$g] ?? null) !== null && (float) $weights[$wk] > 0) {
+                $used += (float) $weights[$wk];
+            }
+        }
+        $groups = [];
+        $final  = null;
+        foreach (self::GROUPS as $g => [$wk, $label]) {
+            $a      = $avgs[$g] ?? null;
+            $w      = (float) $weights[$wk];
+            $counts = $a !== null && $w > 0 && $used > 0;
+            $share  = $counts ? $w / $used : null;
+            $groups[$g] = ['label' => $label, 'avg' => $a, 'weight' => $w, 'share' => $share, 'contribution' => $counts ? $a * $share : null];
+            if ($counts) {
+                $final = ($final ?? 0.0) + $a * $share;
             }
         }
 
-        return $den > 0 ? $num / $den : null;
+        return ['groups' => $groups, 'final' => $final, 'weight_used' => $used];
+    }
+
+    /** Breakdown for a stored or computed result row. */
+    public static function breakdownFor(array $row, array $weights): array
+    {
+        $f = static fn ($v) => $v === null ? null : (float) $v;
+
+        return self::breakdown(['general' => $f($row['avg_general']), 'representative' => $f($row['avg_representative']), 'judge' => $f($row['avg_judge'])], $weights);
     }
 
     /**
      * Rank by final mark (desc). Equal final marks (at stored precision, 4 dp)
-     * share a rank; within a tie order by A_j then A_u (desc). No mark → no rank.
+     * share a rank; within a tie order by judges, then representatives, then
+     * general reviewers (desc). No mark → no rank.
      */
     public static function rank(array $results): array
     {
-        usort($results, static function ($a, $b): int {
+        $key = static fn ($r) => [round($r['final_mark'], 4), $r['avg_judge'] ?? -1, $r['avg_representative'] ?? -1, $r['avg_general'] ?? -1];
+        usort($results, static function ($a, $b) use ($key): int {
             if ($a['final_mark'] === null || $b['final_mark'] === null) {
                 return ($a['final_mark'] === null) <=> ($b['final_mark'] === null);
             }
 
-            return [round($b['final_mark'], 4), $b['avg_judge'] ?? -1, $b['avg_user'] ?? -1]
-                <=> [round($a['final_mark'], 4), $a['avg_judge'] ?? -1, $a['avg_user'] ?? -1];
+            return $key($b) <=> $key($a);
         });
         $rank = 0;
         $prev = null;
@@ -221,10 +353,10 @@ class ScoringService
                 $r['rank'] = null;
                 continue;
             }
-            $key = round($r['final_mark'], 4);
-            if ($key !== $prev) {
+            $k = round($r['final_mark'], 4);
+            if ($k !== $prev) {
                 $rank = $i + 1;
-                $prev = $key;
+                $prev = $k;
             }
             $r['rank'] = $rank;
         }

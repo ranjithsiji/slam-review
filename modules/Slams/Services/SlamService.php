@@ -21,6 +21,9 @@ class SlamService
         'pincode', 'latitude', 'longitude', 'map_url', 'contact_name', 'contact_phone', 'contact_email',
     ];
 
+    /** Safety limit used when the organiser leaves the hard stop blank. */
+    public const DEFAULT_HARD_STOP_HOURS = 24;
+
     public const TIME_FIELDS = ['opens_at', 'checkin_opens_at', 'checkin_closes_at', 'reviews_start_at', 'closes_at', 'event_ends_at'];
 
     public const AUTOMATION_FIELDS = [
@@ -70,7 +73,7 @@ class SlamService
             // alter an existing slam, and start with default group weights.
             service('questions')->copyTemplatesInto($id);
             $db->table('score_config')->insert([
-                'slam_id' => $id, 'w_user' => 40, 'w_judge' => 40, 'w_complete_reviewer' => 20,
+                'slam_id' => $id, 'w_general' => 40, 'w_judge' => 40, 'w_representative' => 20,
                 'updated_by' => $actor->id, 'updated_at' => $now,
             ]);
 
@@ -80,6 +83,26 @@ class SlamService
 
             return $id;
         });
+    }
+
+    /**
+     * The slam an organiser most likely means when they open a slam-less screen
+     * (sidebar links): the one asked for, else a running slam, else the next
+     * upcoming one, else the latest.
+     */
+    public function currentId(?int $requested = null): ?int
+    {
+        if ($requested !== null && Db::value('SELECT id FROM slams WHERE id = ?', [$requested]) !== null) {
+            return $requested;
+        }
+        $running = Db::value("SELECT id FROM slams WHERE status IN ('open','checkin_open','checkin_closed','reviewing','reviews_complete','revision','revision_closed','closed') ORDER BY opens_at DESC LIMIT 1");
+        if ($running !== null) {
+            return (int) $running;
+        }
+        $upcoming = Db::value("SELECT id FROM slams WHERE status <> 'ended' AND opens_at >= ? ORDER BY opens_at ASC LIMIT 1", [Clock::addMinutes(Clock::db(), -24 * 60)]);
+        $id       = $upcoming ?? Db::value('SELECT id FROM slams ORDER BY opens_at DESC LIMIT 1');
+
+        return $id === null ? null : (int) $id;
     }
 
     /** @param array<string, mixed> $input */
@@ -222,6 +245,14 @@ class SlamService
             }
         }
 
+        if (array_key_exists('auto_mode', $input) && $input['auto_mode'] !== '') {
+            if (! in_array($input['auto_mode'], ['auto', 'manual'], true)) {
+                $errors['auto_mode'] = 'Choose manual or automatic.';
+            } else {
+                $data['auto_mode'] = $input['auto_mode'];
+            }
+        }
+
         // Times: merge with current values, then validate the whole chain.
         $times = [];
         foreach (self::TIME_FIELDS as $f) {
@@ -232,6 +263,11 @@ class SlamService
             } else {
                 $times[$f] = $current[$f] ?? null;
             }
+        }
+        // Nobody can predict when a slam will end: a blank hard stop defaults to a
+        // safety limit 24 hours after Slam open (the admin closes the slam by hand).
+        if (empty($times['closes_at']) && ! empty($times['opens_at']) && (array_key_exists('closes_at', $input) || $current === null)) {
+            $times['closes_at'] = $data['closes_at'] = Clock::addMinutes($times['opens_at'], self::DEFAULT_HARD_STOP_HOURS * 60);
         }
         $errors += $this->validateTimes($times, $current);
 

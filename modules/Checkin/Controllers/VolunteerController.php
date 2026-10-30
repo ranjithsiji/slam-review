@@ -61,7 +61,7 @@ class VolunteerController extends BaseController
         });
     }
 
-    /** Desk check-in by scan (URL or ID), typed ID, or attendee id from search. */
+    /** Late check-in (after Gate Close) by scan (URL or ID), typed ID, or attendee id from search. */
     public function checkin(): ResponseInterface
     {
         $in = $this->input();
@@ -78,7 +78,7 @@ class VolunteerController extends BaseController
                 service('activityLog')->log($this->actor(), 'checkin.rejected', ['slam_id' => $slamId, 'outcome' => 'failure', 'reason' => 'not_registered']);
                 throw new DomainException('not_registered', 'Not registered for this slam. Please direct the person to the organisers.', 404);
             }
-            $r = service('checkins')->deskCheckin((int) $att['id'], $this->actor());
+            $r = service('checkins')->lateCheckin((int) $att['id'], isset($in['reason']) ? (string) $in['reason'] : null, $this->actor());
 
             return ['ok' => true, 'attendee' => ['id' => (int) $att['id'], 'name' => $att['name'], 'badge_id' => $att['badge_id'], 'user_type' => $att['user_type']], 'checkin_id' => $r['checkin_id']];
         });
@@ -99,7 +99,7 @@ class VolunteerController extends BaseController
     {
         $in = $this->input();
 
-        return $this->api(fn () => service('checkins')->lateOverride((int) ($in['attendee_id'] ?? 0), (string) ($in['reason'] ?? ''), $this->actor()) + ['ok' => true]);
+        return $this->api(fn () => service('checkins')->lateCheckin((int) ($in['attendee_id'] ?? 0), (string) ($in['reason'] ?? ''), $this->actor()) + ['ok' => true]);
     }
 
     /** Simple JSON search (name, mobile, email, ID); results show registered + checked-in state. */

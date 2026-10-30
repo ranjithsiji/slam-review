@@ -2,6 +2,10 @@
 
 /** @var \CodeIgniter\Router\RouteCollection $routes */
 $routes->group('', ['namespace' => 'Modules\Attendees\Controllers', 'filter' => 'auth:admin'], static function ($routes): void {
+    // Sidebar screens: reviewers, judges and representatives (the last lives in the Scoring module).
+    $routes->get('admin/(reviewers|judges|representatives)', 'ParticipantsController::go/$1');
+    $routes->get('admin/slams/(:num)/reviewers', 'ParticipantsController::reviewers/$1');
+    $routes->get('admin/slams/(:num)/judges', 'ParticipantsController::judges/$1');
     $routes->get('admin/slams/(:num)/attendees', 'AttendeesController::index/$1');
     $routes->get('admin/slams/(:num)/attendees/new', 'AttendeesController::form/$1');
     $routes->post('admin/slams/(:num)/attendees', 'AttendeesController::create/$1');

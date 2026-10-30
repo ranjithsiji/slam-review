@@ -88,10 +88,12 @@ export function initTable(el, cfg) {
     orderable: c.orderable !== false,
     className: c.className || '',
     responsivePriority: c.priority ?? 100,
-    render: (v, type, row) => (type === 'display' ? (renderers[c.render || 'text'] || renderers.text)(v, row) : v),
+    defaultContent: '',
+    render: (v, type, row) => (type === 'display' ? (renderers[c.render || 'text'] || renderers.text)(v, row) : (v ?? '')),
   }));
   if (actions.length) {
-    columns.push({ data: '_actions', title: '<span class="visually-hidden">Actions</span>', orderable: false, className: 'text-end', responsivePriority: 1, render: (_, type, row) => actionsHtml(actions, row) });
+    // data: null — the action menu is built from the whole row, not from a field.
+    columns.push({ data: null, defaultContent: '', title: '<span class="visually-hidden">Actions</span>', orderable: false, searchable: false, className: 'text-end', responsivePriority: 1, render: (_, type, row) => (type === 'display' ? actionsHtml(actions, row) : '') });
   }
 
   const narrow = window.matchMedia('(max-width: 575.98px)').matches;
@@ -150,7 +152,8 @@ export function initTable(el, cfg) {
       const extra = Object.fromEntries(Object.entries(a.body || {}).map(([k, v]) => [k, typeof v === 'string' ? decodeURIComponent(fill(v, row)) : v]));
       const res = await post(fill(a.post, row), { ...extra, reason });
       toast(a.success || res?.message || 'Done.');
-      dt.ajax.reload(null, false);
+      if (a.reloadPage) setTimeout(() => window.location.reload(), 600);
+      else dt.ajax.reload(null, false);
     } catch (e) {
       toast(e.message, 'error');
     }

@@ -25,7 +25,7 @@ Each feature lives in `modules/{Module}/`, which contains `Config/Routes.php`, `
 
 | Module | Responsibility |
 |---|---|
-| Core | Clock (server time), Actor, transaction/lock helpers, filters, DataTableService, layouts, view helpers, PDF factory, demo seeder |
+| Core | Clock (server time, display timezone), settings page, Actor, transaction/lock helpers, filters, DataTableService, layouts, view helpers, PDF factory, demo seeder |
 | ActivityLog | Append-only `activity_log`, its writer service and the viewer |
 | Accounts | Admin and volunteer login, login throttling, volunteer accounts |
 | Slams | Slam details and times, the **phase state machine** (`SlamPhaseService`), review and edit windows, the control panel, cron tick |
@@ -34,7 +34,7 @@ Each feature lives in `modules/{Module}/`, which contains `Config/Routes.php`, `
 | Attendees | Badge IDs, CSV import, QR codes, badge PDFs, ID reissue |
 | Checkin | Public check-in pages, volunteer desk, force checkout, late entry, monitor |
 | Reviews | Questions, review submit and revise, the reviewer screen, the live-state document |
-| Scoring | Weighted marks, mark runs (snapshots), statistics, complete reviewers |
+| Scoring | Three-group weighted marks with a calculation breakdown, audience representatives (random draw + admin edits), mark runs (snapshots), statistics |
 | PublicSite | Public schedule pages, JSON and `.ics` |
 
 The frontend mirrors this layout: `frontend/modules/{reviewer,volunteer,control,schedule,questions}`, with shared code in `frontend/shared` and the theme in `frontend/theme`. The semantic colour and icon maps are `frontend/theme/semantic.json` and `icons.json`; the build copies them to `public/assets/ui-map.json` so PHP views use the same maps.
@@ -74,7 +74,7 @@ Create real admins with `php spark slam:create-admin <username> "<Full name>"`.
 vendor/bin/phpunit
 ```
 
-The suite runs against the `database.tests.*` connection (`slam_test`), which is wiped on every run. There are 48 tests (628 assertions) covering the phase transition table and the automatic timeline (gate, windows, changeover, running late, hold, manual mode, hard stop, readiness), check-in rules (gate, single device, throttling, forced checkout, desk claim, late override), review submission (window boundaries, idempotency, 1–10 validation, question locking), revision, schedule validation, re-flow, reorder preview, 409 conflicts, live-mode locks, seeded shuffle and break extension, scoring (weights, re-normalisation, ties, complete reviewers, mark runs and recalculation), CSV import (BOM, `;`, duplicates, both modes, 5,001 rows), QR decoding, Malayalam in badge PDFs, and the DataTable contract (paging cap, allow-lists, injection strings, volunteer scope, exports).
+The suite runs against the `database.tests.*` connection (`slam_test`), which is wiped on every run. There are 66 tests (797 assertions) covering the phase transition table and the automatic timeline (gate, windows, changeover, running late, hold, manual mode, hard stop, readiness), check-in rules (gate, single device, throttling, forced checkout, desk claim, late override), review submission (window boundaries, idempotency, 1–10 validation, question locking), revision, schedule validation, re-flow, reorder preview, 409 conflicts, live-mode locks, seeded shuffle and break extension, scoring (5-mark questions scaled to 10, the three groups, re-normalisation, ties, the representative draw and edits, mark runs and recalculation), timezone and 12/24-hour settings, CSV import (BOM, `;`, duplicates, both modes, 5,001 rows), QR decoding, Malayalam in badge PDFs, and the DataTable contract (paging cap, allow-lists, injection strings, volunteer scope, exports).
 
 ### Load test
 
@@ -125,10 +125,21 @@ The app also needs `CREATE TEMPORARY TABLES`, because provisional marks are comp
 
 ## Decisions and notes
 
+- **Organiser layout** is Tabler's *fluid vertical*: dark sidebar (Participants: Reviewers, Judges, Audience representatives), top bar with Sign out, breadcrumbs, and `data-bs-navbar-position="combined"` on `<html>` (without it this Tabler version hides the sidebar whenever a top bar exists).
+- **Performance vs. review.** A performance goes on stage first; its review can open while it is still on stage and runs on after it ends (`performing_started_at` / `performing_ended_at` on schedule items). The old control panel is replaced by the Status screen: a Now card plus a vertical timeline with one node per performance.
+- **Status screen and live bar.** `/admin/slams/{id}/status` is a vertical timeline (green done, orange now, grey upcoming) with action buttons on each card, backed by the `control-state` API; a live bar on every organiser page (`/api/admin/live`) shows what is going on in the running slams.
+- **Slams run manually by default.** Only the slam date/start is required; gate times, reviews start and event end are optional; a blank hard stop becomes 24 h after the start. Automatic mode uses the planned times.
+- **Check-in rules.** Self check-in only while the gates are open, with a name + masked mobile verification step. After Gate Close, volunteers (own slam) and admins do a late check-in. Public `/registered` tells a person whether their mobile number is registered.
+- **Judges' marks** are entered by an admin at the end of the slam (default) or given live on the phones (detailed criteria 3+3+3+1, or one overall mark); one decimal, no 0.
+
+- **Final marks use three groups.** General reviewers (audience users who are not representatives), audience representatives and judges, each with its own weight (Mark configuration, must add up to 100). Representatives are drawn at random from the audience users who reviewed every opened performance (*Representatives* tab); the admin can then add or remove people. Each person counts in one group only. Groups without reviews drop out and the other weights are re-normalised. The Marks page and every mark run show the calculation per performance (average, weight, share, points).
+- **Questions have a maximum mark.** Audience questions are 5 marks each (two questions = 10), judge questions 10 by default; both are editable on the Questions page until the first review of that audience. Each review mark is scaled to 10: `10 × Σ(weight × score ÷ max) ÷ Σ weight`.
+- **Timezone and clock are settings** (Admin → Settings): default Asia/Kolkata and 24-hour, overridable in `.env` as `slam.timezone` / `slam.timeFormat`. The database stores UTC, so changing the zone changes how times are typed and shown, never when things happen. The page also shows the server clock and this device's drift.
+
 - **UI: Tabler** (owner's choice), replacing the earlier Bootswatch Cosmo plan. CLAUDE.md has been updated to match.
 - **Malayalam in PDFs uses the Manjari font.** mPDF cannot parse the GPOS tables of current Noto Sans Malayalam builds. Manjari (SMC, OFL) shapes conjuncts and vowel signs correctly. Web pages use Noto Sans Malayalam, which browsers shape correctly.
 - **Rate limits and venue NAT.** A whole hall usually shares one public IP, so poll and review limits are applied per check-in session, while the per-IP limits (check-in, public pages) are sized for a full hall. Failed check-ins are throttled per ID (5 per 10 minutes, then a 15-minute lockout) and per IP (higher limits, configurable in `modules/Core/Config/Slam.php`).
-- **Check-in on a phone after a desk check-in.** A volunteer check-in (or an admin late entry) creates an *unclaimed* check-in. The attendee's phone claims it on its first badge scan. A second phone using the same badge is rejected and sent to the volunteer desk.
+- **Check-in on a phone after a desk check-in.** A late check-in by a volunteer or admin (after Gate Close) creates an *unclaimed* check-in. The attendee's phone claims it on its first badge scan. A second phone using the same badge is rejected and sent to the volunteer desk.
 - **`tick()`** compares the clock with a cached next-due time and takes a non-blocking `GET_LOCK` only when something is due. Cron and admin actions use the blocking path. All phase writes hold the slam row lock.
 - **Auto mode opens the edit window by itself** after All Review Close (for `edit_window_minutes`; 0 skips it). The control panel offers manual open and skip only in manual mode or while the slam is held.
 - **Tables that are not DataTables.** Like the schedule maker, the review-questions editor is a Vue card list (it reorders and edits inline). The reviewer and public screens are card layouts, as the spec requires.
@@ -142,4 +153,3 @@ The app also needs `CREATE TEMPORARY TABLES`, because provisional marks are comp
 - Public domain for `APP_CHECKIN_URL`, and the physical badge size.
 - Whether finalists flow automatically from the regionals into the final. For now the final is set up by hand, reusing presenters through the presenter pool or "Add existing presenter".
 - Expected number of phones per slam (this sizes the polling interval and caching).
-- Whether the complete-reviewer weight should also apply to judges. Currently it applies to audience users only.

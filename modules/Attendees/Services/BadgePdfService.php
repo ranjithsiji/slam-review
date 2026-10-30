@@ -78,7 +78,7 @@ class BadgePdfService
         $size = $format === 'A3' ? 200 : 140;
         $html = '<div style="text-align:center;font-family:dejavusans">'
             . ($slam !== null ? '<div style="font-size:26pt;font-weight:bold">' . esc($slam['name']) . '</div>'
-                . '<div style="font-size:14pt">' . esc(Clock::ist($slam['opens_at'], 'l, d F Y')) . ' · ' . esc($slam['venue_name']) . '</div>' : '')
+                . '<div style="font-size:14pt">' . esc(Clock::local($slam['opens_at'], 'l, d F Y')) . ' · ' . esc($slam['venue_name']) . '</div>' : '')
             . '<div style="font-size:30pt;font-weight:bold;margin-top:12mm">Check in here</div>'
             . '<div style="font-size:14pt;margin:4mm 0 8mm">Scan with your phone camera, then type the ID printed on your badge</div>'
             . '<img src="data:image/svg+xml;base64,' . base64_encode($qr->svg($url)) . '" style="width:' . $size . 'mm;height:' . $size . 'mm" />'

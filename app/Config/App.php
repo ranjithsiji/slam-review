@@ -199,4 +199,19 @@ class App extends BaseConfig
      * @see http://www.w3.org/TR/CSP/
      */
     public bool $CSPEnabled = false;
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Development only: follow the address the app was opened at (127.0.0.1,
+        // another port, or a LAN IP for testing on a phone), so links, forms and
+        // assets stay same-origin and the strict Content-Security-Policy allows
+        // them. Production always uses the fixed app.baseURL from .env.
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        if (ENVIRONMENT === 'development' && PHP_SAPI !== 'cli' && preg_match('/^[A-Za-z0-9.\-]+(:\d+)?$|^\[[0-9a-fA-F:]+\](:\d+)?$/', $host)) {
+            $https         = ! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+            $this->baseURL = ($https ? 'https' : 'http') . '://' . $host . '/';
+        }
+    }
 }

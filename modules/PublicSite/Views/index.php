@@ -1,9 +1,10 @@
 <?php $this->setVar('title', 'Science Slam schedules'); $this->setVar('indexable', true); ?>
+<?php $this->setVar('ownToggle', true); ?>
 <?= $this->extend('Modules\Core\Views\layouts\public') ?>
 <?= $this->section('top') ?>
 <header class="navbar navbar-expand"><div class="container-xl">
-    <a href="<?= site_url('/') ?>" class="navbar-brand fw-bold"><?= icon('status.live', 'text-primary me-1') ?>Science Slam</a>
-    <div class="ms-auto"><button type="button" class="btn btn-ghost-secondary btn-icon" data-theme-toggle aria-label="Toggle dark mode"><?= icon('theme.dark') ?></button></div>
+    <a href="<?= site_url('/') ?>" class="navbar-brand"><?= brand_logo('brand-logo-nav') ?></a>
+    <div class="ms-auto"><?= theme_toggle() ?></div>
 </div></header>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
@@ -16,7 +17,7 @@
                 <div class="card-body">
                     <div class="mb-2"><?= status_badge('public', $s['badge']) ?></div>
                     <h3 class="card-title mb-1"><?= esc($s['name']) ?></h3>
-                    <div class="text-secondary"><?= icon('nav.slams', 'icon-inline me-1') ?><?= esc(ist($s['opens_at'], 'l, d M Y')) ?></div>
+                    <div class="text-secondary"><?= icon('nav.slams', 'icon-inline me-1') ?><?= esc(local_time($s['opens_at'], 'l, d M Y')) ?></div>
                     <div class="text-secondary"><?= icon('place.venue', 'icon-inline me-1') ?><?= esc($s['venue_name']) ?><?= $s['city'] ? ', ' . esc($s['city']) : '' ?></div>
                 </div>
             </a>

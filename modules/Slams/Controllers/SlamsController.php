@@ -61,10 +61,10 @@ class SlamsController extends BaseController
     public function save(?int $id = null): RedirectResponse
     {
         $in = $this->input();
-        // The form takes a date plus IST times; convert to UTC.
+        // The form takes times in the display timezone; convert to UTC.
         foreach (\Modules\Slams\Services\SlamService::TIME_FIELDS as $f) {
             if (array_key_exists($f, $in)) {
-                $in[$f] = Clock::fromIstLocal((string) $in[$f]);
+                $in[$f] = Clock::fromLocalInput((string) $in[$f]);
             }
         }
 

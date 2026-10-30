@@ -70,18 +70,68 @@ final class CheckinReviewTest extends SlamTestCase
         $this->assertNull(service('checkins')->validateSession($sess));
     }
 
-    public function testDeskCheckinIsClaimedByThePhoneAndLateOverrideIsAdminOnly(): void
+    public function testSelfCheckinShowsMaskedNameAndMobileAndNothingElse(): void
     {
-        $s = $this->makeSlam(1);
+        $s = $this->makeSlam(1, 2, 0);
+        $a = $s['users'][0];
+        // Before the gate opens a scan is refused with the opening time.
+        $this->expectReason('gate_not_open', fn () => service('checkins')->selfLookup($a['badge_id'], '5.5.5.5'));
         $this->at('2026-11-01 03:30:00', $s['id']);
-        service('checkins')->deskCheckin((int) $s['users'][0]['id'], $this->admin);
-        $claimed = service('checkins')->selfCheckin($s['users'][0]['badge_id'], '4.4.4.4');
-        $this->assertFalse($claimed['resumed']);
-        $this->at('2026-11-01 04:30:00', $s['id']);
+        $who = service('checkins')->selfLookup('https://x.example/in/' . strtolower($a['badge_id']), '5.5.5.5');
+        $this->assertSame($a['name'], $who['name']);
+        $this->assertMatchesRegularExpression('/^\d{2}•+\d{4}$/u', $who['mobile']);
+        $this->assertStringNotContainsString(substr($a['mobile'], 2, 4), $who['mobile']);
+        $this->assertSame(0, (int) Db::value('SELECT COUNT(*) FROM checkins'), 'the lookup must not check anyone in');
+        // Unknown IDs get the generic error and count towards the lockout.
+        $this->expectReason('invalid_id', fn () => service('checkins')->selfLookup('ZZ00000', '5.5.5.5'));
+        $this->assertSame('98••••3210', \Modules\Checkin\Services\CheckinService::maskMobile('9876543210'));
+    }
+
+    public function testRegistrationLookupByMobileIsMinimal(): void
+    {
+        $s = $this->makeSlam(1, 2, 0);
+        $a = $s['users'][0];
+        $rows = service('checkins')->registrationLookup(' +91 ' . substr($a['mobile'], 0, 5) . '-' . substr($a['mobile'], 5));
+        $this->assertCount(1, $rows);
+        $this->assertSame(['slam_name', 'opens_at', 'venue_name', 'user_type'], array_keys($rows[0]));
+        $this->assertSame([], service('checkins')->registrationLookup('9000000001'));
+        $this->expectReason('validation', fn () => service('checkins')->registrationLookup('12345'));
+    }
+
+    public function testLateCheckinByVolunteerOrAdminOnlyAfterGateClose(): void
+    {
+        $s   = $this->makeSlam(1, 3, 0);
         $vol = new \Modules\Core\Libraries\Actor('volunteer', 1, 'v', $s['id']);
-        $this->expectReason('forbidden', fn () => service('checkins')->lateOverride((int) $s['users'][1]['id'], 'late bus', $vol));
-        service('checkins')->lateOverride((int) $s['users'][1]['id'], 'late bus', $this->admin);
-        $this->assertSame(1, (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'checkin.late_override'"));
+        $other = new \Modules\Core\Libraries\Actor('volunteer', 2, 'v2', $s['id'] + 99);
+        $checkins = service('checkins');
+
+        // While the gates are open the attendee checks in themself, not the desk.
+        $this->at('2026-11-01 03:30:00', $s['id']);
+        $this->expectReason('self_checkin', fn () => $checkins->lateCheckin((int) $s['users'][0]['id'], null, $vol));
+        $this->at('2026-11-01 04:30:00', $s['id']);
+        $this->assertSame('checkin_closed', $this->phase($s['id']));
+        // Normal self check-in is now refused.
+        $this->expectReason('gate_closed', fn () => $checkins->selfLookup($s['users'][0]['badge_id'], '6.6.6.6'));
+        // Reviewers cannot do it; a volunteer of another slam cannot either.
+        $this->expectReason('forbidden', fn () => $checkins->lateCheckin((int) $s['users'][0]['id'], null, $this->actorFor($s['users'][1])));
+        $this->expectReason('forbidden', fn () => $checkins->lateCheckin((int) $s['users'][0]['id'], null, $other));
+
+        $checkins->lateCheckin((int) $s['users'][0]['id'], 'train delayed', $vol);
+        $checkins->lateCheckin((int) $s['users'][1]['id'], null, $this->admin);
+        $this->expectReason('already_checked_in', fn () => $checkins->lateCheckin((int) $s['users'][0]['id'], null, $vol));
+        $this->assertSame(2, (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'checkin.late_override'"));
+        $this->assertSame('train delayed', Db::value("SELECT reason FROM activity_log WHERE action = 'checkin.late_override' ORDER BY id LIMIT 1"));
+        $this->assertSame('volunteer', Db::value('SELECT checked_in_by_type FROM checkins WHERE attendee_id = ?', [$s['users'][0]['id']]));
+
+        // The phone claims the desk check-in on its first scan, even though the gate is closed.
+        $who = $checkins->selfLookup($s['users'][0]['badge_id'], '7.7.7.7');
+        $this->assertSame($s['users'][0]['name'], $who['name']);
+        $claimed = $checkins->selfCheckin($s['users'][0]['badge_id'], '7.7.7.7');
+        $this->assertFalse($claimed['resumed']);
+        // A second phone is turned away.
+        $this->expectReason('already_checked_in', fn () => $checkins->selfCheckin($s['users'][0]['badge_id'], '8.8.8.8'));
+        // Someone never checked in at the desk still cannot self check-in.
+        $this->expectReason('gate_closed', fn () => $checkins->selfCheckin($s['users'][2]['badge_id'], '9.9.9.9'));
     }
 
     public function testReviewSubmitRules(): void

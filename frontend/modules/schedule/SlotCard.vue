@@ -32,7 +32,7 @@
 
       <div v-if="editing" class="border-top mt-2 pt-2">
         <div class="row g-2">
-          <div class="col-6 col-md-3"><label class="form-label small mb-0">Start (IST)</label><input type="time" class="form-control" :value="ist.time" :disabled="locked" @change="setTime($event.target.value)"></div>
+          <div class="col-6 col-md-3"><label class="form-label small mb-0">Start ({{ tzLabel }})</label><input type="time" class="form-control" :value="ist.time" :disabled="locked" @change="setTime($event.target.value)"></div>
           <div class="col-6 col-md-3"><label class="form-label small mb-0">Minutes</label><input type="number" min="1" max="240" class="form-control" :value="it.duration_minutes" :disabled="locked" @change="$emit('patch', { duration_minutes: Number($event.target.value) })"></div>
           <div v-if="it.item_type === 'break'" class="col-12 col-md-6"><label class="form-label small mb-0">Label</label><input class="form-control" maxlength="150" :value="it.label" :disabled="locked" @change="$emit('patch', { label: $event.target.value })"></div>
           <div class="col-6 col-md-3"><label class="form-label small mb-0">Move to position</label><input type="number" min="1" :max="count" class="form-control" :value="index + 1" :disabled="locked" @change="$emit('moveTo', Number($event.target.value) - 1)"></div>
@@ -52,7 +52,7 @@
 import { computed } from 'vue';
 import Icon from '../../shared/components/Icon.vue';
 import StatusBadge from '../../shared/components/StatusBadge.vue';
-import { time, isoToIst, istToIso } from '../../shared/clock.js';
+import { time, isoToLocal, localToIso, tzLabel } from '../../shared/clock.js';
 import { endOf, isLockedSlot } from './logic.js';
 
 const props = defineProps({
@@ -65,7 +65,7 @@ const locked = computed(() => isLockedSlot(props.it));
 const first = computed(() => props.index === 0);
 const last = computed(() => props.index === props.count - 1);
 const hasError = computed(() => (props.messages || []).some((m) => m.type === 'error'));
-const ist = computed(() => isoToIst(props.it.planned_start_at));
+const ist = computed(() => isoToLocal(props.it.planned_start_at));
 const cls = computed(() => (props.it.item_type === 'break' ? 'slot-break' : `slot-${props.it.status}`));
-function setTime(v) { if (v) emit('patch', { planned_start_at: istToIso(ist.value.date, v) }); }
+function setTime(v) { if (v) emit('patch', { planned_start_at: localToIso(ist.value.date, v) }); }
 </script>

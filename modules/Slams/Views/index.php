@@ -22,7 +22,7 @@
         ],
         'actions' => [
             ['label' => 'Open', 'icon' => 'action.open', 'href' => '/admin/slams/{id}'],
-            ['label' => 'Control panel', 'icon' => 'nav.control', 'href' => '/admin/slams/{id}/control'],
+            ['label' => 'Status & live controls', 'icon' => 'nav.status', 'href' => '/admin/slams/{id}/status'],
             ['label' => 'Edit', 'icon' => 'action.edit', 'href' => '/admin/slams/{id}/edit'],
         ],
     ]), 'attr') ?>'></table>

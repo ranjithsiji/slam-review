@@ -25,9 +25,22 @@ class AttendeesController extends BaseController
         ]);
     }
 
+    /** Where to return after saving: the screen the organiser came from. */
+    private function backUrl(int $slamId): string
+    {
+        $back = (string) ($this->request->getPost('back') ?? $this->request->getGet('back') ?? 'attendees');
+
+        return site_url("admin/slams/{$slamId}/" . (in_array($back, ['reviewers', 'judges', 'attendees'], true) ? $back : 'attendees'));
+    }
+
     public function form(int $slamId): string
     {
-        return $this->render('Modules\Attendees\Views\form', ['title' => 'Add attendee', 'slam' => service('slams')->find($slamId), 'a' => null]);
+        $type = $this->request->getGet('type');
+
+        return $this->render('Modules\Attendees\Views\form', [
+            'title' => $type === 'judge' ? 'Add judge' : ($type === 'user' ? 'Add reviewer' : 'Add attendee'), 'slam' => service('slams')->find($slamId), 'a' => null,
+            'defaultType' => $type === 'judge' ? 'judge' : 'user', 'back' => (string) ($this->request->getGet('back') ?? 'attendees'),
+        ]);
     }
 
     public function create(int $slamId): RedirectResponse
@@ -35,7 +48,7 @@ class AttendeesController extends BaseController
         return $this->formAction(function () use ($slamId) {
             service('attendees')->create($slamId, $this->input(), $this->actor());
 
-            return site_url("admin/slams/{$slamId}/attendees");
+            return $this->backUrl($slamId);
         }, 'Attendee registered and badge ID generated.');
     }
 
@@ -46,6 +59,7 @@ class AttendeesController extends BaseController
         return $this->render('Modules\Attendees\Views\form', [
             'title' => 'Edit attendee', 'slam' => service('slams')->find((int) $a['slam_id']), 'a' => $a,
             'status' => service('checkins')->status($id), 'qrUrl' => service('qr')->badgeUrl($a['badge_id']),
+            'defaultType' => $a['user_type'], 'back' => (string) ($this->request->getGet('back') ?? 'attendees'),
         ]);
     }
 
@@ -56,7 +70,7 @@ class AttendeesController extends BaseController
         return $this->formAction(function () use ($id, $slamId) {
             service('attendees')->update($id, $this->input(), $this->actor());
 
-            return site_url("admin/slams/{$slamId}/attendees");
+            return $this->backUrl($slamId);
         }, 'Attendee updated.');
     }
 

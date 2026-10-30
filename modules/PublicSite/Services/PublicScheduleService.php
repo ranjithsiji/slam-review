@@ -22,7 +22,7 @@ class PublicScheduleService
     public function listPublished(): array
     {
         $rows  = Db::rows("SELECT * FROM slams WHERE schedule_is_public = 1 AND status <> 'draft' ORDER BY opens_at");
-        $today = Clock::now()->setTimezone(new \DateTimeZone(Clock::DISPLAY_TZ))->format('Y-m-d');
+        $today = Clock::localToday();
         foreach ($rows as &$s) {
             $s['badge'] = $this->badge($s, $today);
         }
@@ -32,7 +32,7 @@ class PublicScheduleService
 
     public function badge(array $s, ?string $today = null): string
     {
-        $today ??= Clock::now()->setTimezone(new \DateTimeZone(Clock::DISPLAY_TZ))->format('Y-m-d');
+        $today ??= Clock::localToday();
         if (in_array($s['status'], ['closed', 'marks_calculated', 'ended'], true)) {
             return 'finished';
         }
@@ -40,7 +40,7 @@ class PublicScheduleService
             return 'live';
         }
 
-        return Clock::ist($s['opens_at'], 'Y-m-d') === $today ? 'today' : 'upcoming';
+        return Clock::localValue($s['opens_at'], 'Y-m-d') === $today ? 'today' : 'upcoming';
     }
 
     /** Cached public JSON for one published slam (purged on any change). */
@@ -63,10 +63,13 @@ class PublicScheduleService
                 $pid = $perfOf[$row['id']] ?? null;
                 $row['abstract'] = $pid !== null ? ($details[$pid]['abstract'] ?? null) : null;
                 $row['profile']  = $pid !== null ? ($details[$pid]['profile'] ?? null) : null;
-                $row['status']   = match ($row['status']) {
-                    'open'   => $row['kind'] === 'break' ? 'break_now' : 'presenting',
-                    'closed' => 'done',
-                    default  => 'upcoming',
+                // "Presenting now" means on stage; once the performance ends it is done, even if its review window runs on.
+                $row['status']   = match (true) {
+                    $row['kind'] === 'break' && $row['status'] === 'open' => 'break_now',
+                    $row['kind'] === 'break' => $row['status'] === 'closed' ? 'done' : 'upcoming',
+                    ! empty($row['performing']) => 'presenting',
+                    in_array($row['status'], ['open', 'closed'], true) => 'done',
+                    default => 'upcoming',
                 };
                 $slots[] = array_intersect_key($row, array_flip(self::SLOT_FIELDS));
             }

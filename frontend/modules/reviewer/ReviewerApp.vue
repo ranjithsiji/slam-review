@@ -2,6 +2,8 @@
   <ConnBanner :status="poll.status.value" />
   <header class="navbar navbar-expand sticky-top bg-body border-bottom">
     <div class="container container-tight d-flex align-items-center">
+      <img :src="logo.light" alt="Kerala Science Slam" class="brand-logo brand-logo-light me-2" style="height:2.25rem">
+      <img :src="logo.dark" alt="Kerala Science Slam" class="brand-logo brand-logo-dark me-2" style="height:2.25rem">
       <div class="me-auto min-w-0">
         <div class="fw-bold text-truncate">{{ s.slam?.name || 'Science Slam' }}</div>
         <div class="small text-secondary text-truncate">{{ me.name }} · <code>{{ me.badge_id }}</code> · {{ me.user_type === 'judge' ? 'Judge' : 'Reviewer' }}</div>
@@ -13,7 +15,7 @@
     </div>
   </header>
 
-  <main class="container container-tight py-3" style="padding-bottom: 6rem !important">
+  <main class="container container-tight py-3 has-bottom-nav" style="padding-bottom: 9rem !important">
     <div v-if="welcome" class="alert alert-success" role="status">{{ welcome }}</div>
     <div v-if="!loaded" class="text-center py-5"><div class="spinner-border" role="status"></div></div>
 
@@ -25,20 +27,27 @@
           <div class="card-status-top bg-red"></div>
           <div class="card-body">
             <div class="d-flex align-items-center mb-3">
-              <span class="badge bg-red-lt me-auto"><Icon name="status.live" cls="icon-inline me-1" />Review open</span>
+              <span class="badge bg-red-lt me-auto"><Icon name="status.live" cls="icon-inline me-1" />Review open<template v-if="cur.performing === false"> · performance ended</template></span>
               <Countdown :until="cur.closes_at" size="xl" />
             </div>
             <PresenterCard :item="cur" />
           </div>
         </div>
 
-        <div v-if="s.already_reviewed" class="card">
+        <div v-if="s.judge_offline" class="card">
+          <div class="card-body text-center py-4">
+            <Icon name="person.judge" cls="icon-xl text-purple mb-2" />
+            <div class="h2">Judges' marks are collected after the slam</div>
+            <div class="text-secondary">For this slam the organisers enter each judge's mark at the end. Keep your score sheet; nothing to submit here.</div>
+          </div>
+        </div>
+        <div v-else-if="s.already_reviewed" class="card">
           <div class="card-body text-center py-4">
             <Icon name="status.ok" cls="icon-xl text-green mb-2" />
             <div class="h2">Review submitted</div>
             <div class="text-secondary mb-2">Thank you! You can change scores in the edit window at the end.</div>
             <div v-if="s.my_review" class="d-flex flex-wrap justify-content-center gap-2">
-              <span v-for="a in s.my_review.answers" :key="a.question_id" class="badge bg-primary-lt fs-4">{{ qIndex(a.question_id) }}: {{ a.score }}</span>
+              <span v-for="a in s.my_review.answers" :key="a.question_id" class="badge bg-primary-lt fs-4">{{ qIndex(a.question_id) }}: {{ a.score }}<span class="text-secondary">/{{ qMax(a.question_id) }}</span></span>
             </div>
           </div>
         </div>
@@ -149,6 +158,8 @@ import EditList from './EditList.vue';
 
 const props = defineProps({ boot: Object });
 const me = props.boot.me || {};
+const metaContent = (n) => document.querySelector(`meta[name="${n}"]`)?.content || '';
+const logo = { light: metaContent('brand-logo'), dark: metaContent('brand-logo-dark') };
 const welcome = ref(props.boot.welcome || '');
 const s = reactive({});
 const loaded = ref(false);
@@ -189,6 +200,7 @@ const message = computed(() => {
     case 'checkin_closed':
       return { icon: 'status.ok', color: 'green', title: 'You are checked in', text: 'Keep this page open. The review form appears here when a performance starts.', showNext: true };
     case 'reviewing':
+      if (s.presenting) return { icon: 'status.live', color: 'orange', title: `Now presenting: ${s.presenting.presenter_name}`, text: `${s.presenting.topic || ''} The review form opens here soon.`.trim(), showNext: true };
       return { icon: 'status.time', color: 'primary', title: 'Waiting for the next performance', text: 'The review form will appear here automatically.', showNext: true };
     case 'reviews_complete':
       return { icon: 'phase.reviews_complete', color: 'secondary', title: 'Reviews closed', text: 'The edit window opens soon. You will be able to adjust your scores.' };
@@ -198,8 +210,9 @@ const message = computed(() => {
       return { icon: 'status.time', color: 'secondary', title: 'Please wait', text: '' };
   }
 });
-const complete = computed(() => (s.questions || []).length > 0 && s.questions.every((q) => Number.isInteger(answers[q.id])));
+const complete = computed(() => (s.questions || []).length > 0 && s.questions.every((q) => typeof answers[q.id] === 'number' && answers[q.id] > 0));
 const qIndex = (qid) => (s.questions || []).findIndex((q) => q.id === qid) + 1;
+const qMax = (qid) => (s.questions || []).find((q) => q.id === qid)?.max_score || 10;
 
 // Reset the form when a new performance opens.
 watch(() => cur.value.schedule_item_id, () => {

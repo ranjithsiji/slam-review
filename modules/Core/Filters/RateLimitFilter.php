@@ -25,6 +25,7 @@ class RateLimitFilter implements FilterInterface
         'poll'    => [60, MINUTE],   // per reviewer session (normal: ~15/min)
         'review'  => [30, MINUTE],   // per reviewer session
         'search'  => [120, MINUTE],  // per staff session
+        'lookup'  => [10, MINUTE],   // per IP: public "Am I registered?" by mobile
         'staff'   => [600, MINUTE],  // per IP
     ];
 

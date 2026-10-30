@@ -13,6 +13,10 @@ use Modules\Core\Libraries\DomainException;
  * Review questions per slam and audience (user / judge), plus default templates
  * (slam_id NULL) that new slams copy. Once the first review of an audience is
  * submitted in a slam, that audience's questions lock: only wording fixes.
+ *
+ * Judges have two kinds of question: the evaluation criteria (kind criterion,
+ * used in live detailed judging) and one "Overall mark" out of 10 per slam
+ * (kind total, used for consolidated judging, live or entered at the end).
  */
 class QuestionService
 {
@@ -21,16 +25,50 @@ class QuestionService
     /** @return list<array<string, mixed>> */
     public function list(?int $slamId, string $audience, bool $activeOnly = false): array
     {
-        $sql = 'SELECT * FROM review_questions WHERE ' . ($slamId === null ? 'slam_id IS NULL' : 'slam_id = ?') . ' AND audience = ?'
+        $sql = 'SELECT * FROM review_questions WHERE ' . ($slamId === null ? 'slam_id IS NULL' : 'slam_id = ?') . " AND audience = ? AND kind = 'criterion'"
             . ($activeOnly ? ' AND is_active = 1' : '') . ' ORDER BY position, id';
 
         return Db::rows($sql, $slamId === null ? [$audience] : [$slamId, $audience]);
     }
 
-    /** Active questions for an audience, in display order. */
+    /**
+     * The questions a reviewer of this audience answers, in display order. For
+     * judges that is the criteria in live detailed judging, otherwise the
+     * slam's single "Overall mark" question.
+     */
     public function active(int $slamId, string $audience): array
     {
+        if ($audience === 'judge' && service('scoring')->judging($slamId)['consolidated']) {
+            return [$this->totalQuestion($slamId)];
+        }
+
         return $this->list($slamId, $audience, true);
+    }
+
+    /** The slam's "Overall mark" judge question (created on demand for slams made before it existed). */
+    public function totalQuestion(int $slamId): array
+    {
+        $q = Db::row("SELECT * FROM review_questions WHERE slam_id = ? AND kind = 'total' LIMIT 1", [$slamId]);
+        if ($q === null) {
+            db_connect()->table('review_questions')->insert(self::totalRow($slamId));
+            $q = Db::row("SELECT * FROM review_questions WHERE slam_id = ? AND kind = 'total' LIMIT 1", [$slamId]);
+        }
+
+        return $q;
+    }
+
+    private static function totalRow(int $slamId): array
+    {
+        return [
+            'slam_id' => $slamId, 'audience' => 'judge', 'kind' => 'total', 'text' => 'Overall mark', 'help_text' => 'One consolidated mark out of 10.',
+            'weight' => 1, 'max_score' => 10, 'position' => 0, 'is_active' => 1, 'created_at' => Clock::db(), 'updated_at' => Clock::db(),
+        ];
+    }
+
+    /** Judges may give one decimal place (minimum 0.1); the audience gives whole marks from 1. */
+    public static function step(string $audience): float
+    {
+        return $audience === 'judge' ? 0.1 : 1.0;
     }
 
     public function isLocked(?int $slamId, string $audience): bool
@@ -59,10 +97,11 @@ class QuestionService
         foreach (Db::rows('SELECT * FROM review_questions WHERE slam_id IS NULL AND is_active = 1 ORDER BY audience, position, id') as $q) {
             $db->table('review_questions')->insert([
                 'slam_id' => $slamId, 'audience' => $q['audience'], 'text' => $q['text'], 'text_ml' => $q['text_ml'],
-                'help_text' => $q['help_text'], 'weight' => $q['weight'], 'position' => $q['position'], 'is_active' => 1,
+                'help_text' => $q['help_text'], 'weight' => $q['weight'], 'max_score' => $q['max_score'], 'position' => $q['position'], 'is_active' => 1,
                 'created_at' => Clock::db(), 'updated_at' => Clock::db(),
             ]);
         }
+        $db->table('review_questions')->insert(self::totalRow($slamId));
     }
 
     /**
@@ -86,7 +125,12 @@ class QuestionService
             if (! is_numeric($w) || (float) $w <= 0 || (float) $w > 100) {
                 $e['weight'] = 'Weight must be a number greater than 0 (max 100).';
             }
+            $m = $in['max_score'] ?? 10;
+            if (filter_var($m, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 10]]) === false) {
+                $e['max_score'] = 'Maximum marks must be a whole number from 1 to 10.';
+            }
             $data['weight']    = round((float) $w, 2);
+            $data['max_score'] = (int) $m;
             $data['is_active'] = array_key_exists('is_active', $in) ? (int) (bool) $in['is_active'] : 1;
         }
         if ($e !== []) {
@@ -104,7 +148,7 @@ class QuestionService
         if ($this->isLocked($slamId, $audience)) {
             throw new DomainException('questions_locked', 'Reviews have been submitted; questions can no longer be added.', 409);
         }
-        $data = $this->validate($in, false);
+        $data = $this->validate($in + ['max_score' => self::defaultMax($audience)], false);
         $pos  = (int) Db::value('SELECT COALESCE(MAX(position), 0) FROM review_questions WHERE ' . ($slamId === null ? 'slam_id IS NULL' : 'slam_id = ' . (int) $slamId) . ' AND audience = ?', [$audience]) + 10;
         $db   = db_connect();
         $db->table('review_questions')->insert($data + ['slam_id' => $slamId, 'audience' => $audience, 'position' => $pos, 'created_at' => Clock::db(), 'updated_at' => Clock::db()]);
@@ -119,7 +163,7 @@ class QuestionService
         $q      = Db::row('SELECT * FROM review_questions WHERE id = ?', [$id]) ?? throw new DomainException('not_found', 'Question not found.', 404);
         $slamId = $q['slam_id'] !== null ? (int) $q['slam_id'] : null;
         $locked = $this->isLocked($slamId, $q['audience']);
-        $data   = $this->validate($in + ['weight' => $q['weight']], $locked);
+        $data   = $this->validate($in + ['weight' => $q['weight'], 'max_score' => $q['max_score']], $locked);
         if ($locked) {
             $data = array_intersect_key($data, array_flip(['text', 'text_ml', 'help_text']));
         }
@@ -173,11 +217,11 @@ class QuestionService
                 if ($this->isLocked($toSlamId, $aud)) {
                     continue;
                 }
-                $db->table('review_questions')->where('slam_id', $toSlamId)->where('audience', $aud)->delete();
+                $db->table('review_questions')->where('slam_id', $toSlamId)->where('audience', $aud)->where('kind', 'criterion')->delete();
                 foreach ($this->list($fromSlamId, $aud, true) as $q) {
                     $db->table('review_questions')->insert([
                         'slam_id' => $toSlamId, 'audience' => $aud, 'text' => $q['text'], 'text_ml' => $q['text_ml'], 'help_text' => $q['help_text'],
-                        'weight' => $q['weight'], 'position' => $q['position'], 'is_active' => 1, 'created_at' => Clock::db(), 'updated_at' => Clock::db(),
+                        'weight' => $q['weight'], 'max_score' => $q['max_score'], 'position' => $q['position'], 'is_active' => 1, 'created_at' => Clock::db(), 'updated_at' => Clock::db(),
                     ]);
                     $copied++;
                 }
@@ -188,11 +232,18 @@ class QuestionService
         return $copied;
     }
 
+    /** Audience questions are worth 5 points each (2 × 5 = 10); judge questions 10. */
+    public static function defaultMax(string $audience): int
+    {
+        return $audience === 'user' ? 5 : 10;
+    }
+
     /** Client-safe question list for the reviewer screen. */
     public static function forClient(array $rows): array
     {
         return array_map(static fn ($q) => [
-            'id' => (int) $q['id'], 'text' => $q['text'], 'text_ml' => $q['text_ml'], 'help_text' => $q['help_text'],
+            'id' => (int) $q['id'], 'text' => $q['text'], 'text_ml' => $q['text_ml'], 'help_text' => $q['help_text'], 'max_score' => (int) $q['max_score'],
+            'step' => self::step($q['audience']),
         ], $rows);
     }
 }

@@ -244,10 +244,10 @@ class ScheduleController extends BaseController
         $slam = service('slams')->find($id);
         $fh   = fopen('php://temp', 'r+');
         fwrite($fh, "\xEF\xBB\xBF");
-        fputcsv($fh, ['#', 'start (IST)', 'end (IST)', 'minutes', 'type', 'presenter / label', 'topic', 'pinned', 'status'], ',', '"', '');
+        fputcsv($fh, ['#', 'start (' . Clock::tzLabel() . ')', 'end (' . Clock::tzLabel() . ')', 'minutes', 'type', 'presenter / label', 'topic', 'pinned', 'status'], ',', '"', '');
         foreach ($this->runSheetRows($id) as $i => $r) {
             fputcsv($fh, array_map([\Modules\Attendees\Services\AttendeeService::class, 'csvSafe'], [
-                (string) ($i + 1), Clock::ist($r['planned_start_at'], 'H:i'), Clock::ist(Clock::addMinutes($r['planned_start_at'], (int) $r['duration_minutes']), 'H:i'),
+                (string) ($i + 1), Clock::local($r['planned_start_at'], 'H:i'), Clock::local(Clock::addMinutes($r['planned_start_at'], (int) $r['duration_minutes']), 'H:i'),
                 (string) $r['duration_minutes'], $r['item_type'] === 'break' ? $r['break_type'] . ' break' : 'performance',
                 $r['item_type'] === 'break' ? $r['label'] : $r['presenter_name'], (string) $r['topic'], $r['is_pinned'] ? 'yes' : '', $r['status'],
             ]), ',', '"', '');

@@ -17,7 +17,7 @@
         <span class="badge bg-red-lt"><Icon name="status.live" cls="icon-inline me-1" />Live mode</span>
         <span>Slots that ran or are running are locked; pending slots stay editable.</span>
         <span v-if="data.projection?.late_minutes > 0" class="badge bg-orange-lt">Running late by {{ data.projection.late_minutes }} min</span>
-        <a class="btn btn-sm ms-auto" :href="`/admin/slams/${slamId}/control`">Control panel</a>
+        <a class="btn btn-sm ms-auto" :href="`/admin/slams/${slamId}/status`">Status</a>
       </div>
       <div v-if="data.locked" class="card-footer small text-secondary">Reviewing has finished; the schedule is read-only.</div>
     </div>
@@ -148,7 +148,7 @@
       <div class="modal-header"><h5 class="modal-title">Generate schedule</h5><button type="button" class="btn-close" aria-label="Close" @click="gen = null"></button></div>
       <div class="modal-body">
         <div class="row g-2">
-          <div class="col-6"><label class="form-label">First start (IST)</label><input type="time" class="form-control" v-model="gen.first"></div>
+          <div class="col-6"><label class="form-label">First start ({{ tzLabel }})</label><input type="time" class="form-control" v-model="gen.first"></div>
           <div class="col-3"><label class="form-label">Minutes</label><input type="number" min="1" class="form-control" v-model.number="gen.duration"></div>
           <div class="col-3"><label class="form-label">Changeover</label><input type="number" min="0" class="form-control" v-model.number="gen.changeover"></div>
           <div class="col-12"><label class="form-label">Tea break</label>
@@ -193,7 +193,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import TablerModal from '@vue-tabler/Modal.vue';
 import TablerLoading from '@vue-tabler/Loading.vue';
 import { get, put, post, api } from '../../shared/api.js';
-import { time, dateTime, isoToIst, istToIso, syncServerTime } from '../../shared/clock.js';
+import { time, dateTime, isoToLocal, localToIso, syncServerTime, tzLabel } from '../../shared/clock.js';
 import { toast, dialog } from '../../shared/ui.js';
 import Icon from '../../shared/components/Icon.vue';
 import ActionModal from '../../shared/components/ActionModal.vue';
@@ -387,16 +387,16 @@ async function addFromPool(p, topic = null) {
 }
 
 function openGenerate() {
-  const first = isoToIst(data.slam.reviews_start_at || data.slam.checkin_closes_at || data.slam.opens_at);
+  const first = isoToLocal(data.slam.reviews_start_at || data.slam.checkin_closes_at || data.slam.opens_at);
   gen.value = { first: first.time, date: first.date, duration: data.slam.default_review_minutes, changeover: data.slam.changeover_minutes, teaMode: 'none', teaEvery: 4, teaAt: '', teaMinutes: data.slam.default_tea_break_minutes, lunchAt: '', lunchMinutes: data.slam.default_lunch_break_minutes, order: 'listed', seed: '', mode: 'replace', error: '' };
 }
 async function runGenerate() {
   const g = gen.value;
   try {
     const res = await post(`/api/slams/${slamId}/schedule/generate`, {
-      first_start: istToIso(g.date, g.first), duration: g.duration, changeover: g.changeover, order: g.order, seed: g.seed, mode: g.mode,
-      tea: { mode: g.teaMode, every_n: g.teaEvery, at: g.teaAt ? istToIso(g.date, g.teaAt) : null, minutes: g.teaMinutes },
-      lunch: { at: g.lunchAt ? istToIso(g.date, g.lunchAt) : null, minutes: g.lunchMinutes },
+      first_start: localToIso(g.date, g.first), duration: g.duration, changeover: g.changeover, order: g.order, seed: g.seed, mode: g.mode,
+      tea: { mode: g.teaMode, every_n: g.teaEvery, at: g.teaAt ? localToIso(g.date, g.teaAt) : null, minutes: g.teaMinutes },
+      lunch: { at: g.lunchAt ? localToIso(g.date, g.lunchAt) : null, minutes: g.lunchMinutes },
     });
     generatedSeed = res.seed;
     const keep = Object.fromEntries(draft.value.filter((d) => d.id).map((d) => [d.performance_id ?? `b${d.id}`, d.id]));

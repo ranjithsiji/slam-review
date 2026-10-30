@@ -27,7 +27,7 @@ export default defineConfig({
         checkin: resolve(__dirname, 'frontend/entries/checkin.js'),
         reviewer: resolve(__dirname, 'frontend/entries/reviewer.js'),
         volunteer: resolve(__dirname, 'frontend/entries/volunteer.js'),
-        control: resolve(__dirname, 'frontend/entries/control.js'),
+        status: resolve(__dirname, 'frontend/entries/status.js'),
         schedule: resolve(__dirname, 'frontend/entries/schedule.js'),
         questions: resolve(__dirname, 'frontend/entries/questions.js'),
         stats: resolve(__dirname, 'frontend/entries/stats.js'),

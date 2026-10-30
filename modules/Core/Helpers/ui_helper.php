@@ -3,25 +3,34 @@
 declare(strict_types=1);
 
 /**
- * View helpers shared by every module: IST time formatting, the semantic
+ * View helpers shared by every module: local time formatting (display timezone
+ * and 12/24-hour setting from Admin → Settings), the semantic
  * icon/colour map (frontend/theme → public/assets/ui-map.json), Vite assets.
  */
 
 use Modules\Core\Libraries\Clock;
 
-if (! function_exists('ist')) {
-    /** Format a UTC DB value in Asia/Kolkata. */
-    function ist(?string $utc, string $format = 'd M Y, H:i'): string
+if (! function_exists('local_time')) {
+    /** Format a UTC DB value in the display timezone. */
+    function local_time(?string $utc, string $format = 'd M Y, H:i'): string
     {
-        return Clock::ist($utc, $format);
+        return Clock::local($utc, $format);
     }
 }
 
-if (! function_exists('ist_input')) {
-    /** UTC DB value → value for <input type="datetime-local"> in IST. */
-    function ist_input(?string $utc): string
+if (! function_exists('local_input')) {
+    /** UTC DB value → value for <input type="datetime-local"> in the display timezone. */
+    function local_input(?string $utc): string
     {
-        return $utc ? Clock::ist($utc, 'Y-m-d\TH:i') : '';
+        return $utc ? Clock::localValue($utc, 'Y-m-d\TH:i') : '';
+    }
+}
+
+if (! function_exists('tz_label')) {
+    /** Short name of the display timezone, e.g. IST. */
+    function tz_label(): string
+    {
+        return Clock::tzLabel();
     }
 }
 
@@ -51,6 +60,29 @@ if (! function_exists('icon')) {
         $aria = $label === null ? 'aria-hidden="true"' : 'role="img" aria-label="' . esc($label, 'attr') . '"';
 
         return '<svg class="icon ' . esc($class, 'attr') . '" ' . $aria . '><use href="' . base_url('assets/icons.svg') . '#' . esc($id, 'attr') . '"></use></svg>';
+    }
+}
+
+if (! function_exists('brand_logo')) {
+    /**
+     * The Kerala Science Slam logo, in the version that suits the current theme:
+     * white lettering on dark backgrounds, dark lettering on light ones
+     * (public/brand/, switched by CSS on [data-bs-theme]).
+     */
+    function brand_logo(string $class = '', string $alt = 'Kerala Science Slam'): string
+    {
+        $img = static fn (string $file, string $theme) => '<img src="' . base_url('brand/' . $file) . '" alt="' . esc($alt, 'attr') . '" class="brand-logo brand-logo-' . $theme . ' ' . esc($class, 'attr') . '">';
+
+        return $img('slam-logo-on-light.svg', 'light') . $img('slam-logo.svg', 'dark');
+    }
+}
+
+if (! function_exists('theme_toggle')) {
+    /** Light/dark switch: shows a moon in light mode and a sun in dark mode. */
+    function theme_toggle(string $class = ''): string
+    {
+        return '<button type="button" class="btn btn-ghost-secondary btn-icon ' . esc($class, 'attr') . '" data-theme-toggle aria-label="Switch between light and dark mode" title="Light / dark mode">'
+            . icon('theme.dark', 'theme-icon-dark') . icon('theme.light', 'theme-icon-light') . '</button>';
     }
 }
 

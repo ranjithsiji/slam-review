@@ -2,9 +2,26 @@
 <?= $this->extend('Modules\Core\Views\layouts\public') ?>
 <?= $this->section('content') ?>
 <div class="text-center mb-3">
-    <span class="navbar-brand fw-bold"><?= icon('status.live', 'text-primary me-1') ?>Science Slam</span>
+    <?= brand_logo('brand-logo-card') ?>
 </div>
 <?php if ($msg = session('thanks')): ?><div class="alert alert-success"><?= esc($msg) ?></div><?php endif ?>
+<?php if (! empty($pending)): ?>
+<form class="card card-md" method="post" action="<?= site_url('checkin/confirm') ?>" data-once autocomplete="off">
+    <?= csrf_field() ?>
+    <div class="card-body text-center">
+        <?= icon('person.badge', 'icon-xl text-primary mb-2') ?>
+        <h2 class="h2 mb-1">Is this you?</h2>
+        <p class="text-secondary mb-3"><?= esc($pending['slam_name']) ?></p>
+        <dl class="row text-start mx-auto mb-3" style="max-width:20rem">
+            <dt class="col-5 text-secondary fw-normal">Name</dt><dd class="col-7 fw-bold fs-3 ml-text mb-2"><?= esc($pending['name']) ?></dd>
+            <dt class="col-5 text-secondary fw-normal">Mobile</dt><dd class="col-7 fw-bold fs-3 mb-2" style="letter-spacing:.05em"><?= esc($pending['mobile']) ?></dd>
+            <dt class="col-5 text-secondary fw-normal">Badge ID</dt><dd class="col-7 mb-0"><code><?= esc($pending['badge_id']) ?></code><?= $pending['user_type'] === 'judge' ? ' · Judge' : '' ?></dd>
+        </dl>
+        <button class="btn btn-primary btn-lg w-100" type="submit"><?= icon('status.ok') ?>Yes, that's me, check me in</button>
+        <a class="btn btn-link w-100 mt-2" href="<?= site_url('checkin/not-me') ?>">No, this is not me</a>
+    </div>
+</form>
+<?php else: ?>
 <form class="card card-md" method="post" action="<?= site_url('checkin') ?>" data-once autocomplete="off">
     <?= csrf_field() ?>
     <div class="card-body">
@@ -15,7 +32,8 @@
                 <p class="text-secondary">Your badge ID</p>
                 <div class="display-6 fw-bold mb-3" style="letter-spacing:.15em"><?= esc($badge) ?></div>
                 <input type="hidden" name="badge_id" value="<?= esc($badge) ?>">
-                <button class="btn btn-primary btn-lg w-100" type="submit"><?= icon('nav.checkins') ?>Check in as <?= esc($badge) ?></button>
+                <button class="btn btn-primary btn-lg w-100" type="submit"><?= icon('nav.checkins') ?>Continue to check in</button>
+                <p class="small text-secondary mt-2 mb-0">Next you will see your name and mobile number to confirm.</p>
                 <p class="small text-secondary mt-3 mb-0">Not you? <a href="<?= site_url('checkin') ?>">Type a different ID</a></p>
             </div>
         <?php else: ?>
@@ -26,10 +44,12 @@
                    placeholder="KR48213" maxlength="7" required autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text"
                    pattern="[A-Za-z]{2}[0-9]{5}" aria-describedby="fmt" data-badge-input value="<?= esc((string) old('badge_id')) ?>">
             <div id="fmt" class="form-hint text-center mt-2">2 letters + 5 digits, for example KR48213</div>
-            <button class="btn btn-primary btn-lg w-100 mt-3" type="submit"><?= icon('nav.checkins') ?>Check in</button>
+            <button class="btn btn-primary btn-lg w-100 mt-3" type="submit"><?= icon('nav.checkins') ?>Continue</button>
         <?php endif ?>
     </div>
 </form>
-<p class="text-center small text-secondary mt-3">Check-in works only while the gate is open. Lost your badge? Visit the volunteer desk.</p>
-<div class="text-center"><button type="button" class="btn btn-ghost-secondary btn-sm" data-theme-toggle><?= icon('theme.dark', 'me-1') ?>Dark / light</button></div>
+<?php endif ?>
+<p class="text-center small text-secondary mt-3">Check-in works only while the gates are open. Lost your badge or arrived late? Visit the volunteer desk.</p>
+<p class="text-center small mb-1"><a href="<?= site_url('registered') ?>"><?= icon('action.search', 'icon-inline me-1') ?>Not sure you are registered? Check with your mobile number</a></p>
+<p class="text-center small"><a href="<?= site_url('/') ?>" class="text-secondary">← Back to home</a></p>
 <?= $this->endSection() ?>

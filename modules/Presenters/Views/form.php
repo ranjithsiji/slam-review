@@ -41,7 +41,7 @@
             <div class="card-header"><h3 class="card-title">Schedule slot</h3></div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-7 mb-3"><label class="form-label" for="planned_start_at">Planned start (IST)</label><input id="planned_start_at" name="planned_start_at" type="datetime-local" class="form-control" value="<?= esc(old('planned_start_at', ist_input($nextStart))) ?>"></div>
+                    <div class="col-7 mb-3"><label class="form-label" for="planned_start_at">Planned start (<?= esc(tz_label()) ?>)</label><input id="planned_start_at" name="planned_start_at" type="datetime-local" class="form-control" value="<?= esc(old('planned_start_at', local_input($nextStart))) ?>"></div>
                     <div class="col-5 mb-3"><label class="form-label" for="duration_minutes">Minutes</label><input id="duration_minutes" name="duration_minutes" type="number" min="1" max="240" class="form-control" value="<?= esc(old('duration_minutes', (string) $slam['default_review_minutes'])) ?>"></div>
                 </div>
                 <div class="form-hint">Prefilled with the next free time after the last slot plus the changeover.</div>

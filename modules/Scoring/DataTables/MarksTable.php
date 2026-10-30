@@ -6,7 +6,10 @@ namespace Modules\Scoring\DataTables;
 
 use Modules\Core\DataTables\TableDefinition;
 use Modules\Core\Libraries\Actor;
+use Modules\Core\Libraries\Db;
 use Modules\Core\Libraries\DomainException;
+use Modules\Scoring\Services\MarkRunService;
+use Modules\Scoring\Services\ScoringService;
 
 /**
  * Marks per performance. Reads the current mark run, or a specific run, or —
@@ -26,28 +29,32 @@ class MarksTable extends TableDefinition
         if ($slamId === false) {
             throw new DomainException('filter_required', "Filter 'slam_id' is required.", 422);
         }
-        $runId  = $filters['run_id'] ?? 'current';
-        $db     = db_connect();
+        $runId = $filters['run_id'] ?? 'current';
+        $db    = db_connect();
         $db->query('DROP TEMPORARY TABLE IF EXISTS tmp_marks');
         $db->query('CREATE TEMPORARY TABLE tmp_marks (performance_id INT UNSIGNED, presenter_name VARCHAR(120), topic VARCHAR(200),
-            avg_user DOUBLE NULL, avg_judge DOUBLE NULL, avg_complete DOUBLE NULL, final_mark DOUBLE NULL, `rank` INT NULL,
-            n_user INT, n_judge INT, n_complete INT, provisional TINYINT(1)) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4');
+            avg_general DOUBLE NULL, avg_representative DOUBLE NULL, avg_judge DOUBLE NULL,
+            c_general DOUBLE NULL, c_representative DOUBLE NULL, c_judge DOUBLE NULL, final_mark DOUBLE NULL, `rank` INT NULL,
+            n_general INT, n_representative INT, n_judge INT, provisional TINYINT(1)) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4');
 
         $run = $runId === 'provisional' ? null
-            : ($runId === 'current' ? service('markRuns')->currentRun($slamId) : \Modules\Core\Libraries\Db::row('SELECT * FROM mark_runs WHERE id = ? AND slam_id = ?', [(int) $runId, $slamId]));
+            : ($runId === 'current' ? service('markRuns')->currentRun($slamId) : Db::row('SELECT * FROM mark_runs WHERE id = ? AND slam_id = ?', [(int) $runId, $slamId]));
         if ($run !== null) {
-            $db->query('INSERT INTO tmp_marks SELECT mr.performance_id, pr.name, p.topic, mr.avg_user, mr.avg_judge, mr.avg_complete, mr.final_mark, mr.`rank`,
-                mr.n_user, mr.n_judge, mr.n_complete, 0 FROM mark_results mr JOIN performances p ON p.id = mr.performance_id
+            $weights = MarkRunService::snapshotWeights($run);
+            $rows    = Db::rows('SELECT mr.*, pr.name AS presenter_name, p.topic FROM mark_results mr JOIN performances p ON p.id = mr.performance_id
                 JOIN presenters pr ON pr.id = p.presenter_id WHERE mr.mark_run_id = ?', [$run['id']]);
-
-            return;
+        } else {
+            $weights = service('scoring')->weights($slamId);
+            $rows    = service('scoring')->compute($slamId)['results'];
         }
-        foreach (service('scoring')->compute($slamId)['results'] as $r) {
+        foreach ($rows as $r) {
+            $b = ScoringService::breakdownFor($r, $weights)['groups'];
             $db->table('tmp_marks')->insert([
                 'performance_id' => $r['performance_id'], 'presenter_name' => $r['presenter_name'], 'topic' => $r['topic'],
-                'avg_user' => $r['avg_user'], 'avg_judge' => $r['avg_judge'], 'avg_complete' => $r['avg_complete'],
-                'final_mark' => $r['final_mark'], 'rank' => $r['rank'], 'n_user' => $r['n_user'], 'n_judge' => $r['n_judge'],
-                'n_complete' => $r['n_complete'], 'provisional' => 1,
+                'avg_general' => $r['avg_general'], 'avg_representative' => $r['avg_representative'], 'avg_judge' => $r['avg_judge'],
+                'c_general' => $b['general']['contribution'], 'c_representative' => $b['representative']['contribution'], 'c_judge' => $b['judge']['contribution'],
+                'final_mark' => $r['final_mark'], 'rank' => $r['rank'], 'n_general' => $r['n_general'], 'n_representative' => $r['n_representative'],
+                'n_judge' => $r['n_judge'], 'provisional' => $run === null ? 1 : 0,
             ]);
         }
     }
@@ -64,13 +71,16 @@ class MarksTable extends TableDefinition
             'performance_id' => ['sql' => 'm.performance_id'],
             'presenter_name' => ['sql' => 'm.presenter_name', 'search' => true, 'order' => true],
             'topic'          => ['sql' => 'm.topic', 'search' => true, 'order' => true],
-            'avg_user'       => ['sql' => 'm.avg_user', 'order' => true],
-            'avg_judge'      => ['sql' => 'm.avg_judge', 'order' => true],
-            'avg_complete'   => ['sql' => 'm.avg_complete', 'order' => true],
-            'final_mark'     => ['sql' => 'm.final_mark', 'order' => true],
-            'n_user'         => ['sql' => 'm.n_user', 'order' => true],
-            'n_judge'        => ['sql' => 'm.n_judge', 'order' => true],
-            'n_complete'     => ['sql' => 'm.n_complete', 'order' => true],
+            'avg_general'        => ['sql' => 'm.avg_general', 'order' => true],
+            'avg_representative' => ['sql' => 'm.avg_representative', 'order' => true],
+            'avg_judge'          => ['sql' => 'm.avg_judge', 'order' => true],
+            'c_general'          => ['sql' => 'm.c_general'],
+            'c_representative'   => ['sql' => 'm.c_representative'],
+            'c_judge'            => ['sql' => 'm.c_judge'],
+            'final_mark'         => ['sql' => 'm.final_mark', 'order' => true],
+            'n_general'          => ['sql' => 'm.n_general', 'order' => true],
+            'n_representative'   => ['sql' => 'm.n_representative', 'order' => true],
+            'n_judge'            => ['sql' => 'm.n_judge', 'order' => true],
             'provisional'    => ['sql' => 'm.provisional'],
         ];
     }
@@ -88,7 +98,7 @@ class MarksTable extends TableDefinition
 
     public function transform(array $row): array
     {
-        foreach (['avg_user', 'avg_judge', 'avg_complete', 'final_mark'] as $k) {
+        foreach (['avg_general', 'avg_representative', 'avg_judge', 'c_general', 'c_representative', 'c_judge', 'final_mark'] as $k) {
             $row[$k] = $row[$k] === null ? null : round((float) $row[$k], 2);
         }
 

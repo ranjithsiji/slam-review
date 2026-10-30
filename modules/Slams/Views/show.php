@@ -9,19 +9,26 @@
         </div></div>
     </div>
 <?php endif ?>
-<div class="row row-cards">
-    <?php foreach ([['Users', $counts['users'], 'person.user'], ['Judges', $counts['judges'], 'person.judge'], ['Checked in', $counts['checked_in'], 'nav.checkins'], ['Performances', $counts['performances'], 'nav.presenters'], ['Reviews', $counts['reviews'], 'nav.questions']] as [$label, $n, $ic]): ?>
+<!-- Row 1: the numbers, equal-width cards across the full width. -->
+<div class="row row-cards mb-3">
+    <?php foreach ([
+        ['Users', $counts['users'], 'person.user', 'blue'], ['Judges', $counts['judges'], 'person.judge', 'purple'],
+        ['Checked in', $counts['checked_in'], 'nav.checkins', 'green'], ['Performances', $counts['performances'], 'nav.presenters', 'orange'],
+        ['Reviews', $counts['reviews'], 'nav.questions', 'azure'],
+    ] as [$label, $n, $ic, $colour]): ?>
         <div class="col-6 col-md-4 col-xl">
-            <div class="card card-sm"><div class="card-body d-flex align-items-center gap-3">
-                <span class="avatar bg-primary-lt"><?= icon($ic) ?></span>
-                <div><div class="h2 m-0"><?= (int) $n ?></div><div class="text-secondary small"><?= esc($label) ?></div></div>
+            <div class="card h-100"><div class="card-body d-flex align-items-center gap-3 py-3">
+                <span class="avatar avatar-md bg-<?= $colour ?>-lt flex-shrink-0"><?= icon($ic) ?></span>
+                <div class="min-w-0"><div class="h1 m-0 lh-1"><?= (int) $n ?></div><div class="text-secondary mt-1"><?= esc($label) ?></div></div>
             </div></div>
         </div>
     <?php endforeach ?>
-
+</div>
+<!-- Row 2: details. -->
+<div class="row row-cards">
     <div class="col-12 col-lg-7">
         <div class="card h-100">
-            <div class="card-header"><h3 class="card-title">Times (IST)</h3>
+            <div class="card-header"><h3 class="card-title">Times (<?= esc(tz_label()) ?>)</h3>
                 <div class="card-actions"><a href="<?= site_url('admin/slams/' . $slam['id'] . '/edit') ?>" class="btn btn-sm"><?= icon('action.edit') ?>Edit</a></div></div>
             <div class="list-group list-group-flush">
                 <?php foreach ([
@@ -29,7 +36,7 @@
                     ['Reviews start', 'reviews_start_at'], ['Slam close (hard stop)', 'closes_at'], ['Event ends (automatic)', 'event_ends_at'],
                 ] as [$label, $f]): ?>
                     <div class="list-group-item d-flex"><span class="text-secondary me-auto"><?= esc($label) ?></span>
-                        <strong><?= $slam[$f] ? esc(ist($slam[$f], 'D d M, H:i')) : '<span class="text-secondary fw-normal">' . ($f === 'event_ends_at' ? 'admin ends the event' : 'by hand') . '</span>' ?></strong></div>
+                        <strong><?= $slam[$f] ? esc(local_time($slam[$f], 'D d M, H:i')) : '<span class="text-secondary fw-normal">' . ($f === 'event_ends_at' ? 'admin ends the event' : 'by hand') . '</span>' ?></strong></div>
                 <?php endforeach ?>
                 <div class="list-group-item small text-secondary">
                     Review window <?= (int) $slam['default_review_minutes'] ?> min · changeover <?= (int) $slam['changeover_minutes'] ?> min ·
@@ -70,7 +77,7 @@
     <div class="col-12">
         <div class="card"><div class="card-body d-flex flex-wrap gap-2">
             <a class="btn" href="<?= site_url('admin/slams/' . $slam['id'] . '/mark-config') ?>"><?= icon('nav.settings') ?>Mark configuration</a>
-            <a class="btn" href="<?= site_url('admin/slams/' . $slam['id'] . '/complete-reviewers') ?>"><?= icon('nav.attendees') ?>Complete reviewers</a>
+            <a class="btn" href="<?= site_url('admin/slams/' . $slam['id'] . '/representatives') ?>"><?= icon('nav.attendees') ?>Audience representatives</a>
             <a class="btn" href="<?= site_url('admin/qr?slam=' . $slam['id']) ?>"><?= icon('nav.qr') ?>QR &amp; badges</a>
             <a class="btn" href="<?= site_url('admin/volunteers/new?slam=' . $slam['id']) ?>"><?= icon('nav.volunteers') ?>Add volunteer</a>
             <a class="btn" href="<?= site_url('admin/activity-log?slam_id=' . $slam['id']) ?>"><?= icon('nav.log') ?>Activity log</a>

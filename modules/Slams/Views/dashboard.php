@@ -21,7 +21,7 @@
                 <div class="card-body">
                     <div class="d-flex align-items-start mb-2">
                         <div class="me-auto">
-                            <div class="text-secondary small"><?= esc(ucfirst($s['type'])) ?> · <?= esc(ist($s['opens_at'], 'D, d M Y')) ?></div>
+                            <div class="text-secondary small"><?= esc(ucfirst($s['type'])) ?> · <?= esc(local_time($s['opens_at'], 'D, d M Y')) ?></div>
                             <h3 class="card-title mb-0"><a href="<?= site_url('admin/slams/' . $s['id']) ?>" class="text-reset"><?= esc($s['name']) ?></a></h3>
                             <div class="text-secondary small"><?= icon('place.venue', 'icon-inline') ?> <?= esc($s['venue_name']) ?><?= $s['city'] ? ', ' . esc($s['city']) : '' ?></div>
                         </div>
@@ -36,7 +36,7 @@
                     </div>
                 </div>
                 <div class="card-footer d-flex gap-2 flex-wrap">
-                    <a class="btn btn-primary flex-fill" href="<?= site_url('admin/slams/' . $s['id'] . '/control') ?>"><?= icon('nav.control') ?>Control panel</a>
+                    <a class="btn btn-primary flex-fill" href="<?= site_url('admin/slams/' . $s['id'] . '/status') ?>"><?= icon('nav.status') ?>Run the slam</a>
                     <a class="btn flex-fill" href="<?= site_url('admin/slams/' . $s['id']) ?>">Open</a>
                 </div>
             </div>

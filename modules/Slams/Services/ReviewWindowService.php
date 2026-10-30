@@ -98,7 +98,8 @@ class ReviewWindowService
             'schedule_item_id' => $item['id'], 'opened_at' => $now, 'closes_at' => $closesAt, 'extended_minutes_total' => 0,
         ]);
         $id = (int) $db->insertID();
-        $db->table('schedule_items')->where('id', $item['id'])->update(['status' => 'open', 'actual_start_at' => $now, 'updated_at' => $now]);
+        // Opening the review also means the performance has started (if not started by hand already).
+        $db->query('UPDATE schedule_items SET status = ?, actual_start_at = ?, performing_started_at = COALESCE(performing_started_at, ?), updated_at = ? WHERE id = ?', ['open', $now, $now, $now, $item['id']]);
         service('activityLog')->log($actor, 'window.opened', [
             'slam_id' => (int) $slam['id'], 'target_type' => 'review_window', 'target_id' => $id,
             'new' => ['schedule_item_id' => (int) $item['id'], 'closes_at' => $closesAt], 'meta' => ['trigger' => $trigger],
@@ -155,7 +156,8 @@ class ReviewWindowService
             $closedAt = Clock::db();
         }
         $db->table('review_windows')->where('id', $w['id'])->update(['closed_at' => $closedAt, 'closed_reason' => $reason]);
-        $db->table('schedule_items')->where('id', $w['schedule_item_id'])->update(['status' => 'closed', 'updated_at' => Clock::db()]);
+        // Closing the review ends the performance too, if it was still running.
+        $db->query('UPDATE schedule_items SET status = ?, performing_ended_at = COALESCE(performing_ended_at, ?), updated_at = ? WHERE id = ?', ['closed', $closedAt, Clock::db(), $w['schedule_item_id']]);
         $action = $reason === 'manual' ? 'window.closed.manual' : 'window.closed.timer';
         service('activityLog')->log($actor, $action, [
             'slam_id' => (int) $slam['id'], 'target_type' => 'review_window', 'target_id' => (int) $w['id'],

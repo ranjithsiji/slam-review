@@ -16,13 +16,16 @@ use Modules\Attendees\Services\QrService;
 use Modules\Checkin\Services\CheckinService;
 use Modules\Core\DataTables\DataTableService;
 use Modules\Core\Libraries\PublicCache;
+use Modules\Core\Services\SettingsService;
 use Modules\Presenters\Services\PhotoService;
 use Modules\Presenters\Services\PresenterService;
 use Modules\Reviews\Services\LiveStateService;
 use Modules\Reviews\Services\QuestionService;
 use Modules\Reviews\Services\ReviewService;
 use Modules\Schedule\Services\ScheduleService;
+use Modules\Scoring\Services\JudgeMarkService;
 use Modules\Scoring\Services\MarkRunService;
+use Modules\Scoring\Services\RepresentativeService;
 use Modules\Scoring\Services\ScoringService;
 use Modules\Slams\Services\SlamPhaseService;
 use Modules\Slams\Services\SlamService;
@@ -131,6 +134,21 @@ class Services extends BaseService
     public static function markRuns(bool $getShared = true): MarkRunService
     {
         return $getShared ? static::getSharedInstance('markRuns') : new MarkRunService();
+    }
+
+    public static function judgeMarks(bool $getShared = true): JudgeMarkService
+    {
+        return $getShared ? static::getSharedInstance('judgeMarks') : new JudgeMarkService();
+    }
+
+    public static function representatives(bool $getShared = true): RepresentativeService
+    {
+        return $getShared ? static::getSharedInstance('representatives') : new RepresentativeService();
+    }
+
+    public static function appSettings(bool $getShared = true): SettingsService
+    {
+        return $getShared ? static::getSharedInstance('appSettings') : new SettingsService();
     }
 
     public static function dataTables(bool $getShared = true): DataTableService

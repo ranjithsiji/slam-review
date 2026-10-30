@@ -36,7 +36,7 @@
                     </select>
                 </div>
                 <div class="mb-3"><label class="form-label" for="batch_id">Import batch</label>
-                    <select id="batch_id" name="batch_id" class="form-select"><option value="">—</option><?php foreach ($batches as $b): ?><option value="<?= $b['id'] ?>">#<?= $b['id'] ?> <?= esc($b['filename']) ?> (<?= esc(ist($b['created_at'], 'd M')) ?>)</option><?php endforeach ?></select></div>
+                    <select id="batch_id" name="batch_id" class="form-select"><option value="">—</option><?php foreach ($batches as $b): ?><option value="<?= $b['id'] ?>">#<?= $b['id'] ?> <?= esc($b['filename']) ?> (<?= esc(local_time($b['created_at'], 'd M')) ?>)</option><?php endforeach ?></select></div>
                 <input type="hidden" name="ids" data-qr-picked>
                 <div class="mb-2 small" data-qr-picked-label></div>
                 <div class="mb-3"><label class="form-label" for="preset">Badge size</label>

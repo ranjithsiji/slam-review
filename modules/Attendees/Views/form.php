@@ -5,6 +5,7 @@
 <div class="col-12 col-lg-7">
 <form class="card" method="post" action="<?= site_url($a ? 'admin/attendees/' . $a['id'] : 'admin/slams/' . $slam['id'] . '/attendees') ?>">
     <?= csrf_field() ?>
+    <input type="hidden" name="back" value="<?= esc($back ?? 'attendees', 'attr') ?>">
     <div class="card-header"><h3 class="card-title"><?= $a ? 'Edit attendee' : 'Register attendee' ?></h3></div>
     <div class="card-body">
         <p class="text-secondary small">Only pre-registered people can check in. A badge ID (2 letters + 5 digits) is generated automatically.</p>
@@ -17,7 +18,7 @@
             <label class="form-label">Type</label>
             <div class="btn-group w-100" role="group">
                 <?php foreach (['user' => 'Audience user', 'judge' => 'Judge'] as $k => $l): ?>
-                    <input type="radio" class="btn-check" name="user_type" id="t-<?= $k ?>" value="<?= $k ?>" <?= old('user_type', $a['user_type'] ?? 'user') === $k ? 'checked' : '' ?>>
+                    <input type="radio" class="btn-check" name="user_type" id="t-<?= $k ?>" value="<?= $k ?>" <?= old('user_type', $a['user_type'] ?? ($defaultType ?? 'user')) === $k ? 'checked' : '' ?>>
                     <label for="t-<?= $k ?>" class="btn"><?= icon($k === 'judge' ? 'person.judge' : 'person.user') ?><?= $l ?></label>
                 <?php endforeach ?>
             </div>
@@ -31,7 +32,7 @@
         <?php endif ?>
     </div>
     <div class="card-footer text-end">
-        <a class="btn btn-link" href="<?= site_url('admin/slams/' . $slam['id'] . '/attendees') ?>">Cancel</a>
+        <a class="btn btn-link" href="<?= site_url('admin/slams/' . $slam['id'] . '/' . (in_array($back ?? 'attendees', ['reviewers', 'judges'], true) ? $back : 'attendees')) ?>">Cancel</a>
         <button class="btn btn-primary" type="submit"><?= icon('action.save') ?>Save</button>
     </div>
 </form>
@@ -43,7 +44,7 @@
             <div class="qr-box mb-2" style="max-width:220px"><img src="<?= site_url('admin/qr/' . $a['id'] . '.svg?inline=1') ?>" alt="QR code for <?= esc($a['badge_id'], 'attr') ?>"></div>
             <div class="h1 mb-0" style="letter-spacing:.15em"><?= esc($a['badge_id']) ?></div>
             <div class="mb-2"><?= status_badge('user_type', $a['user_type']) ?> <?= status_badge('checkin', $status['state']) ?></div>
-            <div class="small text-secondary mb-2">Printed <?= (int) $a['badge_print_count'] ?>×<?= $a['badge_last_printed_at'] ? ', last ' . esc(ist($a['badge_last_printed_at'], 'd M H:i')) : '' ?></div>
+            <div class="small text-secondary mb-2">Printed <?= (int) $a['badge_print_count'] ?>×<?= $a['badge_last_printed_at'] ? ', last ' . esc(local_time($a['badge_last_printed_at'], 'd M H:i')) : '' ?></div>
             <div class="btn-list justify-content-center">
                 <a class="btn" href="<?= site_url('admin/qr/' . $a['id'] . '.svg') ?>"><?= icon('action.download') ?>SVG</a>
                 <a class="btn" href="<?= site_url('admin/qr/' . $a['id'] . '.png') ?>"><?= icon('action.download') ?>PNG</a>

@@ -39,7 +39,7 @@ body { -webkit-text-size-adjust: 100%; }
 }
 
 /* 1–10 score grid: two rows of five large buttons. Shape + number, never colour scale. */
-.score-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
+.score-grid { display: grid; grid-template-columns: repeat(var(--cols, 5), 1fr); gap: 0.5rem; }
 .score-grid .btn { min-height: 52px; font-size: 1.25rem; font-weight: 600; padding: 0; }
 .score-grid .btn[aria-pressed="true"],
 .score-grid .btn[aria-pressed="true"]:hover,
@@ -103,3 +103,86 @@ table.dataTable td { vertical-align: middle; }
 @media (min-width: 768px) {
   .score-grid .btn { min-height: 56px; }
 }
+
+/* Brand logo and the light/dark switch follow [data-bs-theme] (set before first paint by theme-init.js). */
+.brand-logo { width: auto; display: inline-block; }
+.brand-logo-dark, .theme-icon-light { display: none !important; }
+[data-bs-theme="dark"] .brand-logo-light, [data-bs-theme="dark"] .theme-icon-dark { display: none !important; }
+[data-bs-theme="dark"] .brand-logo-dark { display: inline-block !important; }
+[data-bs-theme="dark"] .theme-icon-light { display: inline-block !important; }
+.brand-logo-nav { height: 2.25rem; }
+.brand-logo-sidebar { height: 3rem; }
+@media (min-width: 992px) { .brand-logo-sidebar { height: 5.5rem; } }
+.brand-logo-hero { height: 9rem; max-width: 100%; }
+.brand-logo-card { height: 4.5rem; }
+.theme-toggle-float { position: absolute; top: .5rem; right: .5rem; z-index: 10; }
+
+/* Anything scrolled into view (focus, tab, screen readers) must clear the sticky header and the sticky Submit bar. */
+html { scroll-padding-top: 5rem; scroll-padding-bottom: 8rem; }
+.score-grid, .score-grid .btn, fieldset, .form-control { scroll-margin-top: 5rem; scroll-margin-bottom: 8rem; }
+
+/* Live bar: what is going on in the running slam(s), on every organiser page. */
+.live-bar { position: sticky; top: 0; z-index: 1021; background: var(--tblr-bg-surface); border-bottom: 1px solid var(--tblr-border-color); box-shadow: 0 1px 4px rgba(0, 0, 0, .06); }
+.live-bar[hidden] { display: none; }
+.live-bar-item { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .75rem; padding: .5rem 1rem; color: inherit; text-decoration: none; }
+.live-bar-item:hover { background: var(--tblr-active-bg, rgba(0, 0, 0, .03)); color: inherit; }
+.live-bar-item + .live-bar-item { border-top: 1px solid var(--tblr-border-color); }
+.live-dot { width: .75rem; height: .75rem; border-radius: 50%; background: var(--tblr-orange); box-shadow: 0 0 0 0 rgba(247, 103, 7, .6); animation: live-pulse 1.8s infinite; flex: none; }
+.live-time { font-variant-numeric: tabular-nums; font-weight: 700; }
+.live-go { font-size: .8125rem; color: var(--tblr-secondary); }
+@keyframes live-pulse { 70% { box-shadow: 0 0 0 .5rem rgba(247, 103, 7, 0); } 100% { box-shadow: 0 0 0 0 rgba(247, 103, 7, 0); } }
+@media (prefers-reduced-motion: reduce) { .live-dot, .st-dot-current { animation: none; } }
+
+/* Status timeline: vertical rail, a dot per step (green done, orange now, grey to come) and a card attached to each. */
+.status-timeline { list-style: none; margin: 0; padding: 0; }
+.status-timeline > li { position: relative; padding-left: 3rem; padding-bottom: .9rem; }
+.status-timeline > li::before { content: ''; position: absolute; left: 1.05rem; top: 1.9rem; bottom: -.35rem; width: 3px; border-radius: 2px; background: var(--tblr-border-color); }
+.status-timeline > li:last-child::before { display: none; }
+.status-timeline > li.is-done::before { background: var(--tblr-green); }
+.st-dot { position: absolute; left: .2rem; top: .75rem; width: 1.9rem; height: 1.9rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; border: 3px solid var(--tblr-bg-surface-secondary, #f6f8fb); }
+.st-dot .icon { width: 1rem; height: 1rem; }
+.st-dot-done { background: var(--tblr-green); }
+.st-dot-current { background: var(--tblr-orange); animation: live-pulse 1.8s infinite; }
+.st-dot-upcoming { background: var(--tblr-gray-400, #adb5bd); }
+.status-card-current { border-left: 4px solid var(--tblr-orange); box-shadow: 0 2px 10px rgba(247, 103, 7, .15); }
+.status-card-done { border-left: 4px solid var(--tblr-green); }
+.status-card-upcoming { border-left: 4px solid var(--tblr-border-color); opacity: .8; }
+.mini-list { font-size: .875rem; }
+.mini-list li { padding: .15rem 0; }
+.mini-dot { width: .65rem; height: .65rem; border-radius: 50%; flex: none; background: var(--tblr-gray-400, #adb5bd); }
+.mini-done { background: var(--tblr-green); }
+.mini-now { background: var(--tblr-orange); }
+.mini-skipped { background: transparent; border: 2px solid var(--tblr-gray-400, #adb5bd); }
+@media (min-width: 768px) { .status-timeline > li { padding-left: 3.5rem; } .status-timeline > li::before { left: 1.2rem; } .st-dot { left: .3rem; } }
+
+/* The reviewer's fixed tab bar sits at the bottom: keep the sticky Submit bar above it, not under it. */
+.has-bottom-nav .sticky-actions { bottom: calc(4.4rem + env(safe-area-inset-bottom)); }
+
+/* Lets flex children shrink so long names truncate instead of widening the page (Tabler has no such utility). */
+.min-w-0 { min-width: 0 !important; }
+
+/* "Now" card on the Status screen: what is happening, its timers and the one thing to do next. */
+.now-card { border-left: 6px solid var(--tblr-border-color); }
+.now-live { border-left-color: var(--tblr-orange); background: linear-gradient(90deg, rgba(247, 103, 7, .07), transparent 55%); }
+.now-ready { border-left-color: var(--tblr-blue); background: linear-gradient(90deg, rgba(6, 111, 209, .06), transparent 55%); }
+.now-done { border-left-color: var(--tblr-green); }
+.now-icon { width: 3.25rem; height: 3.25rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; background: var(--tblr-bg-surface-secondary, #f6f8fb); color: var(--tblr-secondary); }
+.now-icon .icon { width: 1.6rem; height: 1.6rem; }
+.now-live .now-icon { background: var(--tblr-orange); color: #fff; animation: live-pulse 1.8s infinite; }
+.now-ready .now-icon { background: var(--tblr-blue); color: #fff; }
+.now-done .now-icon { background: var(--tblr-green); color: #fff; }
+.now-kicker { text-transform: uppercase; letter-spacing: .06em; font-size: .75rem; font-weight: 600; color: var(--tblr-secondary); }
+.now-title { font-size: 1.6rem; line-height: 1.25; margin: .1rem 0 .15rem; }
+.now-next { color: var(--tblr-body-color); }
+/* Performance node: the performance and its review are separate lanes, because they overlap. */
+.lanes { display: grid; gap: .4rem; }
+.lane { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; }
+.lane-name { width: 7.5rem; flex: none; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--tblr-secondary); font-weight: 600; }
+.status-group { padding: .25rem 0 .6rem 3.5rem; display: flex; gap: .75rem; align-items: baseline; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .8rem; }
+.status-group::before { display: none !important; }
+.status-timeline > li.status-group { padding-bottom: .35rem; }
+.st-dot-next { background: var(--tblr-bg-surface) !important; color: var(--tblr-orange) !important; box-shadow: 0 0 0 3px var(--tblr-orange); }
+.status-card-next { border-left: 4px solid var(--tblr-blue); box-shadow: 0 2px 10px rgba(6, 111, 209, .15); opacity: 1; }
+.status-timeline > li.is-skipped::before { background: var(--tblr-border-color); }
+.st-dot-skipped { background: var(--tblr-gray-300, #ced4da); }
+.status-card-skipped { border-left: 4px solid var(--tblr-border-color); opacity: .6; }

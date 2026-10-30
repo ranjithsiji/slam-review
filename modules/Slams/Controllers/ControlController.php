@@ -15,11 +15,59 @@ use Modules\Slams\Services\SlamPhaseService;
 /** Slam phase control panel (Vue screen) and its JSON API. */
 class ControlController extends BaseController
 {
-    public function page(int $id): string
+    /** The old control panel lives on the Status screen now. */
+    public function page(int $id): \CodeIgniter\HTTP\RedirectResponse
+    {
+        return redirect()->to(site_url("admin/slams/{$id}/status"));
+    }
+
+    /** Status timeline: where this slam is now, with the next actions on each step's card. */
+    public function statusPage(int $id): string
     {
         $slam = service('slams')->find($id);
 
-        return $this->render('Modules\Slams\Views\control', ['title' => 'Control panel — ' . $slam['name'], 'slam' => $slam]);
+        return $this->render('Modules\Slams\Views\status', ['title' => 'Status — ' . $slam['name'], 'slam' => $slam]);
+    }
+
+    /** Slams that are happening now (Slam Open … Slam Close), for the live bar. */
+    public const RUNNING = ['open', 'checkin_open', 'checkin_closed', 'reviewing', 'reviews_complete', 'revision', 'revision_closed', 'closed'];
+
+    public function liveBar(): ResponseInterface
+    {
+        return $this->api(function () {
+            session()->close();
+            $rows = Db::rows('SELECT id, name, status FROM slams WHERE status IN (' . implode(',', array_fill(0, count(self::RUNNING), '?')) . ') ORDER BY opens_at', self::RUNNING);
+            $out  = [];
+            foreach ($rows as $r) {
+                $id = (int) $r['id'];
+                service('slamPhase')->tick($id);
+                $slam   = service('slams')->find($id);
+                $status = $slam['status'];
+                $live   = service('liveState')->shared($id);
+                $cur    = $live['current'] ?? null;
+                $inside = (int) Db::value('SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ? AND c.checked_out_at IS NULL', [$id]);
+                [$detail, $until] = match (true) {
+                    $status === 'reviewing' && ($cur['kind'] ?? null) === 'performance' => [(! empty($cur['performing']) ? 'On stage, review open: ' : 'Performance over, review open: ') . ($cur['presenter_name'] ?? 'performance'), $cur['closes_at'] ?? null],
+                    $status === 'reviewing' && ! empty($live['presenting']) => ['On stage: ' . ($live['presenting']['presenter_name'] ?? 'performance') . ' (review not open yet)', null],
+                    $status === 'reviewing' && ($cur['kind'] ?? null) === 'break' => [($cur['label'] ?? 'Break') . ' in progress', $cur['ends_at'] ?? null],
+                    $status === 'reviewing' => ['Between performances' . (($n = $live['next']['presenter_name'] ?? null) ? ': next is ' . $n : ''), null],
+                    $status === 'revision' => ['Reviewers are editing their scores', $live['revision']['closes_at'] ?? null],
+                    $status === 'checkin_open' => ["{$inside} checked in", $slam['checkin_closes_at'] ? Clock::iso($slam['checkin_closes_at']) : null],
+                    $status === 'checkin_closed' => ["{$inside} inside; gates closed", null],
+                    $status === 'open' => ['Waiting to open the gates', null],
+                    $status === 'reviews_complete' => ['All performances reviewed', null],
+                    $status === 'revision_closed' => ['Scores locked', null],
+                    default => ['Marks are calculated next', null],
+                };
+                $out[] = [
+                    'id' => $id, 'name' => $slam['name'], 'status' => $status, 'label' => SlamPhaseService::LABELS[$status] ?? $status,
+                    'detail' => $detail, 'until' => $until, 'hold' => (bool) $slam['hold_next_step'] || $slam['auto_mode'] === 'manual' ? ($slam['auto_mode'] === 'manual' ? 'manual' : 'held') : null,
+                    'url' => site_url("admin/slams/{$id}/status"),
+                ];
+            }
+
+            return ['server_now' => Clock::iso(Clock::db()), 'slams' => $out];
+        });
     }
 
     public function state(int $id): ResponseInterface
@@ -40,6 +88,8 @@ class ControlController extends BaseController
                 'status' => $it['status'], 'is_pinned' => (bool) $it['is_pinned'], 'duration_minutes' => (int) $it['duration_minutes'],
                 'planned_start_at' => Clock::iso($it['planned_start_at']), 'projected_start_at' => Clock::iso($it['projected_start_at']),
                 'projected_end_at' => Clock::iso($it['projected_end_at']),
+                'performing_started_at' => Clock::iso($it['performing_started_at'] ?? null), 'performing_ended_at' => Clock::iso($it['performing_ended_at'] ?? null),
+                'window_closes_at' => $it['status'] === 'open' ? Clock::iso(ReviewWindowService::effectiveClose(['closes_at' => $it['window_closes_at'], 'extended_minutes_total' => $it['window_ext']], $slam)) : null,
                 'actual_open_at' => Clock::iso($it['window_opened_at'] ?? $it['actual_start_at']), 'actual_close_at' => Clock::iso($it['window_closed_at'] ?? ($it['status'] === 'closed' ? $it['ends_at'] : null)),
             ], $proj['items']);
             $names = [];
@@ -59,6 +109,11 @@ class ControlController extends BaseController
                         (SELECT COUNT(DISTINCT r.attendee_id) FROM reviews r JOIN schedule_items si ON si.id = r.schedule_item_id WHERE si.slam_id = ? AND r.edit_count > 0) AS revised",
                 [$id, $id, $id, $id],
             );
+            // When each phase was first entered (for "done at" on the status timeline).
+            $phaseTimes = [];
+            foreach (Db::rows('SELECT to_status, MIN(changed_at) AS at FROM slam_phase_log WHERE slam_id = ? GROUP BY to_status', [$id]) as $r) {
+                $phaseTimes[$r['to_status']] = Clock::iso($r['at']);
+            }
             $alerts = Db::rows("SELECT id, occurred_at, reason, meta FROM activity_log WHERE slam_id = ? AND action = 'phase.alert' ORDER BY id DESC LIMIT 5", [$id]);
 
             return [
@@ -74,6 +129,7 @@ class ControlController extends BaseController
                     'default_review_minutes' => (int) $slam['default_review_minutes'], 'edit_window_minutes' => (int) $slam['edit_window_minutes'],
                     'close_grace_minutes' => (int) $slam['close_grace_minutes'], 'changeover_minutes' => (int) $slam['changeover_minutes'],
                 ],
+                'phase_times' => $phaseTimes,
                 'phases' => array_map(static fn ($p) => ['key' => $p, 'label' => SlamPhaseService::LABELS[$p]], SlamPhaseService::ORDER),
                 'readiness' => in_array($slam['status'], ['draft', 'scheduled'], true) ? service('slams')->readiness($id) : [],
                 'window' => $win !== null ? [
@@ -102,8 +158,8 @@ class ControlController extends BaseController
         }
         $v = (string) $v;
 
-        // ISO with zone from the client, or a datetime-local value in IST.
-        return preg_match('/(Z|[+-]\d{2}:?\d{2})$/', $v) ? Clock::db(Clock::parse($v)) : Clock::fromIstLocal($v);
+        // ISO with zone from the client, or a datetime-local value in the display timezone.
+        return preg_match('/(Z|[+-]\d{2}:?\d{2})$/', $v) ? Clock::db(Clock::parse($v)) : Clock::fromLocalInput($v);
     }
 
     public function action(int $id, string $what): ResponseInterface
@@ -190,6 +246,24 @@ class ControlController extends BaseController
                 'close'  => $p->revisionClose($id, $actor),
                 'skip'   => $p->revisionSkip($id, (string) ($in['reason'] ?? ''), $actor),
                 default  => throw new DomainException('not_found', 'Unknown action.', 404),
+            };
+
+            return ['ok' => true];
+        });
+    }
+
+    /** Start / end a performance on stage (the review window is separate). */
+    public function perform(int $id, int $itemId, string $what): ResponseInterface
+    {
+        $in    = $this->input();
+        $actor = $this->actor();
+        $p     = service('slamPhase');
+
+        return $this->api(function () use ($id, $itemId, $what, $in, $actor, $p) {
+            match ($what) {
+                'start' => $p->startPerformance($id, $itemId > 0 ? $itemId : null, $actor, ! empty($in['close_gate'])),
+                'end'   => $p->endPerformance($id, $itemId, $actor),
+                default => throw new DomainException('not_found', 'Unknown action.', 404),
             };
 
             return ['ok' => true];

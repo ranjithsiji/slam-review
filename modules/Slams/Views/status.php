@@ -1,9 +1,10 @@
-<?php $this->setVar('entry', 'frontend/entries/control.js'); ?>
+<?php $this->setVar('entry', 'frontend/entries/status.js'); ?>
 <?= $this->extend('Modules\Core\Views\layouts\admin') ?>
-<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'control', 'hideBadge' => true]) ?><?= $this->endSection() ?>
+<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'status', 'hideBadge' => true]) ?><?= $this->endSection() ?>
 <?= $this->section('content') ?>
-<div id="control-app"><div class="text-center text-secondary py-5"><div class="spinner-border" role="status"></div><div>Loading the control panel…</div></div></div>
-<div class="row row-cards mt-1">
+<div id="status-app"><div class="text-center text-secondary py-5"><div class="spinner-border" role="status"></div><div>Loading the status…</div></div></div>
+<noscript><div class="alert alert-warning">Please enable JavaScript to see the live status.</div></noscript>
+<div class="row row-cards mt-3">
     <div class="col-12 col-xl-6">
         <div class="card">
             <div class="card-header"><h3 class="card-title">Phase log</h3></div>
