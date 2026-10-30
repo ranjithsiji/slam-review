@@ -30,11 +30,12 @@ load-test slam, so the submit path and the shared-state refresh are exercised un
 
 ## 5. Watch the pool (on the server, second terminal)
 ```bash
-watch -n1 "curl -sk --resolve slam.ans9.com:443:127.0.0.1 https://slam.ans9.com/fpm-status | egrep 'active processes|idle processes|listen queue:|max listen queue|max children reached'"
+# requests waiting for a free worker (Recv-Q) and busy workers (CPU-using php-fpm: pool slam processes)
+watch -n1 "ss -lx | grep fpm-slam | awk '{print \"waiting:\", \$2}'; ps -eo pcpu,args | grep '[p]hp-fpm: pool slam' | awk '\$1>1' | wc -l; free -m | sed -n 2p"
 ```
-Healthy: `listen queue` stays 0 and `max children reached` stays 0. If the queue grows, raise `pm.max_children`
-in `/etc/php/8.4/fpm/pool.d/slam.conf` (about 40 MB of RAM per worker) and reload php8.4-fpm. Also watch
-`mariadb -e 'show processlist'` and `free -m`.
+Healthy: **waiting stays 0**. If it climbs, the 20 workers are all busy: raise `pm.max_children` in
+`/etc/php/8.4/fpm/pool.d/slam.conf` (about 40 MB of RAM per worker) and `sudo systemctl reload php8.4-fpm`. Also watch
+`mariadb -e 'show processlist'` and `free -m`. (`/fpm-status` is configured but currently falls through to the app; use the commands above.)
 
 ## Pass criteria
 p95 `state_poll_ms` under 300 ms, `http_req_failed` under 1 %, state 304 rate high (unchanged state is cheap),
