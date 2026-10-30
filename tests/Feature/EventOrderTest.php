@@ -126,7 +126,7 @@ final class EventOrderTest extends SlamTestCase
         $this->assertSame(['entered' => 10, 'expected' => 10], $marks->progress($id));
         $run = service('markRuns')->currentRun($id);
         $this->assertNotNull($run);
-        $this->assertSame("Automatic: judges' marks entered", $run['note']);
+        $this->assertSame('Automatic: marks entered', $run['note']);
 
         // Final leaderboard: independent expectation from the weights (40 / 20 / 40, no representatives drawn).
         $w = service('scoring')->weights($id);

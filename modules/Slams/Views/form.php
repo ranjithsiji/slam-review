@@ -113,7 +113,7 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
                     <p class="text-secondary small">Placeholders: confirm with the organisers before the event.</p>
                     <div class="row">
                         <?php foreach ([
-                            ['default_review_minutes', 'Review window', 5], ['changeover_minutes', 'Changeover', 2], ['edit_window_minutes', 'Edit window (0 = skip)', 10],
+                            ['presentation_minutes', 'Presentation (review opens at half; 0 = with the talk)', 10], ['default_review_minutes', 'Review window (from when it opens)', 5], ['changeover_minutes', 'Changeover', 2], ['edit_window_minutes', 'Edit window (0 = skip)', 10],
                             ['close_grace_minutes', 'Edit close → slam close', 5], ['default_tea_break_minutes', 'Tea break', 15], ['default_lunch_break_minutes', 'Lunch break', 45],
                         ] as [$f, $label, $d]): ?>
                             <div class="col-6 mb-3">

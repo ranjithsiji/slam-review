@@ -282,7 +282,14 @@ class SlamPhaseService
                 'marks_calculated' => $add($slam['event_ends_at']),
                 default            => null,
             };
-            if (in_array($slam['status'], ['checkin_closed', 'reviewing'], true) && $w === null && $b === null
+            $pm   = (int) ($slam['presentation_minutes'] ?? 0);
+            $perf = $pm > 0 && in_array($slam['status'], ['checkin_closed', 'reviewing'], true) ? $this->performingItem($sid) : null;
+            if ($perf !== null) {
+                if ($perf['status'] === 'pending' && $w === null) {
+                    $cand[] = Clock::parse(Clock::addMinutes($perf['performing_started_at'], intdiv($pm, 2)));
+                }
+                $cand[] = Clock::parse(Clock::addMinutes($perf['performing_started_at'], $pm));
+            } elseif (in_array($slam['status'], ['checkin_closed', 'reviewing'], true) && $w === null && $b === null
                 && ($next = $this->nextPendingItem($sid)) !== null) {
                 $cand[] = Clock::parse($this->dueAt($slam, $next));
             }
@@ -347,6 +354,19 @@ class SlamPhaseService
             return null;
         }
 
+        // Automatic presentation timing: review opens at half time, the presentation ends at full time.
+        $pm = (int) ($slam['presentation_minutes'] ?? 0);
+        if ($pm > 0 && in_array($status, ['checkin_closed', 'reviewing'], true) && ($perf = $this->performingItem($sid)) !== null) {
+            $half = Clock::addMinutes($perf['performing_started_at'], intdiv($pm, 2));
+            $end  = Clock::addMinutes($perf['performing_started_at'], $pm);
+            if ($perf['status'] === 'pending' && $window === null && $now >= Clock::parse($half)) {
+                return ['step' => 'open_review_mid', 'item' => $perf, 'due_at' => $half, 'trigger' => 'timer'];
+            }
+            if ($now >= Clock::parse($end)) {
+                return ['step' => 'end_performance', 'item' => $perf];
+            }
+        }
+
         switch ($status) {
             case 'scheduled':
                 if ($now < Clock::parse($slam['opens_at'])) {
@@ -367,7 +387,7 @@ class SlamPhaseService
 
             case 'checkin_closed':
             case 'reviewing':
-                if ($window !== null || $break !== null) {
+                if ($window !== null || $break !== null || ($pm > 0 && $this->performingItem($sid) !== null)) {
                     return null;
                 }
                 $next = $this->nextPendingItem($sid);
@@ -380,7 +400,7 @@ class SlamPhaseService
                 }
 
                 return [
-                    'step'    => $next['item_type'] === 'break' ? 'start_break' : 'open_item',
+                    'step'    => $next['item_type'] === 'break' ? 'start_break' : ($pm > 0 ? 'start_performance' : 'open_item'),
                     'item'    => $next,
                     'due_at'  => $dueAt,
                     'trigger' => $dueAt === $next['planned_start_at'] ? 'timer' : 'auto',
@@ -436,6 +456,22 @@ class SlamPhaseService
                 break;
             case 'gate_close':
                 $this->transition($slam, 'checkin_closed', 'timer', $sys);
+                break;
+            case 'open_review_mid':
+                // Half time: the review opens for the slot's review length, counted from now.
+                $close = $this->windows->resolveCloseTime($slam, (int) $due['item']['duration_minutes'], null);
+                $this->windows->open($slam, $due['item'], $close, $sys, 'timer');
+                break;
+            case 'end_performance':
+                db_connect()->table('schedule_items')->where('id', $due['item']['id'])->update(['performing_ended_at' => Clock::db(), 'updated_at' => Clock::db()]);
+                $log->log($sys, 'performance.ended', ['slam_id' => $sid, 'target_type' => 'schedule_item', 'target_id' => (int) $due['item']['id'], 'meta' => ['trigger' => 'timer']]);
+                break;
+            case 'start_performance':
+                $this->skipBreaksBefore($sid, $due['item'], $sys);
+                if ($slam['status'] === 'checkin_closed') {
+                    $slam = $this->transition($slam, 'reviewing', $due['trigger'], $sys, 'First performance started');
+                }
+                $this->beginPerformance($slam, $due['item'], $sys);
                 break;
             case 'open_item':
             case 'start_break':
@@ -745,9 +781,35 @@ class SlamPhaseService
             if ($s['status'] === 'checkin_closed') {
                 $s = $this->transition($s, 'reviewing', 'manual_override', $actor, 'First performance started');
             }
-            db_connect()->table('schedule_items')->where('id', $item['id'])->update(['performing_started_at' => Clock::db(), 'performing_ended_at' => null, 'updated_at' => Clock::db()]);
-            service('activityLog')->log($actor, 'performance.started', ['slam_id' => (int) $s['id'], 'target_type' => 'schedule_item', 'target_id' => (int) $item['id']]);
+            $this->beginPerformance($s, $item, $actor);
         });
+    }
+
+    private function beginPerformance(array $slam, array $item, Actor $actor): void
+    {
+        db_connect()->table('schedule_items')->where('id', $item['id'])->update(['performing_started_at' => Clock::db(), 'performing_ended_at' => null, 'updated_at' => Clock::db()]);
+        service('activityLog')->log($actor, 'performance.started', ['slam_id' => (int) $slam['id'], 'target_type' => 'schedule_item', 'target_id' => (int) $item['id']]);
+    }
+
+    /**
+     * A short fingerprint of everything an operator's buttons depend on (phase, mode, pause, every item's state and
+     * times, the open windows, break end). Screens send the version they were looking at; an action made from a stale
+     * screen is refused (see FreshStateFilter), so two people never act on different pictures of the slam.
+     */
+    public function stateVersion(int $slamId): string
+    {
+        $slam  = Db::row('SELECT status, auto_mode, hold_next_step, paused_at, schedule_version, closes_at FROM slams WHERE id = ?', [$slamId]) ?? [];
+        $items = Db::rows("SELECT id, status, planned_start_at, duration_minutes, performing_started_at, performing_ended_at, ends_at FROM schedule_items WHERE slam_id = ? ORDER BY id", [$slamId]);
+        $win   = Db::row('SELECT rw.id, rw.closes_at, rw.extended_minutes_total, rw.closed_at FROM review_windows rw JOIN schedule_items si ON si.id = rw.schedule_item_id WHERE si.slam_id = ? ORDER BY rw.id DESC LIMIT 1', [$slamId]);
+        $rev   = Db::row('SELECT id, closes_at, closed_at FROM revision_windows WHERE slam_id = ? ORDER BY id DESC LIMIT 1', [$slamId]);
+
+        return substr(md5(json_encode([$slam, $items, $win, $rev])), 0, 12);
+    }
+
+    /** The performance on stage right now, if any. */
+    private function performingItem(int $slamId): ?array
+    {
+        return Db::row("SELECT * FROM schedule_items WHERE slam_id = ? AND item_type = 'performance' AND performing_started_at IS NOT NULL AND performing_ended_at IS NULL AND status IN ('pending','open') LIMIT 1", [$slamId]);
     }
 
     /** The presenter leaves the stage; an open review window keeps running. */
@@ -1063,6 +1125,7 @@ class SlamPhaseService
                 $shifted['edit_window'] = true;
             }
             $db->query("UPDATE schedule_items SET ends_at = DATE_ADD(ends_at, INTERVAL ? SECOND) WHERE slam_id = ? AND item_type = 'break' AND status = 'open' AND ends_at IS NOT NULL", [$secs, $sid]);
+            $db->query("UPDATE schedule_items SET performing_started_at = DATE_ADD(performing_started_at, INTERVAL ? SECOND) WHERE slam_id = ? AND performing_started_at IS NOT NULL AND performing_ended_at IS NULL", [$secs, $sid]);
             $upd = ['paused_at' => null, 'pause_reason' => null, 'updated_at' => Clock::db(), 'closes_at' => Clock::addMinutes($s['closes_at'], $mins)];
             $shifted['hard_stop_minutes'] = $mins;
             if ($s['status'] === 'checkin_open' && $s['checkin_closes_at'] !== null) {

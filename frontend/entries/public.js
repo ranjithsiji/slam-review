@@ -62,7 +62,7 @@ const home = document.querySelector('[data-home-live]');
 if (home) {
   let etag = null;
   let timer = null;
-  const sigOf = (list) => list.map((d) => `${d.slug}:${d.now?.id ?? ''}:${d.next?.id ?? ''}:${d.phase}:${d.paused ? 1 : 0}`).join('|');
+  const sigOf = (list) => list.map((d) => `${d.slug}:${d.now?.id ?? ''}:${d.next?.id ?? ''}:${d.phase}:${d.paused ? 1 : 0}:${(d.ads || []).length}:${d.talk?.title ?? ''}`).join('|');
   const headline = (d) => {
     let t;
     if (d.now && d.now.kind === 'break') t = `Now: <strong>${esc(d.now.label)}</strong>`;
@@ -96,4 +96,30 @@ if (home) {
   };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
   timer = setTimeout(poll, 4000);
+}
+
+// Break ads: rotate the slides every 8 s.
+document.querySelectorAll('[data-ad-rotate]').forEach((box) => {
+  const slides = [...box.querySelectorAll('.ad-slide')];
+  if (slides.length < 2) return;
+  let i = 0;
+  setInterval(() => { slides[i].hidden = true; i = (i + 1) % slides.length; slides[i].hidden = false; }, 8000);
+});
+// The schedule page reloads when the talk on stage or the ads change (rendered on the server).
+const sched = document.querySelector('[data-talk-sig]');
+if (sched) {
+  const url = document.querySelector('[data-public-schedule]')?.dataset.publicSchedule;
+  const sig = (d) => `${d.talk?.title ?? ''}|${(d.ads || []).length}`;
+  let timer = null;
+  const check = async () => {
+    clearTimeout(timer);
+    if (!document.hidden && url) {
+      try {
+        const res = await fetch(url, { credentials: 'same-origin' });
+        if (res.status === 200 && sig(await res.json()) !== sched.dataset.talkSig) { window.location.reload(); return; }
+      } catch { /* keep the page */ }
+    }
+    timer = setTimeout(check, 9000 + Math.random() * 3000);
+  };
+  timer = setTimeout(check, 5000);
 }

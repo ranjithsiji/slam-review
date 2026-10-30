@@ -1,7 +1,7 @@
 <?php
 /** @var list<array> $coming  @var list<array> $past  @var list<array> $live */
 $this->setVar('title', 'Kerala Science Slam');
-$sig = static fn (array $l) => implode('|', array_map(static fn ($d) => $d['slug'] . ':' . ($d['now']['id'] ?? '') . ':' . ($d['next']['id'] ?? '') . ':' . $d['phase'] . ':' . (int) $d['paused'], $l));
+$sig = static fn (array $l) => implode('|', array_map(static fn ($d) => $d['slug'] . ':' . ($d['now']['id'] ?? '') . ':' . ($d['next']['id'] ?? '') . ':' . $d['phase'] . ':' . (int) $d['paused'] . ':' . count($d['ads'] ?? []) . ':' . ($d['talk']['title'] ?? ''), $l));
 $slotTime = static fn (string $iso) => esc(local_time(str_replace(['T', 'Z'], [' ', ''], $iso), 'H:i'));
 ?>
 <?= $this->extend('Modules\Core\Views\layouts\public') ?>
@@ -64,7 +64,9 @@ $slotTime = static fn (string $iso) => esc(local_time(str_replace(['T', 'Z'], ['
                     <span class="small text-secondary ms-md-2"><?= icon('place.venue', 'icon-inline me-1') ?><?= esc($d['venue_name']) ?></span>
                 </div>
                 <p class="h3 fw-normal mb-2 ml-text" data-live-text="<?= esc($d['slug'], 'attr') ?>" role="status" aria-live="polite"><?= live_headline($d) ?></p>
-                <div class="d-flex flex-wrap align-items-center gap-2">
+                <?php if (! empty($d['talk'])): ?><div class="talk-strip mb-3"><?= view('Modules\PublicSite\Views\partials\talk', ['talk' => $d['talk']]) ?></div><?php endif ?>
+                <?= view('Modules\PublicSite\Views\partials\ads', ['ads' => $d['ads'] ?? []]) ?>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                     <span data-live-late="<?= esc($d['slug'], 'attr') ?>"><?= (int) $d['late_minutes'] > 0 ? '<span class="badge bg-orange-lt">Running about ' . (int) $d['late_minutes'] . ' min behind schedule</span>' : '' ?></span>
                     <a class="btn btn-sm ms-auto" href="<?= site_url('slams/' . $d['slug']) ?>">Full schedule</a>
                 </div>
@@ -72,6 +74,32 @@ $slotTime = static fn (string $iso) => esc(local_time(str_replace(['T', 'Z'], ['
         </section>
     <?php endforeach ?>
 </div>
+
+<?php foreach ($results as $res): $rs = $res['slam']; ?>
+    <section class="card card-accent accent-orange mb-4" aria-labelledby="res-<?= esc($rs['slug'], 'attr') ?>">
+        <div class="card-header d-block">
+            <div class="text-secondary small text-uppercase fw-bold"><?= icon('nav.marks', 'icon-inline me-1') ?>Result</div>
+            <h2 class="h2 m-0" id="res-<?= esc($rs['slug'], 'attr') ?>"><?= esc($rs['name']) ?>: top <?= count($res['top']) ?> presenters</h2>
+            <div class="text-secondary small"><?= esc(local_time($rs['opens_at'], 'l, d F Y')) ?> · <?= esc($rs['venue_name']) ?><?= $rs['type'] === 'regional' ? ' · selected for the final' : '' ?></div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <?php foreach ($res['top'] as $t): ?>
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <div class="d-flex gap-3 align-items-center">
+                            <?php if ($t['thumb']): ?><img class="avatar avatar-lg avatar-photo" src="<?= esc($t['thumb'], 'attr') ?>" alt="" loading="lazy" width="56" height="56"><?php else: ?><span class="avatar avatar-lg"><?= icon('person.user') ?></span><?php endif ?>
+                            <div class="min-w-0">
+                                <div class="fw-bold fs-3 ml-text"><?= esc($t['presenter_name']) ?></div>
+                                <?php if ($t['designation']): ?><div class="small text-secondary ml-text"><?= esc($t['designation']) ?></div><?php endif ?>
+                                <div class="small ml-text"><?= esc($t['topic']) ?></div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach ?>
+            </div>
+        </div>
+    </section>
+<?php endforeach ?>
 
 <section aria-labelledby="schedule-h" class="mb-4">
     <h2 class="h2 mb-3" id="schedule-h">Schedule</h2>

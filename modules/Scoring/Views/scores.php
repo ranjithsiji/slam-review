@@ -3,6 +3,7 @@
 <?= $this->section('content') ?>
 <?php
 $n     = static fn (?float $v, int $dp = 2) => $v === null ? '—' : number_format($v, $dp);
+$m     = static fn (?float $v) => $v === null ? '—' : number_format($v * 10, 2); // out of 100
 $count = ['general' => 'n_general', 'representative' => 'n_representative', 'judge' => 'n_judge'];
 $tone  = ['general' => 'blue', 'representative' => 'purple', 'judge' => 'orange'];
 $detail = static function (array $r, string $g) use ($questions): array {
@@ -47,8 +48,8 @@ $ranked = count(array_filter($rows, static fn ($r) => $r['rank'] !== null));
                         <span class="badge <?= $top ? 'bg-green-lt' : 'bg-secondary-lt' ?> mt-1"><?= $r['rank'] !== null ? '#' . (int) $r['rank'] : 'No rank yet' ?></span>
                     </div>
                     <div class="text-end">
-                        <div class="display-6 lh-1"><?= $n($b['final']) ?></div>
-                        <div class="small text-secondary">out of 10</div>
+                        <div class="display-6 lh-1"><?= $m($b['final']) ?></div>
+                        <div class="small text-secondary">out of 100</div>
                     </div>
                 </summary>
                 <div class="list-group list-group-flush border-top">
@@ -57,11 +58,11 @@ $ranked = count(array_filter($rows, static fn ($r) => $r['rank'] !== null));
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge bg-<?= $tone[$g] ?>-lt"><?= esc($x['label']) ?></span>
                                 <span class="small ms-auto"><?= (int) ($r[$count[$g]] ?? 0) ?> vote<?= (int) ($r[$count[$g]] ?? 0) === 1 ? '' : 's' ?></span>
-                                <span class="fw-bold"><?= $n($x['avg'] === null ? null : (float) $x['avg']) ?></span><span class="small text-secondary">/10</span>
+                                <span class="fw-bold"><?= $m($x['avg'] === null ? null : (float) $x['avg']) ?></span><span class="small text-secondary">/100</span>
                             </div>
                             <div class="small text-secondary mt-1">
                                 <?php if ($counts): ?>
-                                    Weight <?= $n($x['weight'], 0) ?>% → share <?= $n($x['share'] * 100, 1) ?>% → <strong class="text-body"><?= $n($x['contribution']) ?></strong> points
+                                    Weight <?= $n($x['weight'], 0) ?>% → share <?= $n($x['share'] * 100, 1) ?>% → <strong class="text-body"><?= $m($x['contribution']) ?></strong> points
                                 <?php else: ?>
                                     <?= $x['avg'] === null ? 'No votes from this group; its weight goes to the others.' : 'Weight 0%, not counted.' ?>
                                 <?php endif ?>
@@ -71,7 +72,7 @@ $ranked = count(array_filter($rows, static fn ($r) => $r['rank'] !== null));
                             <?php endforeach ?>
                         </div>
                     <?php endforeach ?>
-                    <div class="list-group-item d-flex justify-content-between fw-bold"><span>Final mark</span><span><?= $n($b['final']) ?> / 10</span></div>
+                    <div class="list-group-item d-flex justify-content-between fw-bold"><span>Final mark</span><span><?= $m($b['final']) ?> / 100</span></div>
                 </div>
             </details>
         </div>

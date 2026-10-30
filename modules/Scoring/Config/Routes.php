@@ -5,6 +5,12 @@ $routes->group('', ['namespace' => 'Modules\Scoring\Controllers', 'filter' => 'a
     $routes->get('admin/slams/(:num)/marks', 'MarksController::marks/$1');
     $routes->get('admin/slams/(:num)/scores', 'MarksController::scores/$1');
     $routes->get('admin/slams/(:num)/leaderboard', 'MarksController::leaderboard/$1');
+    $routes->get('admin/slams/(:num)/results.pdf', 'MarksController::resultSheet/$1', ['filter' => 'nostore']);
+    $routes->post('admin/slams/(:num)/results/publish', 'MarksController::publishResults/$1');
+    $routes->get('admin/slams/(:num)/paper-marks', 'PaperMarksController::index/$1');
+    $routes->post('admin/slams/(:num)/paper-marks/audience', 'PaperMarksController::saveAudience/$1');
+    $routes->post('admin/slams/(:num)/paper-marks/import', 'PaperMarksController::import/$1', ['filter' => 'ratelimit:checkin']);
+    $routes->get('admin/slams/(:num)/paper-marks/template/(audience|judge)\.csv', 'PaperMarksController::template/$1/$2', ['filter' => 'nostore']);
     $routes->get('admin/slams/(:num)/stats', 'MarksController::stats/$1');
     $routes->get('api/slams/(:num)/stats', 'MarksController::statsData/$1');
     $routes->get('admin/slams/(:num)/mark-config', 'MarksController::config/$1');

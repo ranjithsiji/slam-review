@@ -109,6 +109,9 @@ class PublicCheckinController extends BaseController
             if ($wantsJson) {
                 return $this->jsonError($e);
             }
+            if ($e->reason === 'gate_closed') {
+                return $this->askTheDesk($raw); // after Gate Close: wait for the volunteer
+            }
 
             return redirect()->to(site_url('checkin'))->withInput()->with('error', $e->getMessage());
         }
@@ -141,5 +144,55 @@ class PublicCheckinController extends BaseController
 
             return ['ok' => true, 'redirect' => site_url('checkin')];
         });
+    }
+
+    /** After Gate Close: this phone asks the desk to check the person in and waits on its own screen. */
+    private function askTheDesk(string $rawId): RedirectResponse
+    {
+        try {
+            $r = service('checkins')->requestLate($rawId, (int) (session('late_request')['id'] ?? 0) ?: null);
+        } catch (DomainException $e) {
+            return redirect()->to(site_url('checkin'))->with('error', $e->getMessage());
+        }
+        session()->set('late_request', [
+            'id' => $r['id'], 'token' => $r['token'], 'code' => $r['code'], 'name' => $r['attendee']['name'],
+            'mobile' => \Modules\Checkin\Services\CheckinService::maskMobile($r['attendee']['mobile']), 'slam_name' => $r['slam']['name'],
+        ]);
+
+        return redirect()->to(site_url('checkin/waiting'));
+    }
+
+    /** The intermediate screen: "a volunteer will check you in". */
+    public function waitingPage(): string|RedirectResponse
+    {
+        $lr = session('late_request');
+        if (! is_array($lr)) {
+            return redirect()->to(site_url('checkin'));
+        }
+
+        return view('Modules\Checkin\Views\waiting', ['lr' => $lr]);
+    }
+
+    /** Polled by the waiting screen: when the volunteer has checked this person in, this phone gets the review screen. */
+    public function waitingPoll(): ResponseInterface
+    {
+        $lr = session('late_request');
+        if (! is_array($lr)) {
+            return $this->json(['status' => 'none']);
+        }
+        $st = service('checkins')->waitingStatus((int) $lr['id'], (string) $lr['token']);
+        if ($st['status'] !== 'approved') {
+            return $this->json(['status' => $st['status']]);
+        }
+        $a       = $st['attendee'];
+        $session = session();
+        $session->regenerate(true);
+        $session->remove(['auth', 'late_request', 'checkin_pending']);
+        $session->set('reviewer', [
+            'attendee_id' => (int) $a['id'], 'slam_id' => (int) $a['slam_id'], 'badge_id' => $a['badge_id'], 'name' => $a['name'],
+            'user_type' => $a['user_type'], 'checkin_id' => $st['checkin_id'], 'token' => (string) $lr['token'],
+        ]);
+
+        return $this->json(['status' => 'approved', 'redirect' => site_url('review')]);
     }
 }

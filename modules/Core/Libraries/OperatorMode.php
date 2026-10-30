@@ -23,9 +23,9 @@ final class OperatorMode
 
     /** Screens (slam_nav keys) per mode, in menu order. A screen in several modes does not switch the mode. */
     public const TABS = [
-        self::PREPARE => ['overview', 'edit', 'presenters', 'schedule', 'judgelist', 'reviewers', 'questions', 'weights'],
+        self::PREPARE => ['overview', 'edit', 'presenters', 'schedule', 'judgelist', 'reviewers', 'questions', 'ads', 'weights'],
         self::RUN     => ['status', 'schedule', 'checkins', 'idle', 'reviewers'],
-        self::AFTER   => ['status', 'judges', 'representatives', 'marks', 'scores', 'leaderboard', 'stats'],
+        self::AFTER   => ['status', 'judges', 'paper', 'representatives', 'marks', 'scores', 'leaderboard', 'stats'],
     ];
 
     /** Menu entry per screen: [label, path under admin/slams/{id}, icon]. */
@@ -33,9 +33,9 @@ final class OperatorMode
         'overview' => ['Overview', '', 'nav.slams'], 'edit' => ['Times & details', '/edit', 'nav.schedule'],
         'presenters' => ['Presenters', '/presenters', 'nav.presenters'], 'schedule' => ['Schedule', '/schedule', 'nav.schedule'],
         'judgelist' => ['Judges', '/judges', 'person.judge'], 'reviewers' => ['Reviewers & import', '/reviewers', 'person.user'],
-        'questions' => ['Questions', '/questions', 'nav.questions'], 'weights' => ['Mark weights', '/mark-config', 'nav.system'],
+        'questions' => ['Questions', '/questions', 'nav.questions'], 'ads' => ['Break ads', '/ads', 'about.talk'], 'weights' => ['Mark weights', '/mark-config', 'nav.system'],
         'status' => ['Status & controls', '/status', 'nav.status'], 'checkins' => ['Check-ins', '/checkins', 'nav.checkins'], 'idle' => ['Not reviewing', '/not-reviewing', 'status.warning'],
-        'judges' => ["Judges' marks", '/judge-marks', 'person.judge'], 'representatives' => ['Representatives', '/representatives', 'nav.representatives'],
+        'judges' => ["Judges' marks", '/judge-marks', 'person.judge'], 'paper' => ['Paper marks', '/paper-marks', 'action.edit'], 'representatives' => ['Representatives', '/representatives', 'nav.representatives'],
         'marks' => ['Calculate marks', '/marks', 'nav.marks'], 'scores' => ['Final scores', '/scores', 'nav.marks'], 'leaderboard' => ['Leaderboard', '/leaderboard', 'nav.marks'], 'stats' => ['Statistics', '/stats', 'nav.stats'],
     ];
 

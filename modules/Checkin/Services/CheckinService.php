@@ -87,7 +87,10 @@ class CheckinService
         $slam = service('slams')->find($slamId);
         // A late check-in from the desk can be claimed after Gate Close; otherwise the gate must be open.
         $open = Db::row('SELECT id, session_token_hash FROM checkins WHERE attendee_id = ? AND checked_out_at IS NULL', [$att['id']]);
-        if ($open === null) {
+        $late = false;
+        if ($open === null && in_array($slam['status'], self::LATE_PHASES, true)) {
+            $late = true; // gate closed, slam running: the phone waits for the volunteer (see requestLate)
+        } elseif ($open === null) {
             try {
                 $this->assertGateOpen($slam);
             } catch (DomainException $e) {
@@ -98,7 +101,7 @@ class CheckinService
 
         return [
             'badge_id' => $att['badge_id'], 'name' => $att['name'], 'mobile' => self::maskMobile($att['mobile']),
-            'user_type' => $att['user_type'], 'slam_name' => $slam['name'],
+            'user_type' => $att['user_type'], 'slam_name' => $slam['name'], 'late' => $late,
         ];
     }
 
@@ -187,6 +190,155 @@ class CheckinService
         return $result + ['attendee' => $att];
     }
 
+    // ------------------------------------------------------------------
+    // After Gate Close: the phone waits, the volunteer checks the person in, the waiting phone moves on.
+    // ------------------------------------------------------------------
+
+    public const REQUEST_MINUTES = 20;   // a request lives this long
+    public const SEEN_SECONDS    = 45;   // the desk lists it only while the phone is still on the waiting screen
+
+    /**
+     * The phone asks the desk to check this person in. Needs: gate closed, slam running, nobody checked in yet.
+     *
+     * @return array{id: int, token: string, code: string, attendee: array<string,mixed>, slam: array<string,mixed>}
+     */
+    public function requestLate(string $rawId, ?int $replaceRequestId = null): array
+    {
+        $badge = BadgeIdService::fromScan($rawId) ?? BadgeIdService::normalise($rawId);
+        $att   = BadgeIdService::isValidFormat($badge) ? Db::row('SELECT * FROM attendees WHERE badge_id = ? AND is_active = 1', [$badge]) : null;
+        if ($att === null) {
+            throw new DomainException('invalid_id', self::GENERIC_FAILURE, 401);
+        }
+        service('slamPhase')->tick((int) $att['slam_id']);
+        $slam = service('slams')->find((int) $att['slam_id']);
+        if (! in_array($slam['status'], self::LATE_PHASES, true)) {
+            $this->assertGateOpen($slam); // explains why not (too early / closed)
+            throw new DomainException('self_checkin', 'The gates are open: scan your badge to check in.', 409);
+        }
+        if (Db::value('SELECT id FROM checkins WHERE attendee_id = ? AND checked_out_at IS NULL', [$att['id']]) !== null) {
+            throw new DomainException('already_checked_in', 'This badge is already checked in.', 409);
+        }
+        $db    = db_connect();
+        $token = bin2hex(random_bytes(32));
+        $now   = Clock::db();
+        if ($replaceRequestId !== null) {
+            $db->table('late_checkin_requests')->where('id', $replaceRequestId)->where('attendee_id', $att['id'])->where('status', 'waiting')->update(['status' => 'cancelled']);
+        }
+        $db->table('late_checkin_requests')->insert([
+            'slam_id' => $att['slam_id'], 'attendee_id' => $att['id'], 'token_hash' => hash('sha256', $token), 'code' => (string) random_int(100, 999),
+            'status' => 'waiting', 'created_at' => $now, 'seen_at' => $now, 'expires_at' => Clock::addMinutes($now, self::REQUEST_MINUTES),
+        ]);
+        $id   = (int) $db->insertID();
+        $code = (string) Db::value('SELECT code FROM late_checkin_requests WHERE id = ?', [$id]);
+        service('activityLog')->log($this->attendeeActor($att), 'checkin.late_requested', ['slam_id' => (int) $att['slam_id'], 'target_type' => 'attendee', 'target_id' => (int) $att['id'], 'meta' => ['request_id' => $id]]);
+
+        return ['id' => $id, 'token' => $token, 'code' => $code, 'attendee' => $att, 'slam' => $slam];
+    }
+
+    /**
+     * The waiting phone asks what became of its request (also tells the desk it is still on screen).
+     *
+     * @return array{status: string, checkin_id?: int, attendee?: array<string,mixed>, slam?: array<string,mixed>}
+     */
+    public function waitingStatus(int $requestId, string $token): array
+    {
+        $r = Db::row('SELECT * FROM late_checkin_requests WHERE id = ?', [$requestId]);
+        if ($r === null || ! hash_equals($r['token_hash'], hash('sha256', $token))) {
+            return ['status' => 'unknown'];
+        }
+        $now = Clock::db();
+        if ($r['status'] === 'waiting') {
+            if (Clock::parse($r['expires_at']) <= Clock::parse($now)) {
+                db_connect()->table('late_checkin_requests')->where('id', $requestId)->update(['status' => 'expired']);
+
+                return ['status' => 'expired'];
+            }
+            db_connect()->table('late_checkin_requests')->where('id', $requestId)->update(['seen_at' => $now]);
+
+            return ['status' => 'waiting'];
+        }
+        if ($r['status'] !== 'approved') {
+            return ['status' => $r['status']];
+        }
+        $open = Db::row('SELECT id, session_token_hash FROM checkins WHERE id = ? AND checked_out_at IS NULL', [$r['checkin_id']]);
+        if ($open === null || $open['session_token_hash'] === null || ! hash_equals($open['session_token_hash'], $r['token_hash'])) {
+            return ['status' => 'cancelled']; // checked out again, or the check-in belongs to another phone
+        }
+
+        return [
+            'status' => 'approved', 'checkin_id' => (int) $open['id'],
+            'attendee' => Db::row('SELECT * FROM attendees WHERE id = ?', [$r['attendee_id']]), 'slam' => service('slams')->find((int) $r['slam_id']),
+        ];
+    }
+
+    /**
+     * Phones waiting for the desk of a slam (still on screen, not expired).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function waitingList(int $slamId): array
+    {
+        $now = Clock::db();
+        $rows = Db::rows(
+            "SELECT r.id, r.code, r.created_at, a.id AS attendee_id, a.name, a.badge_id, a.mobile, a.user_type
+               FROM late_checkin_requests r JOIN attendees a ON a.id = r.attendee_id
+              WHERE r.slam_id = ? AND r.status = 'waiting' AND r.expires_at > ? AND r.seen_at >= ?
+                AND NOT EXISTS (SELECT 1 FROM checkins c WHERE c.attendee_id = a.id AND c.checked_out_at IS NULL AND c.session_token_hash IS NOT NULL)
+              ORDER BY r.created_at",
+            [$slamId, $now, Clock::addSeconds($now, -self::SEEN_SECONDS)],
+        );
+
+        return array_map(static fn ($r) => [
+            'id' => (int) $r['id'], 'code' => $r['code'], 'attendee_id' => (int) $r['attendee_id'], 'name' => $r['name'], 'badge_id' => $r['badge_id'],
+            'mobile' => self::maskMobile($r['mobile']), 'user_type' => $r['user_type'], 'waiting_since' => Clock::iso($r['created_at']),
+        ], $rows);
+    }
+
+    /** Waiting requests of one attendee (usually one). */
+    private function waitingFor(int $attendeeId): array
+    {
+        $now = Clock::db();
+
+        return Db::rows("SELECT id, code FROM late_checkin_requests WHERE attendee_id = ? AND status = 'waiting' AND expires_at > ? AND seen_at >= ? ORDER BY id", [$attendeeId, $now, Clock::addSeconds($now, -self::SEEN_SECONDS)]);
+    }
+
+    /**
+     * The volunteer (or admin) picks a waiting phone from the desk list: the person is checked in and exactly that phone
+     * gets the review screen. Works whether or not the person was already checked in at the desk without a phone.
+     *
+     * @return array{checkin_id: int, attendee: array<string,mixed>, code: string}
+     */
+    public function approveRequest(int $requestId, Actor $actor): array
+    {
+        $r = Db::row('SELECT * FROM late_checkin_requests WHERE id = ?', [$requestId]) ?? throw new DomainException('not_found', 'That request is gone.', 404);
+        $att = Db::row('SELECT * FROM attendees WHERE id = ?', [$r['attendee_id']]);
+        $this->assertScope($att, $actor);
+        if ($r['status'] !== 'waiting' || Clock::parse($r['expires_at']) <= Clock::parse(Clock::db())) {
+            throw new DomainException('request_closed', 'That phone is no longer waiting. Ask the person to scan their badge again.', 409);
+        }
+        $open = Db::row('SELECT id, session_token_hash FROM checkins WHERE attendee_id = ? AND checked_out_at IS NULL', [$att['id']]);
+        if ($open !== null && $open['session_token_hash'] !== null) {
+            throw new DomainException('already_checked_in', 'This person is already checked in on a phone.', 409);
+        }
+        $checkinId = $open !== null ? (int) $open['id'] : (int) $this->lateCheckin((int) $att['id'], null, $actor, false)['checkin_id'];
+        $this->bind($r, $checkinId, $actor);
+
+        return ['checkin_id' => $checkinId, 'attendee' => $att, 'code' => $r['code']];
+    }
+
+    /** Bind a waiting phone to a check-in and close the person's other waiting requests. */
+    private function bind(array $request, int $checkinId, Actor $actor): void
+    {
+        $db  = db_connect();
+        $now = Clock::db();
+        $db->table('checkins')->where('id', $checkinId)->where('session_token_hash IS NULL')->update(['session_token_hash' => $request['token_hash'], 'updated_at' => $now]);
+        $db->table('late_checkin_requests')->where('id', $request['id'])->update([
+            'status' => 'approved', 'checkin_id' => $checkinId, 'approved_by_type' => $actor->type === 'volunteer' ? 'volunteer' : 'admin', 'approved_by' => $actor->id, 'approved_at' => $now,
+        ]);
+        $db->table('late_checkin_requests')->where('attendee_id', $request['attendee_id'])->where('status', 'waiting')->where('id <>', $request['id'])->update(['status' => 'cancelled']);
+        service('activityLog')->log($actor, 'checkin.phone_linked', ['slam_id' => (int) $request['slam_id'], 'target_type' => 'attendee', 'target_id' => (int) $request['attendee_id'], 'meta' => ['request_id' => (int) $request['id'], 'code' => $request['code'], 'checkin_id' => $checkinId]]);
+    }
+
     /** Normal check-in is only allowed while the gate is open; explain why not otherwise. */
     public function assertGateOpen(array $slam): void
     {
@@ -211,7 +363,7 @@ class CheckinService
      * already-registered attendee. Unclaimed until the attendee's phone scans
      * the badge. While the gates are open attendees check themselves in.
      */
-    public function lateCheckin(int $attendeeId, ?string $reason, Actor $actor): array
+    public function lateCheckin(int $attendeeId, ?string $reason, Actor $actor, bool $linkPhone = true): array
     {
         if (! in_array($actor->type, ['volunteer', 'admin'], true)) {
             throw new DomainException('forbidden', 'Only volunteers and admins can do a late check-in.', 403);
@@ -224,7 +376,7 @@ class CheckinService
         $reason = trim((string) $reason) !== '' ? mb_substr(trim((string) $reason), 0, 255) : 'Arrived after Gate Close';
         service('slamPhase')->tick((int) $att['slam_id']);
         try {
-            return Db::tx(function ($db) use ($att, $actor, $reason): array {
+            $made = Db::tx(function ($db) use ($att, $actor, $reason): array {
                 $slam = Db::lockSlam((int) $att['slam_id']);
                 if ($slam['status'] === 'checkin_open') {
                     throw new DomainException('self_checkin', 'The gates are open: attendees check themselves in by scanning the QR code on their badge.', 409);
@@ -255,6 +407,16 @@ class CheckinService
             ]);
             throw $e;
         }
+        $phone = ['bound' => false, 'code' => null, 'choices' => []];
+        $waiting = $linkPhone ? $this->waitingFor((int) $att['id']) : [];
+        if (count($waiting) === 1) {
+            $this->bind(Db::row('SELECT * FROM late_checkin_requests WHERE id = ?', [$waiting[0]['id']]), (int) $made['checkin_id'], $actor);
+            $phone = ['bound' => true, 'code' => $waiting[0]['code'], 'choices' => []];
+        } elseif (count($waiting) > 1) {
+            $phone['choices'] = array_map(static fn ($w) => ['id' => (int) $w['id'], 'code' => $w['code']], $waiting); // the desk picks by code
+        }
+
+        return $made + ['phone' => $phone];
     }
 
     /**

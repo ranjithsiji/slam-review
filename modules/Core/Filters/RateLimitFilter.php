@@ -25,6 +25,7 @@ class RateLimitFilter implements FilterInterface
         'poll'    => [60, MINUTE],   // per reviewer session (normal: ~15/min)
         'review'  => [30, MINUTE],   // per reviewer session
         'search'  => [120, MINUTE],  // per staff session
+        'wait'    => [60, MINUTE],   // per waiting phone (late check-in screen polls every ~3 s)
         'lookup'  => [10, MINUTE],   // per IP: public "Am I registered?" by mobile
         'staff'   => [600, MINUTE],  // per IP
     ];
@@ -36,6 +37,7 @@ class RateLimitFilter implements FilterInterface
         $who             = match ($bucket) {
             'poll', 'review' => 'r' . (session('reviewer')['checkin_id'] ?? $request->getIPAddress()),
             'search'         => 's' . (session('auth')['id'] ?? $request->getIPAddress()),
+            'wait'           => 'w' . (session('late_request')['id'] ?? $request->getIPAddress()),
             default          => $request->getIPAddress(),
         };
         $key             = 'rl_' . $bucket . '_' . md5((string) $who);

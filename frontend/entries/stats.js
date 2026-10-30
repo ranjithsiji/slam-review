@@ -28,12 +28,12 @@ if (root) {
     new Chart(root.querySelector('[data-chart="groups"]'), {
       type: 'bar',
       data: { labels: names, datasets: [
-        { label: 'General', data: d.results.map((r) => r.avg_general), backgroundColor: blue },
-        { label: 'Representatives', data: d.results.map((r) => r.avg_representative), backgroundColor: orange },
-        { label: 'Judges', data: d.results.map((r) => r.avg_judge), backgroundColor: purple },
-        { label: 'Final', data: d.results.map((r) => r.final_mark), backgroundColor: green },
+        { label: 'General', data: d.results.map((r) => r.avg_general * 10), backgroundColor: blue },
+        { label: 'Representatives', data: d.results.map((r) => r.avg_representative * 10), backgroundColor: orange },
+        { label: 'Judges', data: d.results.map((r) => r.avg_judge * 10), backgroundColor: purple },
+        { label: 'Final', data: d.results.map((r) => r.final_mark * 10), backgroundColor: green },
       ] },
-      options: { ...opts, scales: { y: { min: 0, max: 10 } } },
+      options: { ...opts, scales: { y: { min: 0, max: 100 } } },
     });
     new Chart(root.querySelector('[data-chart="dist"]'), {
       type: 'bar',

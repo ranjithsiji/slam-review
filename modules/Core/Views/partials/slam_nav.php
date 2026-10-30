@@ -10,12 +10,16 @@ $items = [
     'judgelist'  => ['Judges', "admin/slams/{$id}/judges", 'person.judge'],
     'checkins'   => ['Check-ins', "admin/slams/{$id}/checkins", 'nav.checkins'],
     'idle'       => ['Not reviewing', "admin/slams/{$id}/not-reviewing", 'status.warning'],
+    'ads'        => ['Break ads', "admin/slams/{$id}/ads", 'about.talk'],
     'questions'  => ['Questions', "admin/slams/{$id}/questions", 'nav.questions'],
     'representatives' => ['Representatives', "admin/slams/{$id}/representatives", 'nav.representatives'],
 ];
 // Entering judges' marks after the slam is a tab only for slams judged that way.
 if (service('scoring')->judging($id)['timing'] === 'end_of_slam') {
     $items['judges'] = ["Judges' marks", "admin/slams/{$id}/judge-marks", 'person.judge'];
+}
+{
+    $items['paper'] = ['Paper marks', "admin/slams/{$id}/paper-marks", 'action.edit'];
 }
 $items['marks']  = ['Marks', "admin/slams/{$id}/marks", 'nav.marks'];
 $items['scores'] = ['Scores', "admin/slams/{$id}/scores", 'nav.marks'];
@@ -57,8 +61,8 @@ if ($tabLabel) {
             <?php if ($mode !== null): ?><div class="col-12 col-sm-auto"><?= view('Modules\Core\Views\partials\operator_mode', ['mode' => $mode]) ?></div><?php endif ?>
             <?php if (empty($hideBadge)): ?><div class="col-auto"><?= status_badge('phase', $slam['status']) ?></div><?php endif ?>
         </div>
-        <div class="mt-3 overflow-auto">
-            <ul class="nav nav-pills flex-nowrap" style="white-space:nowrap">
+        <div class="mt-3">
+            <ul class="nav nav-pills flex-wrap gap-1 slam-tabs">
                 <?php foreach ($items as $key => [$label, $url, $ic]): ?>
                     <li class="nav-item"><a class="nav-link <?= ($active ?? '') === $key ? 'active' : '' ?>" href="<?= site_url($url) ?>"><?= icon($ic, 'me-1') ?><?= esc($label) ?></a></li>
                 <?php endforeach ?>

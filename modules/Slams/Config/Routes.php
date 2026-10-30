@@ -19,7 +19,7 @@ $routes->group('', ['namespace' => 'Modules\Slams\Controllers'], static function
     $routes->get('api/admin/live', 'ControlController::liveBar', ['filter' => 'auth:admin']);
 
     // Phase control API (admin only; every action goes through SlamPhaseService).
-    $routes->group('api/slams/(:num)', ['filter' => 'auth:admin'], static function ($routes): void {
+    $routes->group('api/slams/(:num)', ['filter' => ['auth:admin', 'fresh']], static function ($routes): void {
         $routes->get('control-state', 'ControlController::state/$1');
         $routes->put('times', 'ControlController::times/$1');
         $routes->post('ready', 'ControlController::action/$1/ready');

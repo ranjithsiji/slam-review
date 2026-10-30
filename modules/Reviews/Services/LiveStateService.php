@@ -87,6 +87,32 @@ class LiveStateService
             }
         }
 
+        // One "what is on right now" block for every screen: the talk on stage or in review, with photo, title, who, since when.
+        $talk = null;
+        $pick = ($current['kind'] ?? null) === 'performance' ? $current['schedule_item_id'] : ($presenting['id'] ?? null);
+        if ($pick !== null) {
+            $item = null;
+            foreach ($proj['items'] as $it) {
+                if ((int) $it['id'] === (int) $pick) {
+                    $item = $it;
+                }
+            }
+            $p = $item !== null && $item['performance_id'] !== null ? ($presenters[(int) $item['performance_id']] ?? []) : [];
+            if ($item !== null && $p !== []) {
+                $talk = [
+                    'item_id' => (int) $item['id'], 'title' => $p['topic'], 'presenter' => $p['presenter_name'], 'designation' => $p['designation'],
+                    'photo' => $p['photo'], 'thumb' => $p['thumb'], 'photo_alt' => $p['photo_alt'],
+                    'summary' => self::shorten((string) ($p['abstract'] ?: $p['profile'] ?? ''), 220),
+                    'started_at' => Clock::iso($item['performing_started_at'] ?? $item['window_opened_at'] ?? null),
+                    'on_stage' => (bool) ($byId[(int) $item['id']]['performing'] ?? false),
+                    'review_open' => $current !== null && ($current['kind'] ?? null) === 'performance',
+                    'closes_at' => $current['closes_at'] ?? null,
+                ];
+            }
+        }
+        // Break ads: only while a break is running (so the shared document stays small the rest of the time).
+        $ads = ($current['kind'] ?? null) === 'break' ? service('ads')->forBreak($slamId) : [];
+
         $next = null;
         foreach ($order as $row) {
             if ($row['status'] === 'pending') {
@@ -114,6 +140,8 @@ class LiveStateService
             'phase_label'   => SlamPhaseService::LABELS[$slam['status']] ?? $slam['status'],
             'current'       => $current,
             'presenting'    => $presenting,
+            'talk'          => $talk,
+            'ads'           => $ads,
             'next'          => $next,
             'running_order' => $order,
             'late_minutes'  => $proj['late_minutes'],
@@ -128,6 +156,19 @@ class LiveStateService
         $doc['version'] = substr(md5(json_encode($doc)), 0, 16);
 
         return $doc;
+    }
+
+    /** First $max characters of a text, cut at a word, with an ellipsis. */
+    public static function shorten(string $text, int $max): string
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+        if (mb_strlen($text) <= $max) {
+            return $text;
+        }
+        $cut = mb_substr($text, 0, $max);
+        $sp  = mb_strrpos($cut, ' ');
+
+        return rtrim($sp !== false && $sp > $max * 0.6 ? mb_substr($cut, 0, $sp) : $cut, " ,.;:") . '…';
     }
 
     /** @return array<int, array<string, mixed>> performance_id => presenter/topic details */
@@ -191,5 +232,44 @@ class LiveStateService
         $body['server_now'] = Clock::iso(Clock::db());
 
         return ['body' => $body, 'etag' => $etag];
+    }
+
+    /**
+     * "What is happening now" for staff screens (admin live bar, volunteer desk): one line, an optional deadline,
+     * paused and behind/ahead information.
+     *
+     * @return array<string, mixed>
+     */
+    public function nowSummary(int $slamId): array
+    {
+        $slam   = service('slams')->find($slamId);
+        $status = $slam['status'];
+        $live   = $this->shared($slamId);
+        $cur    = $live['current'] ?? null;
+        $inside = (int) Db::value('SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ? AND c.checked_out_at IS NULL', [$slamId]);
+        [$detail, $until] = match (true) {
+            $status === 'reviewing' && ($cur['kind'] ?? null) === 'performance' => [(! empty($cur['performing']) ? 'On stage, review open: ' : 'Performance over, review open: ') . ($cur['presenter_name'] ?? 'performance'), $cur['closes_at'] ?? null],
+            $status === 'reviewing' && ! empty($live['presenting']) => ['On stage: ' . ($live['presenting']['presenter_name'] ?? 'performance') . ' (review not open yet)', null],
+            $status === 'reviewing' && ($cur['kind'] ?? null) === 'break' => [($cur['label'] ?? 'Break') . ' in progress', $cur['ends_at'] ?? null],
+            $status === 'reviewing' => ['Between performances' . (($n = $live['next']['presenter_name'] ?? null) ? ': next is ' . $n : ''), null],
+            $status === 'revision' => ['Reviewers are editing their scores', $live['revision']['closes_at'] ?? null],
+            $status === 'checkin_open' => ["Gates are open: {$inside} checked in", $slam['checkin_closes_at'] ? Clock::iso($slam['checkin_closes_at']) : null],
+            $status === 'checkin_closed' => ["Gates closed, {$inside} inside" . (($n = $live['next']['presenter_name'] ?? null) ? ". First up: {$n}" : ''), null],
+            $status === 'open' => ['Slam is open; waiting to open the gates', null],
+            $status === 'reviews_complete' => ['All performances reviewed', null],
+            $status === 'revision_closed' => ['Scores locked', null],
+            in_array($status, ['draft', 'scheduled'], true) => ['Not started yet', null],
+            in_array($status, ['closed', 'marks_calculated', 'ended'], true) => ['The slam has ended', null],
+            default => ['Marks are calculated next', null],
+        };
+        $phase = service('slamPhase');
+        $drift = in_array($status, ['checkin_closed', 'reviewing'], true) ? $phase->drift($slam, $phase->projection($slam)['items']) : null;
+
+        return [
+            'status' => $status, 'label' => \Modules\Slams\Services\SlamPhaseService::LABELS[$status] ?? $status,
+            'detail' => $detail, 'until' => $until, 'paused_since' => $slam['paused_at'] !== null ? Clock::iso($slam['paused_at']) : null,
+            'drift' => $drift === null ? null : ['minutes' => $drift['minutes'], 'basis' => $drift['basis'], 'original' => $drift['original']],
+            'next' => $live['next']['presenter_name'] ?? null, 'talk' => $live['talk'] ?? null,
+        ];
     }
 }

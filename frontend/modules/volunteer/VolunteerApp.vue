@@ -18,6 +18,34 @@
     </div>
   </div>
 
+  <div v-if="st.now" class="card card-accent accent-red mb-3">
+    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+      <span class="live-dot" :class="{ on: !st.now.paused_since && !['draft', 'scheduled', 'closed', 'marks_calculated', 'ended'].includes(st.now.status) }" aria-hidden="true"></span>
+      <div class="me-auto min-w-0">
+        <div class="text-secondary small text-uppercase fw-bold">Happening now</div>
+        <div class="h2 m-0 ml-text">{{ st.now.detail }}</div>
+        <div v-if="st.now.next && st.now.status === 'reviewing' && !/next is/.test(st.now.detail)" class="small text-secondary">Up next: {{ st.now.next }}</div>
+      </div>
+      <span v-if="st.now.paused_since" class="badge bg-orange-lt fs-4"><Icon name="action.hold" cls="icon-inline me-1" />Paused</span>
+      <span v-else-if="st.now.drift && st.now.drift.minutes >= 2" class="badge bg-orange-lt fs-4">{{ st.now.drift.minutes }} min behind</span>
+      <span v-else-if="st.now.drift && st.now.drift.minutes <= -2" class="badge bg-green-lt fs-4">{{ Math.abs(st.now.drift.minutes) }} min ahead</span>
+      <div v-if="st.now.until && !st.now.paused_since" class="text-end"><div class="h2 m-0"><Countdown :until="st.now.until" :icon="false" /></div><div class="small text-secondary">left</div></div>
+    </div>
+    <div v-if="st.now.talk" class="card-footer"><TalkNow :talk="st.now.talk" /></div>
+  </div>
+
+  <div v-if="st.waiting?.length" class="card card-accent accent-orange mb-3">
+    <div class="card-header"><h3 class="card-title"><Icon name="status.live" cls="me-1" />Phones waiting for you ({{ st.waiting.length }})</h3></div>
+    <div class="list-group list-group-flush">
+      <div v-for="w in st.waiting" :key="w.id" class="list-group-item d-flex flex-wrap align-items-center gap-2">
+        <div class="me-auto min-w-0"><div class="fw-bold ml-text">{{ w.name }}</div><div class="small text-secondary">{{ w.badge_id }} · {{ w.mobile }}<span v-if="w.user_type === 'judge'"> · Judge</span></div></div>
+        <span class="badge bg-orange-lt fs-4" title="The code on their phone">{{ w.code }}</span>
+        <button type="button" class="btn btn-primary" :disabled="busy || !lateOpen" @click="approve(w)"><Icon name="status.ok" />Allow</button>
+      </div>
+    </div>
+    <div class="card-footer small text-secondary">Check the person's badge, ask for the code on their phone, then press Allow: that phone moves on to the review screen. No second scan needed (scanning their badge below still works).</div>
+  </div>
+
   <div class="row row-cards">
     <div class="col-12 col-lg-6">
       <div class="card h-100">
@@ -43,6 +71,9 @@
               <div>
                 <div class="fw-bold fs-3 ml-text">{{ result.title }}</div>
                 <div>{{ result.text }}</div>
+                <div v-if="result.choices?.length" class="d-flex flex-wrap gap-2 mt-2">
+                  <button v-for="c in result.choices" :key="c.id" type="button" class="btn btn-primary" :disabled="busy" @click="approve({ id: c.id, code: c.code, name: result.name, badge_id: result.badge })">Phone with code {{ c.code }}</button>
+                </div>
               </div>
             </div>
           </div>
@@ -91,6 +122,8 @@ import { dialog, toast } from '../../shared/ui.js';
 import Icon from '../../shared/components/Icon.vue';
 import StatusBadge from '../../shared/components/StatusBadge.vue';
 import ConnBanner from '../../shared/components/ConnBanner.vue';
+import Countdown from '../../shared/components/Countdown.vue';
+import TalkNow from '../../shared/components/TalkNow.vue';
 
 const props = defineProps({ boot: Object });
 const boot = props.boot;
@@ -131,12 +164,34 @@ async function doCheckin(body) {
   busy.value = true;
   try {
     const res = await post('/api/volunteer/checkin', { ...body, slam_id: boot.slam_id });
-    result.value = { ok: true, title: res.attendee.name, text: `${res.attendee.badge_id} · ${res.attendee.user_type === 'judge' ? 'Judge' : 'User'}: late check-in done. Ask them to scan their badge on their own phone to start reviewing.` };
+    const who = `${res.attendee.badge_id} · ${res.attendee.user_type === 'judge' ? 'Judge' : 'User'}`;
+    const ph = res.phone || {};
+    result.value = {
+      ok: true, title: res.attendee.name,
+      text: ph.bound ? `${who}: checked in. Their waiting phone (code ${ph.code}) is moving on to the review screen.`
+        : ph.choices?.length ? `${who}: checked in. More than one phone is waiting for this person: pick the one showing the code they read out.`
+        : `${who}: late check-in done. Ask them to scan their badge on their own phone to start reviewing.`,
+      choices: ph.choices || [], name: res.attendee.name, badge: res.attendee.badge_id,
+    };
     if (navigator.vibrate) navigator.vibrate(60);
     refreshLists();
   } catch (e) {
     result.value = { ok: false, title: e.reason === 'already_checked_in' ? 'Already checked in' : e.reason === 'not_registered' ? 'Not registered' : e.reason === 'self_checkin' ? 'Gates are open' : 'Not checked in', text: e.message };
     if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+  } finally {
+    busy.value = false;
+  }
+}
+async function approve(w) {
+  busy.value = true;
+  try {
+    await post('/api/volunteer/approve-request', { request_id: w.id, slam_id: boot.slam_id });
+    result.value = { ok: true, title: w.name, text: `${w.badge_id}: checked in. The phone with code ${w.code} is moving on to the review screen.` };
+    if (navigator.vibrate) navigator.vibrate(60);
+    refreshLists();
+  } catch (e) {
+    result.value = { ok: false, title: 'Not checked in', text: e.message };
+    refreshLists();
   } finally {
     busy.value = false;
   }

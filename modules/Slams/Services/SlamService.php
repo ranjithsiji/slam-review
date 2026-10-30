@@ -27,7 +27,7 @@ class SlamService
     public const TIME_FIELDS = ['opens_at', 'checkin_opens_at', 'checkin_closes_at', 'reviews_start_at', 'closes_at', 'event_ends_at'];
 
     public const AUTOMATION_FIELDS = [
-        'default_review_minutes', 'changeover_minutes', 'edit_window_minutes', 'close_grace_minutes',
+        'default_review_minutes', 'presentation_minutes', 'changeover_minutes', 'edit_window_minutes', 'close_grace_minutes',
         'default_tea_break_minutes', 'default_lunch_break_minutes',
     ];
 

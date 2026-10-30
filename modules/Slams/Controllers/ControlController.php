@@ -42,30 +42,12 @@ class ControlController extends BaseController
             foreach ($rows as $r) {
                 $id = (int) $r['id'];
                 service('slamPhase')->tick($id);
-                $slam   = service('slams')->find($id);
-                $status = $slam['status'];
-                $live   = service('liveState')->shared($id);
-                $cur    = $live['current'] ?? null;
-                $inside = (int) Db::value('SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ? AND c.checked_out_at IS NULL', [$id]);
-                [$detail, $until] = match (true) {
-                    $status === 'reviewing' && ($cur['kind'] ?? null) === 'performance' => [(! empty($cur['performing']) ? 'On stage, review open: ' : 'Performance over, review open: ') . ($cur['presenter_name'] ?? 'performance'), $cur['closes_at'] ?? null],
-                    $status === 'reviewing' && ! empty($live['presenting']) => ['On stage: ' . ($live['presenting']['presenter_name'] ?? 'performance') . ' (review not open yet)', null],
-                    $status === 'reviewing' && ($cur['kind'] ?? null) === 'break' => [($cur['label'] ?? 'Break') . ' in progress', $cur['ends_at'] ?? null],
-                    $status === 'reviewing' => ['Between performances' . (($n = $live['next']['presenter_name'] ?? null) ? ': next is ' . $n : ''), null],
-                    $status === 'revision' => ['Reviewers are editing their scores', $live['revision']['closes_at'] ?? null],
-                    $status === 'checkin_open' => ["{$inside} checked in", $slam['checkin_closes_at'] ? Clock::iso($slam['checkin_closes_at']) : null],
-                    $status === 'checkin_closed' => ["{$inside} inside; gates closed", null],
-                    $status === 'open' => ['Waiting to open the gates', null],
-                    $status === 'reviews_complete' => ['All performances reviewed', null],
-                    $status === 'revision_closed' => ['Scores locked', null],
-                    default => ['Marks are calculated next', null],
-                };
-                $drift = service('slamPhase')->drift($slam, service('slamPhase')->projection($slam)['items']);
+                $slam = service('slams')->find($id);
+                $sum  = service('liveState')->nowSummary($id);
                 $out[] = [
-                    'paused_since' => $slam['paused_at'] !== null ? Clock::iso($slam['paused_at']) : null,
-                    'drift' => $drift === null ? null : ['minutes' => $drift['minutes'], 'basis' => $drift['basis'], 'original' => $drift['original']],
-                    'id' => $id, 'name' => $slam['name'], 'status' => $status, 'label' => SlamPhaseService::LABELS[$status] ?? $status,
-                    'detail' => $detail, 'until' => $until, 'hold' => (bool) $slam['hold_next_step'] || $slam['auto_mode'] === 'manual' ? ($slam['auto_mode'] === 'manual' ? 'manual' : 'held') : null,
+                    'paused_since' => $sum['paused_since'], 'drift' => $sum['drift'],
+                    'id' => $id, 'name' => $slam['name'], 'status' => $slam['status'], 'label' => $sum['label'],
+                    'detail' => $sum['detail'], 'until' => $sum['until'], 'hold' => (bool) $slam['hold_next_step'] || $slam['auto_mode'] === 'manual' ? ($slam['auto_mode'] === 'manual' ? 'manual' : 'held') : null,
                     'url' => site_url("admin/slams/{$id}/status"),
                 ];
             }
@@ -134,6 +116,11 @@ class ControlController extends BaseController
                     'close_grace_minutes' => (int) $slam['close_grace_minutes'], 'changeover_minutes' => (int) $slam['changeover_minutes'],
                 ],
                 'presence'    => service('engagement')->presence($id),
+                'version'     => service('slamPhase')->stateVersion($id),
+                'me'          => ['id' => (int) (session('auth')['id'] ?? 0)],
+                'last_change' => $this->lastChange($id),
+                'staff'       => $this->staffPresence($id),
+                'talk'        => $live['talk'] ?? null,
                 'turnout'     => service('engagement')->turnout($id),
                 'idle_count'  => in_array($slam['status'], ['reviewing', 'reviews_complete', 'revision'], true) ? service('engagement')->idleCount($id) : 0,
                 'phase_times' => $phaseTimes,
@@ -344,5 +331,34 @@ class ControlController extends BaseController
 
             return ['ok' => true];
         });
+    }
+
+    /** The latest control action on this slam, so other screens can say "Priya opened the review". */
+    private function lastChange(int $id): ?array
+    {
+        $r = Db::row(
+            "SELECT id, actor_type, actor_id, actor_label, action, reason FROM activity_log
+              WHERE slam_id = ? AND action IN ('slam.phase_changed','window.opened','window.extended','window.closed.manual','window.closed.timer','performance.started','performance.ended','schedule.break_started','schedule.break_ended_early','schedule.item_skipped','slam.paused','slam.resumed','phase.mode_changed','phase.hold','phase.resume','checkin_gate.opened','checkin_gate.closed','schedule.shifted')
+              ORDER BY id DESC LIMIT 1",
+            [$id],
+        );
+
+        return $r === null ? null : ['id' => (int) $r['id'], 'by_id' => $r['actor_type'] === 'admin' ? (int) $r['actor_id'] : null, 'by' => $r['actor_type'] === 'system' ? 'the timer' : $r['actor_label'], 'action' => $r['action']];
+    }
+
+    /** Who else has this slam's Status screen open (heartbeat in the cache, no database writes). */
+    private function staffPresence(int $id): array
+    {
+        $me = (int) (session('auth')['id'] ?? 0);
+        $cache = cache();
+        $cache->save("staff_seen_{$id}_{$me}", time(), 90);
+        $out = [];
+        foreach (Db::rows("SELECT id, name, role FROM admins WHERE is_active = 1 AND (role = 'admin' OR slam_id = ?)", [$id]) as $a) {
+            if ((int) $a['id'] !== $me && $cache->get("staff_seen_{$id}_{$a['id']}") !== null) {
+                $out[] = ['name' => $a['name'], 'role' => $a['role'] === 'operator' ? 'operator' : 'admin'];
+            }
+        }
+
+        return $out;
     }
 }

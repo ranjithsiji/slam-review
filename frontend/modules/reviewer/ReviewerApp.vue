@@ -35,6 +35,7 @@
               <span v-if="s.paused" class="badge bg-orange-lt fs-3">Paused</span>
               <Countdown v-else :until="cur.closes_at" size="xl" />
             </div>
+            <div v-if="s.talk" class="small text-secondary mb-2"><Icon name="status.time" cls="icon-inline me-1" />Talk started {{ time(s.talk.started_at) }}</div>
             <PresenterCard :item="cur" />
           </div>
         </div>
@@ -46,17 +47,15 @@
             <div class="text-secondary">For this slam the organisers enter each judge's mark at the end. Keep your score sheet; nothing to submit here.</div>
           </div>
         </div>
-        <div v-else-if="s.already_reviewed" class="card">
-          <div class="card-body text-center py-4">
-            <Icon name="status.ok" cls="icon-xl text-green mb-2" />
-            <div class="h2">Review submitted</div>
-            <div class="text-secondary mb-2">Thank you! You can change scores in the edit window at the end.</div>
-            <div v-if="s.my_review" class="d-flex flex-wrap justify-content-center gap-2">
-              <span v-for="a in s.my_review.answers" :key="a.question_id" class="badge bg-primary-lt fs-4">{{ qIndex(a.question_id) }}: {{ a.score }}<span class="text-secondary">/{{ qMax(a.question_id) }}</span></span>
-            </div>
+        <div v-else-if="s.already_reviewed" class="card overflow-hidden">
+          <div class="card-body py-4">
+            <SubmitSuccess :answers="s.my_review?.answers || []" :q-index="qIndex" :q-max="qMax" :celebrate="justSubmitted">
+              <div class="text-secondary mt-3">You can change your marks in the edit window at the end of the slam.</div>
+              <NextUp :next="s.next" class="mt-3" />
+            </SubmitSuccess>
           </div>
         </div>
-        <form v-else class="card" @submit.prevent="submit">
+        <form v-else class="card" @submit.prevent="openConfirm">
           <div class="card-body">
             <ScoreQuestion v-for="(q, i) in s.questions" :key="`${cur.schedule_item_id}-${q.id}`" :question="q" :index="i" v-model="answers[q.id]" :disabled="sending" />
             <label class="form-label" for="comment">Comment (optional)</label>
@@ -64,9 +63,9 @@
             <div v-if="submitError" class="alert alert-danger mt-3 mb-0" role="alert">{{ submitError }}</div>
           </div>
           <div class="sticky-actions">
-            <button class="btn btn-primary btn-lg w-100" type="submit" :disabled="!complete || sending || !!s.paused">
-              <span v-if="sending" class="spinner-border spinner-border-sm me-2"></span>
-              {{ s.paused ? 'Paused: please wait' : sending ? (retrying ? 'Retrying…' : 'Sending…') : complete ? 'Submit review' : `Answer all ${s.questions.length} questions` }}
+            <div class="vote-progress mb-2" aria-hidden="true"><i v-for="q in s.questions" :key="q.id" :class="{ on: typeof answers[q.id] === 'number' && answers[q.id] > 0 }"></i></div>
+            <button class="btn btn-primary btn-lg w-100 vote-submit" :class="{ ready: complete && !s.paused }" type="submit" :disabled="!complete || sending || !!s.paused">
+              {{ s.paused ? 'Paused: please wait' : complete ? 'Review and submit' : `Answer all ${s.questions.length} questions (${answeredCount} done)` }}
             </button>
           </div>
         </form>
@@ -81,21 +80,25 @@
           <div class="mb-3"><Countdown :until="cur.ends_at" size="xl" /></div>
           <NextUp :next="s.next" />
         </div>
+        <div v-if="s.ads?.length" class="card-footer"><AdCarousel :ads="s.ads" /></div>
       </div>
 
       <!-- Edit window -->
       <EditList v-else-if="screen === 'edit'" ref="editList" :questions="s.questions" :closes-at="s.revision?.closes_at" :paused="!!s.paused" />
 
-      <!-- Messages -->
-      <div v-else class="card text-center">
-        <div class="card-body py-5">
-          <Icon :name="message.icon" :cls="`icon-xl mb-2 text-${message.color}`" />
-          <div class="h2">{{ message.title }}</div>
-          <p class="text-secondary">{{ message.text }}</p>
-          <NextUp v-if="message.showNext" :next="s.next" />
-          <div v-if="s.late_minutes > 0 && message.showNext" class="mt-2"><span class="badge bg-orange-lt">Running about {{ s.late_minutes }} min late</span></div>
+      <!-- Messages (with the talk on stage when there is one) -->
+      <template v-else>
+        <div v-if="s.talk" class="card mb-3"><div class="card-status-top bg-red"></div><div class="card-body"><TalkNow :talk="s.talk" /></div></div>
+        <div class="card text-center">
+          <div class="card-body py-5">
+            <Icon :name="message.icon" :cls="`icon-xl mb-2 text-${message.color}`" />
+            <div class="h2">{{ message.title }}</div>
+            <p class="text-secondary">{{ message.text }}</p>
+            <NextUp v-if="message.showNext" :next="s.next" />
+            <div v-if="s.late_minutes > 0 && message.showNext" class="mt-2"><span class="badge bg-orange-lt">Running about {{ s.late_minutes }} min late</span></div>
+          </div>
         </div>
-      </div>
+      </template>
     </template>
 
     <!-- SCHEDULE -->
@@ -138,6 +141,7 @@
       <p class="small text-secondary mt-2">After check-out you cannot review again once the gate has closed.</p>
     </template>
   </main>
+  <VoteConfirm v-if="confirming && screen === 'review'" :item="cur" :questions="s.questions" :answers="answers" :comment="comment" :sending="sending" :retrying="retrying" :error="submitError" @cancel="confirming = false" @confirm="submit" />
 
   <nav class="fixed-bottom bg-body border-top" aria-label="Sections" style="padding-bottom: env(safe-area-inset-bottom)">
     <div class="container container-tight d-flex">
@@ -157,8 +161,12 @@ import Icon from '../../shared/components/Icon.vue';
 import StatusBadge from '../../shared/components/StatusBadge.vue';
 import Countdown from '../../shared/components/Countdown.vue';
 import ConnBanner from '../../shared/components/ConnBanner.vue';
+import TalkNow from '../../shared/components/TalkNow.vue';
+import AdCarousel from '../../shared/components/AdCarousel.vue';
 import ScoreQuestion from './ScoreQuestion.vue';
 import PresenterCard from './PresenterCard.vue';
+import VoteConfirm from './VoteConfirm.vue';
+import SubmitSuccess from './SubmitSuccess.vue';
 import EditList from './EditList.vue';
 
 const props = defineProps({ boot: Object });
@@ -175,6 +183,8 @@ const comment = ref('');
 const sending = ref(false);
 const retrying = ref(false);
 const submitError = ref('');
+const confirming = ref(false);
+const justSubmitted = ref(false);
 const dark = ref(document.documentElement.getAttribute('data-bs-theme') === 'dark');
 
 const NextUp = defineComponent({
@@ -224,6 +234,8 @@ watch(() => cur.value.schedule_item_id, () => {
   Object.keys(answers).forEach((k) => delete answers[k]);
   comment.value = '';
   submitError.value = '';
+  confirming.value = false;
+  justSubmitted.value = false;
 });
 
 const poll = createPoller('/api/live/state', {
@@ -237,6 +249,14 @@ const poll = createPoller('/api/live/state', {
   deadlines: () => [s.current?.closes_at, s.current?.ends_at, s.revision?.closes_at, s.next?.projected_start_at],
 });
 
+const answeredCount = computed(() => (s.questions || []).filter((q) => typeof answers[q.id] === 'number' && answers[q.id] > 0).length);
+function openConfirm() {
+  if (!complete.value || s.paused) return;
+  submitError.value = '';
+  confirming.value = true;
+  if (navigator.vibrate) navigator.vibrate(15);
+}
+
 async function submit() {
   if (!complete.value || sending.value) return;
   sending.value = true;
@@ -248,6 +268,10 @@ async function submit() {
       await post('/api/review', body);
       s.already_reviewed = true;
       s.my_review = { answers: body.answers };
+      justSubmitted.value = true;
+      confirming.value = false;
+      if (navigator.vibrate) navigator.vibrate([30, 40, 60]);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       poll.now();
       break;
     } catch (e) {

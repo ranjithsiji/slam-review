@@ -27,11 +27,13 @@
         <div v-if="scheduleClock" class="d-flex flex-wrap align-items-center gap-2 mt-3">
           <span class="badge fs-4" :class="scheduleClock.cls"><Icon :name="scheduleClock.icon" cls="icon-inline me-1" />{{ scheduleClock.text }}</span>
           <span class="small text-secondary">{{ scheduleClock.hint }}</span>
-          <button v-if="!st.paused" type="button" class="btn btn-sm" :disabled="busy" @click="shiftRemaining(scheduleClock.suggest)"><Icon name="nav.schedule" />Adjust schedule…</button>
+          <button v-if="!st.paused" type="button" class="btn btn-sm" :disabled="blocked" @click="shiftRemaining(scheduleClock.suggest)"><Icon name="nav.schedule" />Adjust schedule…</button>
         </div>
 
+        <div v-if="st.talk" class="talk-strip mt-3"><TalkNow :talk="st.talk" /></div>
+
         <div v-if="now.primary || now.facts.length" class="d-flex flex-wrap align-items-center gap-3 mt-3">
-          <button v-if="now.primary" type="button" class="btn btn-lg" :class="now.primary.cls || 'btn-primary'" :disabled="busy" @click="now.primary.run()"><Icon v-if="now.primary.icon" :name="now.primary.icon" />{{ now.primary.label }}</button>
+          <button v-if="now.primary" type="button" class="btn btn-lg" :class="now.primary.cls || 'btn-primary'" :disabled="blocked" @click="now.primary.run()"><Icon v-if="now.primary.icon" :name="now.primary.icon" />{{ now.primary.label }}</button>
           <a v-else-if="now.primaryHref" class="btn btn-lg btn-primary" :href="now.primaryHref.href">{{ now.primaryHref.label }}</a>
           <span v-for="f in now.facts" :key="f" class="text-secondary"><Icon name="status.info" cls="icon-inline me-1" />{{ f }}</span>
         </div>
@@ -52,6 +54,8 @@
         <div v-if="now.next" class="now-next mt-3"><Icon name="action.advance" cls="icon-inline me-1" /><strong>Up next:</strong> <span class="ml-text">{{ now.next }}</span></div>
       </div>
 
+      <div v-if="!connected" class="card-footer bg-red-lt text-red"><Icon name="status.offline" cls="icon-inline me-1" />No live connection: the buttons are paused so you never act on an out-of-date screen. They come back by themselves.</div>
+      <div v-else-if="st.staff?.length" class="card-footer small text-secondary"><Icon name="person.user" cls="icon-inline me-1" />Also running this slam right now: <strong>{{ st.staff.map((x) => `${x.name} (${x.role})`).join(', ') }}</strong>. Changes by anyone appear here within a few seconds.</div>
       <div class="card-footer d-flex flex-wrap align-items-center gap-3">
         <div class="flex-fill" style="min-width: 14rem">
           <div class="d-flex justify-content-between small text-secondary mb-1"><span>{{ progressText }}<template v-if="st.pauses?.seconds"> · paused {{ Math.max(1, Math.round(st.pauses.seconds / 60)) }} min in total</template></span><span>{{ ended ? 'Finished' : `Server time ${time(serverIso)} ${tzLabel}` }}</span></div>
@@ -60,12 +64,12 @@
         <div v-if="!ended" class="d-flex flex-wrap align-items-center gap-2">
           <span class="small text-secondary">Run mode</span>
           <div class="btn-group" role="group" aria-label="Run mode">
-            <button type="button" class="btn btn-sm" :class="st.slam.auto_mode === 'auto' ? 'btn-primary' : ''" :aria-pressed="st.slam.auto_mode === 'auto'" :disabled="busy" @click="setMode('auto')">Automatic</button>
-            <button type="button" class="btn btn-sm" :class="st.slam.auto_mode === 'manual' ? 'btn-primary' : ''" :aria-pressed="st.slam.auto_mode === 'manual'" :disabled="busy" @click="setMode('manual')">Manual</button>
+            <button type="button" class="btn btn-sm" :class="st.slam.auto_mode === 'auto' ? 'btn-primary' : ''" :aria-pressed="st.slam.auto_mode === 'auto'" :disabled="blocked" @click="setMode('auto')">Automatic</button>
+            <button type="button" class="btn btn-sm" :class="st.slam.auto_mode === 'manual' ? 'btn-primary' : ''" :aria-pressed="st.slam.auto_mode === 'manual'" :disabled="blocked" @click="setMode('manual')">Manual</button>
           </div>
-          <button v-if="canPause" type="button" class="btn btn-sm btn-outline-danger" :disabled="busy" @click="pause"><Icon name="action.hold" />Pause</button>
-          <button v-if="st.slam.auto_mode === 'auto' && !st.slam.hold" type="button" class="btn btn-sm btn-outline-warning" :disabled="busy" @click="act('hold', {}, 'Held: the system will not start the next step by itself.')"><Icon name="action.hold" />Hold</button>
-          <button v-else-if="st.slam.hold" type="button" class="btn btn-sm btn-success" :disabled="busy" @click="act('resume', {}, 'Resumed.')"><Icon name="action.resume" />Resume</button>
+          <button v-if="canPause" type="button" class="btn btn-sm btn-outline-danger" :disabled="blocked" @click="pause"><Icon name="action.hold" />Pause</button>
+          <button v-if="st.slam.auto_mode === 'auto' && !st.slam.hold" type="button" class="btn btn-sm btn-outline-warning" :disabled="blocked" @click="act('hold', {}, 'Held: the system will not start the next step by itself.')"><Icon name="action.hold" />Hold</button>
+          <button v-else-if="st.slam.hold" type="button" class="btn btn-sm btn-success" :disabled="blocked" @click="act('resume', {}, 'Resumed.')"><Icon name="action.resume" />Resume</button>
         </div>
       </div>
     </div>
@@ -119,7 +123,7 @@
                   <div v-if="n.subtitle" class="small text-secondary ml-text text-truncate">{{ n.subtitle }}</div>
                 </div>
                 <span v-if="n.lateBy" class="badge" :class="n.lateBy > 0 ? 'bg-orange-lt' : 'bg-green-lt'">{{ n.lateBy > 0 ? `${n.lateBy} min late` : `${-n.lateBy} min early` }}</span>
-                <button v-if="canChange(n)" type="button" class="btn btn-sm btn-ghost-secondary" :disabled="busy" @click="changeTime(n.item)"><Icon name="status.time" />Change time</button>
+                <button v-if="canChange(n)" type="button" class="btn btn-sm btn-ghost-secondary" :disabled="blocked" @click="changeTime(n.item)"><Icon name="status.time" />Change time</button>
                 <span class="badge" :class="chip(n).cls"><Icon :name="chip(n).icon" cls="icon-inline me-1" />{{ chip(n).text }}</span>
                 <span class="text-secondary small">{{ whenText(n) }}</span>
               </div>
@@ -172,7 +176,7 @@
             <!-- Stage controls for the performance on stage -->
             <div v-if="stagePanel(n)" class="stage-panel card-body border-top">
               <div v-for="r in stagePanel(n)" :key="r.key" class="stage-row">
-                <button type="button" class="btn btn-lg stage-btn" :class="r.enabled ? r.cls : 'btn-outline-secondary'" :disabled="busy || !r.enabled" @click="r.run()"><Icon :name="r.icon" />{{ r.label }}</button>
+                <button type="button" class="btn btn-lg stage-btn" :class="r.enabled ? r.cls : 'btn-outline-secondary'" :disabled="blocked || !r.enabled" @click="r.run()"><Icon :name="r.icon" />{{ r.label }}</button>
                 <div class="stage-hint">
                   <span class="text-secondary small">{{ r.hint }}</span><span v-if="r.done" class="badge bg-green-lt ms-2">Done</span>
                   <div v-if="r.turn" class="turnout mt-1">
@@ -189,7 +193,7 @@
               <div class="btn-list">
                 <template v-for="a in actionsFor(n)" :key="a.label">
                   <a v-if="a.href" class="btn" :class="a.cls" :href="a.href"><Icon v-if="a.icon" :name="a.icon" />{{ a.label }}</a>
-                  <button v-else type="button" class="btn" :class="a.cls" :disabled="busy" @click="a.run()"><Icon v-if="a.icon" :name="a.icon" />{{ a.label }}</button>
+                  <button v-else type="button" class="btn" :class="a.cls" :disabled="blocked" @click="a.run()"><Icon v-if="a.icon" :name="a.icon" />{{ a.label }}</button>
                 </template>
               </div>
             </div>
@@ -202,14 +206,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import TablerLoading from '@vue-tabler/Loading.vue';
 import { createPoller } from '../../shared/poller.js';
 import { startTicker, now as clockNow, time, dateTime, tzLabel, fmtCountdown } from '../../shared/clock.js';
 import { useControlActions } from './useControlActions.js';
+import { toast } from '../../shared/ui.js';
 import Icon from '../../shared/components/Icon.vue';
 import Countdown from '../../shared/components/Countdown.vue';
 import ConnBanner from '../../shared/components/ConnBanner.vue';
+import TalkNow from '../../shared/components/TalkNow.vue';
 import ActionModal from '../../shared/components/ActionModal.vue';
 
 const props = defineProps({ boot: Object });
@@ -224,6 +230,17 @@ const poll = createPoller(`/api/slams/${slamId}/control-state`, {
   onData: (d) => Object.assign(st, d),
   deadlines: () => [st.current?.closes_at, st.current?.ends_at, st.revision?.closes_at, st.next_due_at, st.slam?.checkin_closes_at, ...st.items.map((i) => i.window_closes_at)],
   onAuthError: () => { window.location.href = '/admin/login'; },
+});
+// Several people can run one slam: actions are blocked while this screen has no fresh view of it.
+const connected = computed(() => poll.status.value === 'ok' && poll.lastOk.value !== null && clockNow.value - poll.lastOk.value < 25000);
+const blocked = computed(() => busy.value || !connected.value);
+const changeText = { 'slam.phase_changed': 'changed the phase', 'window.opened': 'opened a review', 'window.extended': 'changed the review time', 'window.closed.manual': 'closed a review', 'window.closed.timer': 'closed a review', 'performance.started': 'started a presentation', 'performance.ended': 'closed a presentation', 'schedule.break_started': 'started a break', 'schedule.break_ended_early': 'ended a break', 'schedule.item_skipped': 'skipped an item', 'slam.paused': 'paused the slam', 'slam.resumed': 'resumed the slam', 'phase.mode_changed': 'changed the run mode', 'phase.hold': 'held the slam', 'phase.resume': 'resumed automatic mode', 'checkin_gate.opened': 'opened the gates', 'checkin_gate.closed': 'closed the gates', 'schedule.shifted': 'adjusted the schedule' };
+let seenChange = null;
+watch(() => st.last_change?.id, (id) => {
+  const c = st.last_change;
+  if (!c || id === undefined) return;
+  if (seenChange !== null && id !== seenChange && c.by_id !== st.me?.id) toast(`${c.by} ${changeText[c.action] || 'made a change'}.`, 'info');
+  seenChange = id;
 });
 const {
   busy, api, act, itemApi, confirmApi, advance, customExtend, openItem, skip, gateExtend, gateReopen, startPerformance, endPerformance, closeGateAndStart,

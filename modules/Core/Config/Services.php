@@ -76,6 +76,26 @@ class Services extends BaseService
         return $getShared ? static::getSharedInstance('presenters') : new PresenterService();
     }
 
+    public static function paperMarks(bool $getShared = true): \Modules\Scoring\Services\PaperMarksService
+    {
+        return $getShared ? static::getSharedInstance('paperMarks') : new \Modules\Scoring\Services\PaperMarksService();
+    }
+
+    public static function results(bool $getShared = true): \Modules\Scoring\Services\ResultsService
+    {
+        return $getShared ? static::getSharedInstance('results') : new \Modules\Scoring\Services\ResultsService();
+    }
+
+    public static function resultsPdf(bool $getShared = true): \Modules\Scoring\Services\ResultsPdfService
+    {
+        return $getShared ? static::getSharedInstance('resultsPdf') : new \Modules\Scoring\Services\ResultsPdfService();
+    }
+
+    public static function ads(bool $getShared = true): \Modules\Ads\Services\AdService
+    {
+        return $getShared ? static::getSharedInstance('ads') : new \Modules\Ads\Services\AdService();
+    }
+
     public static function photos(bool $getShared = true): PhotoService
     {
         return $getShared ? static::getSharedInstance('photos') : new PhotoService();

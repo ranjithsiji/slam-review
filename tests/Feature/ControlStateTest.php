@@ -52,4 +52,36 @@ final class ControlStateTest extends SlamTestCase
         $st = $this->state($id, ['type' => 'admin', 'id' => $opId, 'label' => 'op.state', 'name' => 'Op', 'slam_id' => $id, 'role' => 'operator']);
         $this->assertSame('reviewing', $st['slam']['status']);
     }
+
+    public function testStaleScreensAreRefusedWhenAnotherOperatorChangedTheSlam(): void
+    {
+        $s = $this->makeSlam(2, 1, 0, ['auto_mode' => 'manual']);
+        $id = $s['id'];
+        $admin = $this->admin;
+        $phase = service('slamPhase');
+        Clock::set('2026-11-01 03:00:00');
+        $phase->activate($id, $admin);
+        $auth = ['type' => 'admin', 'id' => (int) $admin->id, 'label' => 'admin', 'name' => 'Admin', 'slam_id' => null, 'role' => 'admin'];
+        $viewA = $this->state($id, $auth)['version'];       // operator A looks at the screen
+        $phase->gateOpen($id, $admin);                      // operator B opens the gates meanwhile
+        $this->assertNotSame($viewA, $phase->stateVersion($id));
+
+        $filter = new \Modules\Core\Filters\FreshStateFilter();
+        $post = function (?string $version) use ($id, $filter) {
+            $app = config('App');
+            $req = new \CodeIgniter\HTTP\IncomingRequest($app, new \CodeIgniter\HTTP\SiteURI($app, "api/slams/{$id}/checkin-gate/close"), $version === null ? '{}' : json_encode(['base_version' => $version]), new \CodeIgniter\HTTP\UserAgent());
+            $req->setMethod('POST');
+            $req->setHeader('Content-Type', 'application/json');
+            $res = $filter->before($req);
+
+            return [$res === null ? 200 : $res->getStatusCode(), $res === null ? null : json_decode($res->getBody(), true)];
+        };
+        [$code, $body] = $post($viewA);                     // A presses "Close gate" from the old picture
+        $this->assertSame([409, 'stale'], [$code, $body['reason']]);
+        [$code] = $post(null);                              // clients that send no version are not checked here
+        $this->assertSame(200, $code);
+
+        [$code] = $post($phase->stateVersion($id));         // after refreshing, the same action goes through
+        $this->assertSame(200, $code);
+    }
 }

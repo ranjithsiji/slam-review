@@ -82,7 +82,7 @@ abstract class SlamTestCase extends CIUnitTestCase
             'opens_at' => '2026-11-01 03:00:00', 'checkin_opens_at' => '2026-11-01 03:30:00',
             'checkin_closes_at' => '2026-11-01 04:30:00', 'reviews_start_at' => '2026-11-01 04:45:00',
             'closes_at' => '2026-11-01 11:30:00',
-            'default_review_minutes' => 5, 'changeover_minutes' => 2, 'edit_window_minutes' => 10, 'close_grace_minutes' => 5,
+            'default_review_minutes' => 5, 'presentation_minutes' => 0, 'changeover_minutes' => 2, 'edit_window_minutes' => 10, 'close_grace_minutes' => 5,
         ], $this->admin);
         $itemIds = [];
         $perfIds = [];

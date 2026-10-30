@@ -63,7 +63,7 @@ final class OperatorAccess
 
             // The check-in desk (late check-in, force check-out, search) for their own slam.
             [$read, '#^volunteer(/not-reviewing)?$#', 'any'],
-            [$all, '#^api/volunteer/(state|checkin|idle-checkout)$#', 'any'],
+            [$all, '#^api/volunteer/(state|checkin|idle-checkout|approve-request)$#', 'any'],
             [['GET'], '#^api/attendees/search$#', 'any'],
             [['POST'], '#^api/force-checkout/(\d+)$#', ['SELECT slam_id FROM attendees WHERE id = ?']],
             [['POST'], '#^api/checkin/late-override$#', 'attendee-body'],

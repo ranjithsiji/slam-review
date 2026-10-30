@@ -18,6 +18,8 @@ export const renderers = {
   text: (v) => esc(v),
   ml: (v) => `<span class="ml-text">${esc(v)}</span>`,
   datetime: (v) => esc(dateTime(v)),
+  // Marks are stored out of 10 and shown out of 100, to two decimals.
+  number100: (v) => (v === null || v === undefined || v === '' ? '—' : (Math.round(Number(v) * 1000) / 100).toFixed(2)),
   time: (v) => esc(time(v)),
   date: (v) => esc(date(v)),
   number2: (v) => (v === null || v === undefined || v === '' ? '<span class="text-secondary">—</span>' : esc(Number(v).toFixed(2))),

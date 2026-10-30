@@ -55,6 +55,8 @@ class VolunteerController extends BaseController
                     'checkin_opens_at' => Clock::iso($slam['checkin_opens_at']), 'checkin_closes_at' => Clock::iso($slam['checkin_closes_at']),
                     'read_only' => in_array($slam['status'], ['closed', 'marks_calculated', 'ended'], true),
                 ],
+                'now' => service('liveState')->nowSummary($slamId),
+                'waiting' => service('checkins')->waitingList($slamId),
                 'counts' => array_map('intval', Db::row(
                     "SELECT (SELECT COUNT(*) FROM attendees WHERE slam_id = ? AND is_active = 1) AS registered,
                             (SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ? AND c.checked_out_at IS NULL) AS checked_in",
@@ -83,7 +85,7 @@ class VolunteerController extends BaseController
             }
             $r = service('checkins')->lateCheckin((int) $att['id'], isset($in['reason']) ? (string) $in['reason'] : null, $this->actor());
 
-            return ['ok' => true, 'attendee' => ['id' => (int) $att['id'], 'name' => $att['name'], 'badge_id' => $att['badge_id'], 'user_type' => $att['user_type']], 'checkin_id' => $r['checkin_id']];
+            return ['ok' => true, 'attendee' => ['id' => (int) $att['id'], 'name' => $att['name'], 'badge_id' => $att['badge_id'], 'user_type' => $att['user_type']], 'checkin_id' => $r['checkin_id'], 'phone' => $r['phone']];
         });
     }
 
@@ -162,6 +164,23 @@ class VolunteerController extends BaseController
             $min    = max(1, min(50, (int) ($in['min'] ?? \Modules\Checkin\Services\EngagementService::DEFAULT_MIN_MISSED)));
 
             return service('engagement')->checkoutIdle($slamId, $min, $only, (string) ($in['reason'] ?? ''), $this->actor()) + ['ok' => true];
+        });
+    }
+
+    /** The desk picks a waiting phone from the list: the person is checked in and exactly that phone gets the review screen. */
+    public function approveRequest(): ResponseInterface
+    {
+        $in = $this->input();
+
+        return $this->api(function () use ($in) {
+            $slamId = $this->slamId();
+            $id     = (int) ($in['request_id'] ?? 0);
+            if ((int) Db::value('SELECT slam_id FROM late_checkin_requests WHERE id = ?', [$id]) !== $slamId) {
+                throw new DomainException('not_found', 'That request is gone.', 404);
+            }
+            $r = service('checkins')->approveRequest($id, $this->actor());
+
+            return ['ok' => true, 'attendee' => ['id' => (int) $r['attendee']['id'], 'name' => $r['attendee']['name'], 'badge_id' => $r['attendee']['badge_id'], 'user_type' => $r['attendee']['user_type']], 'code' => $r['code']];
         });
     }
 }

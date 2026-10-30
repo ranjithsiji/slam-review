@@ -97,6 +97,9 @@ class PublicScheduleService
                 'late_minutes' => in_array($slam['status'], ['checkin_closed', 'reviewing'], true) ? (int) $live['late_minutes'] : 0,
                 'finished'     => $finished,
                 'paused'       => $slam['paused_at'] !== null,
+                // The talk on stage and the break ads are public; review deadlines and review state are not.
+                'talk'         => ! empty($live['talk']) ? array_intersect_key($live['talk'], array_flip(['title', 'presenter', 'designation', 'thumb', 'photo_alt', 'summary', 'started_at', 'on_stage'])) : null,
+                'ads'          => $live['ads'] ?? [],
                 'slots'        => $slots,
             ];
             $doc['etag'] = '"' . substr(md5(json_encode($doc)), 0, 16) . '"';
@@ -121,7 +124,7 @@ class PublicScheduleService
             service('slamPhase')->tick((int) $s['id']);
             $d     = $this->document(service('slams')->find((int) $s['id']));
             $out[] = ['slug' => $d['slam']['slug'], 'name' => $d['slam']['name'], 'venue_name' => $d['slam']['venue_name']]
-                + array_intersect_key($d, array_flip(['badge', 'phase', 'now', 'next', 'late_minutes', 'paused', 'finished']));
+                + array_intersect_key($d, array_flip(['badge', 'phase', 'now', 'next', 'late_minutes', 'paused', 'finished', 'talk', 'ads']));
         }
 
         return $out;

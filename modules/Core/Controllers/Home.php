@@ -26,7 +26,7 @@ class Home extends BaseController
             $coming[] = $s;
         }
 
-        return view('Modules\Core\Views\home', ['coming' => $coming, 'past' => array_reverse($past), 'live' => $svc->live(), 'title' => 'Kerala Science Slam', 'indexable' => true]);
+        return view('Modules\Core\Views\home', ['coming' => $coming, 'past' => array_reverse($past), 'live' => $svc->live(), 'results' => service('results')->published(), 'title' => 'Kerala Science Slam', 'indexable' => true]);
     }
 
     public function about(): string

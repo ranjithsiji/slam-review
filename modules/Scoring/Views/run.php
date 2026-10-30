@@ -17,7 +17,7 @@
                 <td><?= $r['rank'] !== null ? (int) $r['rank'] : '—' ?><?= $r['prev_rank'] !== null && (int) $r['prev_rank'] !== (int) $r['rank'] ? ' <span class="text-secondary small">(was ' . (int) $r['prev_rank'] . ')</span>' : '' ?></td>
                 <td><div class="ml-text"><?= esc($r['presenter_name']) ?></div><div class="small text-secondary ml-text"><?= esc($r['topic']) ?></div></td>
                 <?php foreach (['avg_general', 'avg_representative', 'avg_judge', 'final_mark'] as $k): ?>
-                    <td class="text-end"><?= $r[$k] !== null ? number_format((float) $r[$k], 2) : '—' ?></td>
+                    <td class="text-end"><?= $r[$k] !== null ? number_format((float) $r[$k] * 10, 2) : '—' ?></td>
                 <?php endforeach ?>
                 <td class="text-end"><?= $r['delta'] === null ? '—' : ($r['delta'] > 0 ? '<span class="text-green">+' : ($r['delta'] < 0 ? '<span class="text-red">' : '<span>')) . number_format((float) $r['delta'], 2) . '</span>' ?></td>
             </tr>

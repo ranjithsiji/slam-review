@@ -152,17 +152,27 @@ class JudgeMarkService
 
             return ['saved' => $saved, 'removed' => $removed];
         });
-        // Marks are calculated by the software from the weights: after Slam Close every change of the entered
-        // marks recalculates, so Marks, Final scores and the Leaderboard never lag behind.
-        if ($result['saved'] + $result['removed'] > 0 && in_array(service('slams')->find($slamId)['status'], ['closed', 'marks_calculated'], true)) {
-            try {
-                service('markRuns')->calculate($slamId, $actor, "Automatic: judges' marks entered");
-            } catch (\Throwable) {
-                // the marks are saved; the Marks screen offers a manual recalculation
-            }
+        if ($result['saved'] + $result['removed'] > 0) {
+            $this->recalculateIfClosed($slamId, $actor);
         }
 
         return $result;
+    }
+
+    /**
+     * Marks are calculated by the software from the weights: after Slam Close every change of the entered marks
+     * (judges' marks, paper ballots) recalculates, so Marks, Final scores and the Leaderboard never lag behind.
+     */
+    public function recalculateIfClosed(int $slamId, Actor $actor): void
+    {
+        if (! in_array(service('slams')->find($slamId)['status'], ['closed', 'marks_calculated'], true)) {
+            return;
+        }
+        try {
+            service('markRuns')->calculate($slamId, $actor, 'Automatic: marks entered');
+        } catch (\Throwable) {
+            // the marks are saved; the Marks screen offers a manual recalculation
+        }
     }
 
     /** @return array{entered: int, expected: int} */

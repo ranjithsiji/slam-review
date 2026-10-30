@@ -88,7 +88,7 @@ class MarksController extends BaseController
         // Ranked presenters first (best to worst), then those without a mark yet in running order.
         usort($d['rows'], static fn ($a, $b) => [$a['rank'] === null, $a['rank'] ?? 0] <=> [$b['rank'] === null, $b['rank'] ?? 0]);
 
-        return $this->render('Modules\Scoring\Views\leaderboard', $d + ['title' => 'Leaderboard — ' . $d['slam']['name'], 'judging' => service('scoring')->judging($slamId), 'judgeProgress' => service('judgeMarks')->progress($slamId)]);
+        return $this->render('Modules\Scoring\Views\leaderboard', $d + ['top' => service('results')->top($slamId), 'title' => 'Leaderboard — ' . $d['slam']['name'], 'judging' => service('scoring')->judging($slamId), 'judgeProgress' => service('judgeMarks')->progress($slamId)]);
     }
 
     public function stats(int $slamId): string
@@ -252,5 +252,32 @@ class MarksController extends BaseController
         $slam = service('slams')->find((int) $data['run']['slam_id']) ?? throw PageNotFoundException::forPageNotFound();
 
         return $this->render('Modules\Scoring\Views\run', ['title' => 'Mark run #' . $runId, 'slam' => $slam] + $data);
+    }
+
+    /** The printable A4 result sheet: top presenters' names, no positions (?marks=1 adds the marks out of 100). */
+    public function resultSheet(int $slamId): ResponseInterface
+    {
+        $slam = service('slams')->find($slamId);
+        $top  = service('results')->top($slamId);
+        if ($top === []) {
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('No results yet: calculate the marks first.');
+        }
+        $withMarks = (bool) $this->request->getGet('marks');
+        service('activityLog')->log($this->actor(), 'results.sheet_printed', ['slam_id' => $slamId, 'meta' => ['with_marks' => $withMarks]]);
+
+        return $this->response->setHeader('Content-Type', 'application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="result-sheet-' . $slam['slug'] . '.pdf"')->setHeader('Cache-Control', 'no-store')
+            ->setBody(service('resultsPdf')->sheet($slam, $top, $withMarks));
+    }
+
+    public function publishResults(int $slamId): RedirectResponse
+    {
+        $public = (bool) $this->request->getPost('public');
+
+        return $this->formAction(function () use ($slamId, $public) {
+            service('results')->setPublic($slamId, $public, $this->actor());
+
+            return site_url("admin/slams/{$slamId}/leaderboard");
+        }, $public ? 'Results are now on the home page.' : 'Results removed from the home page.');
     }
 }

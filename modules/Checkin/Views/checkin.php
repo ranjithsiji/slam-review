@@ -18,7 +18,12 @@
             <dt class="col-5 text-secondary fw-normal">Mobile</dt><dd class="col-7 fw-bold fs-3 mb-2" style="letter-spacing:.05em"><?= esc($pending['mobile']) ?></dd>
             <dt class="col-5 text-secondary fw-normal">Badge ID</dt><dd class="col-7 mb-0"><code><?= esc($pending['badge_id']) ?></code><?= $pending['user_type'] === 'judge' ? ' · Judge' : '' ?></dd>
         </dl>
-        <button class="btn btn-primary btn-lg w-100" type="submit"><?= icon('status.ok') ?>Yes, that's me, check me in</button>
+        <?php if (! empty($pending['late'])): ?>
+            <div class="alert alert-warning text-start"><strong>The gates are closed.</strong> A volunteer at the desk will check you in. After you confirm, keep your phone on the next screen and show your badge at the desk.</div>
+            <button class="btn btn-slam btn-lg w-100" type="submit"><?= icon('status.ok') ?>Yes, that's me, ask the volunteer</button>
+        <?php else: ?>
+            <button class="btn btn-primary btn-lg w-100" type="submit"><?= icon('status.ok') ?>Yes, that's me, check me in</button>
+        <?php endif ?>
         <a class="btn btn-link w-100 mt-2" href="<?= site_url('checkin/not-me') ?>">No, this is not me</a>
     </div>
 </form>

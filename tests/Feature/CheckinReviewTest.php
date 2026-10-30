@@ -110,8 +110,9 @@ final class CheckinReviewTest extends SlamTestCase
         $this->expectReason('self_checkin', fn () => $checkins->lateCheckin((int) $s['users'][0]['id'], null, $vol));
         $this->at('2026-11-01 04:30:00', $s['id']);
         $this->assertSame('checkin_closed', $this->phase($s['id']));
-        // Normal self check-in is now refused.
-        $this->expectReason('gate_closed', fn () => $checkins->selfLookup($s['users'][0]['badge_id'], '6.6.6.6'));
+        // Normal self check-in is now refused; the phone is offered the desk instead (see LateCheckinTest).
+        $this->expectReason('gate_closed', fn () => $checkins->selfCheckin($s['users'][0]['badge_id'], '6.6.6.6'));
+        $this->assertTrue($checkins->selfLookup($s['users'][0]['badge_id'], '6.6.6.6')['late']);
         // Reviewers cannot do it; a volunteer of another slam cannot either.
         $this->expectReason('forbidden', fn () => $checkins->lateCheckin((int) $s['users'][0]['id'], null, $this->actorFor($s['users'][1])));
         $this->expectReason('forbidden', fn () => $checkins->lateCheckin((int) $s['users'][0]['id'], null, $other));

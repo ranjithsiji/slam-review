@@ -14,12 +14,13 @@ export function useControlActions({ slamId, st, modal, poll }) {
   async function api(path, body = {}, ok = 'Done.') {
     busy.value = true;
     try {
-      await post(`/api/slams/${slamId}/${path}`, body);
+      await post(`/api/slams/${slamId}/${path}`, { ...body, base_version: st.version });
       toast(ok);
       poll.now();
       window.dispatchEvent(new Event('slam:changed'));
     } catch (e) {
       toast(e.message, 'error');
+      if (e.reason === 'stale') poll.now();
       throw e;
     } finally {
       busy.value = false;

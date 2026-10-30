@@ -41,6 +41,10 @@
         $banner .= ' <span class="badge bg-orange-lt ms-2">Running about ' . (int) $doc['late_minutes'] . ' min behind schedule</span>';
     }
     ?>
+    <div data-talk-sig="<?= esc(($doc['talk']['title'] ?? '') . '|' . count($doc['ads'] ?? []), 'attr') ?>">
+        <?php if (! empty($doc['talk'])): ?><div class="talk-strip my-3"><?= view('Modules\PublicSite\Views\partials\talk', ['talk' => $doc['talk']]) ?></div><?php endif ?>
+        <?= view('Modules\PublicSite\Views\partials\ads', ['ads' => $doc['ads'] ?? []]) ?>
+    </div>
     <div class="alert alert-info my-3" data-banner role="status" aria-live="polite" <?= $banner === '' ? 'hidden' : '' ?>><?= $banner ?></div>
 
     <h2 class="h3 mt-4">Running order</h2>

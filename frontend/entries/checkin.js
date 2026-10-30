@@ -70,3 +70,31 @@ if (scanStart) {
   });
   document.querySelector('[data-scan-stop]')?.addEventListener('click', stop);
 }
+
+// After Gate Close: the waiting screen polls until a volunteer has checked this person in, then moves on to the review screen.
+const wait = document.querySelector('[data-late-wait]');
+if (wait) {
+  const msg = wait.querySelector('[data-late-message]');
+  const title = wait.querySelector('[data-late-title]');
+  let timer = null;
+  const say = (html, cls = 'alert-info') => { msg.className = `alert ${cls} text-start mb-0`; msg.innerHTML = html; };
+  const poll = async () => {
+    clearTimeout(timer);
+    if (!document.hidden) {
+      try {
+        const res = await fetch(wait.dataset.lateWait, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+        if (res.status === 429) { timer = setTimeout(poll, 6000); return; }
+        const d = await res.json();
+        if (d.status === 'approved') { title.textContent = 'You are checked in'; say('<strong>Checked in.</strong> Opening your review screen…', 'alert-success'); window.location.href = d.redirect || wait.dataset.lateReview; return; }
+        if (['expired', 'cancelled', 'unknown', 'none'].includes(d.status)) {
+          title.textContent = 'Request ended';
+          say(`This request has ended. <a href="${wait.dataset.lateRestart}">Scan your badge again</a>.`, 'alert-warning');
+          return;
+        }
+      } catch { /* keep waiting; the connection may be flaky */ }
+    }
+    timer = setTimeout(poll, 2500 + Math.random() * 1000);
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+  timer = setTimeout(poll, 1500);
+}
