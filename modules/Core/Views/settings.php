@@ -3,7 +3,7 @@
 <?php $tz = old('timezone', $settings['timezone']); $tf = old('time_format', $settings['time_format']); ?>
 <div class="row row-cards">
     <div class="col-12 col-lg-7">
-        <form method="post" action="<?= site_url('admin/settings') ?>" class="card">
+        <form method="post" action="<?= site_url('admin/settings') ?>" class="card card-accent accent-blue">
             <?= csrf_field() ?>
             <div class="card-header"><h3 class="card-title"><?= icon('nav.system', 'me-2') ?>Time and timezone</h3></div>
             <div class="card-body">
@@ -35,7 +35,7 @@
         </form>
     </div>
     <div class="col-12 col-lg-5">
-        <div class="card" data-server-clock="<?= esc($serverNow, 'attr') ?>">
+        <div class="card card-accent accent-teal" data-server-clock="<?= esc($serverNow, 'attr') ?>">
             <div class="card-header"><h3 class="card-title"><?= icon('status.time', 'me-2') ?>Clock</h3></div>
             <div class="card-body">
                 <dl class="row mb-0">

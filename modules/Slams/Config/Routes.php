@@ -27,6 +27,8 @@ $routes->group('', ['namespace' => 'Modules\Slams\Controllers'], static function
         $routes->post('checkin-gate/(:segment)', 'ControlController::gate/$1/$2');
         $routes->post('window/(:segment)', 'ControlController::window/$1/$2');
         $routes->post('items/(:num)/skip', 'ControlController::skip/$1/$2');
+        $routes->post('items/(:num)/reschedule', 'ControlController::reschedule/$1/$2');
+        $routes->post('timing/(pause|resume|shift)', 'ControlController::timing/$1/$2');
         $routes->post('items/(:num)/perform/(start|end)', 'ControlController::perform/$1/$2/$3');
         $routes->post('end-reviewing', 'ControlController::action/$1/end-reviewing');
         $routes->post('revision/(:segment)', 'ControlController::revision/$1/$2');

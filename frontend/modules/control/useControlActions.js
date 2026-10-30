@@ -101,7 +101,45 @@ export function useControlActions({ slamId, st, modal, poll }) {
   const endPerformance = (it) => api(`items/${it.id}/perform/end`, {}, 'Performance ended. The review stays open.').catch(() => {});
   const closeGateAndStart = () => api('items/0/perform/start', { close_gate: true }, 'Gate closed. First performance started.').catch(() => {});
 
+  // ---- pause, and changing times while the slam runs ----
+  const pause = () => modal.value.show({
+    title: 'Pause the slam',
+    message: 'All timers stop and reviewers cannot submit. When you resume, the lapsed time is added to the running timer and the rest of the schedule moves later by it.',
+    fields: [{ name: 'reason', label: 'Reason (optional)', placeholder: 'e.g. power cut' }], confirmText: 'Pause',
+    run: (v) => api('timing/pause', { reason: v.reason }, 'Paused. Timers are stopped.'),
+  });
+  async function resume() {
+    busy.value = true;
+    try {
+      const r = await post(`/api/slams/${slamId}/timing/resume`, {});
+      const m = Math.floor(r.seconds / 60);
+      toast(`Resumed after ${m} min ${r.seconds % 60} s. The schedule moved ${r.minutes} min later${r.shifted?.pinned_not_moved ? ` (${r.shifted.pinned_not_moved} pinned slot(s) kept their time)` : ''}.`);
+      poll.now();
+      window.dispatchEvent(new Event('slam:changed'));
+    } catch (e) { toast(e.message, 'error'); } finally { busy.value = false; }
+  }
+  const shiftRemaining = (suggest = 5) => modal.value.show({
+    title: 'Adjust the schedule', message: 'Moves every slot that has not started. Use a negative number to move them earlier. Pinned slots keep their clock time. The original plan is kept, so the behind/ahead figure stays honest.',
+    fields: [{ name: 'minutes', label: 'Move the remaining slots by (minutes)', type: 'number', required: true, value: suggest, hint: 'For example 10 = ten minutes later, -5 = five minutes earlier.' }],
+    confirmText: 'Move slots', run: (v) => api('timing/shift', { minutes: Number(v.minutes) }, 'Schedule adjusted.'),
+  });
+  const changeTime = (it) => {
+    const cur = isoToLocal(it.planned_start_at);
+    modal.value.show({
+      title: `Change time: ${it.item_type === 'break' ? it.label : it.presenter_name}`,
+      message: `Planned ${cur.time} ${tzLabel}, ${it.duration_minutes} min. Times are in ${tzLabel}.`,
+      fields: [
+        { name: 'time', label: `New start (${tzLabel})`, type: 'time', required: true, value: cur.time },
+        { name: 'duration', label: 'Length (minutes)', type: 'number', required: true, value: it.duration_minutes },
+        { name: 'follow', label: 'Move the following slots by the same amount', type: 'checkbox', value: true },
+      ],
+      confirmText: 'Save time',
+      run: (v) => api(`items/${it.id}/reschedule`, { start: localToIso(cur.date, v.time), duration: Number(v.duration), shift_following: !!v.follow }, 'Time changed.'),
+    });
+  };
+
   return {
+    pause, resume, shiftRemaining, changeTime,
     startPerformance, endPerformance, closeGateAndStart,
     busy, api, act, itemApi, confirmApi, advance, customExtend, openWindowModal, openItem, skip, gateExtend, gateReopen,
     endReviewing, revisionOpen, revisionSkip, calcMarks, endEvent, reflowRemaining,

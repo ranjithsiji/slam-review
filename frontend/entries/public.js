@@ -24,6 +24,7 @@ if (root) {
       if (doc.finished) html = 'Slam finished — thank you!';
       else if (doc.now) html = doc.now.kind === 'break' ? `Now: ${esc(doc.now.label)}` : `Now: <strong>${esc(doc.now.presenter_name)}</strong> — ${esc(doc.now.topic)}`;
       else if (doc.next) html = `Up next: <strong>${esc(doc.next.kind === 'break' ? doc.next.label : doc.next.presenter_name)}</strong> at ${esc(time(doc.next.planned_start_at))}`;
+      if (doc.paused && !doc.finished) html = `<span class="badge bg-orange-lt me-2">Paused</span>The programme is paused for a short while and will continue shortly. ${html}`;
       if (doc.late_minutes > 0 && !doc.finished) html += ` <span class="badge bg-orange-lt ms-2">Running about ${esc(doc.late_minutes)} min behind schedule</span>`;
       banner.innerHTML = html;
       banner.hidden = html === '';

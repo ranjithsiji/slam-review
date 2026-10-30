@@ -1,7 +1,7 @@
 <?= $this->extend('Modules\Core\Views\layouts\admin') ?>
-<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'attendees']) ?><?= $this->endSection() ?>
+<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'reviewers']) ?><?= $this->endSection() ?>
 <?= $this->section('content') ?>
-<div class="card mb-3">
+<div class="card mb-3 card-accent accent-blue">
     <div class="card-header"><h3 class="card-title">Step 2 of 2: review and confirm — <?= esc($batch['filename']) ?></h3></div>
     <div class="card-body">
         <?php if ($batch['status'] !== 'previewed'): ?>

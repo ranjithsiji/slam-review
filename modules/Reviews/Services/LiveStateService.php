@@ -109,6 +109,7 @@ class LiveStateService
                 'opens_at' => Clock::iso($slam['opens_at']), 'checkin_opens_at' => Clock::iso($slam['checkin_opens_at']),
                 'checkin_closes_at' => Clock::iso($slam['checkin_closes_at']), 'closes_at' => Clock::iso($slam['closes_at']),
             ],
+            'paused'        => $slam['paused_at'] !== null ? ['since' => Clock::iso($slam['paused_at']), 'reason' => $slam['pause_reason']] : null,
             'phase'         => $slam['status'],
             'phase_label'   => SlamPhaseService::LABELS[$slam['status']] ?? $slam['status'],
             'current'       => $current,

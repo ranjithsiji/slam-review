@@ -29,8 +29,21 @@ export function initLiveBar() {
       a.append(el('strong', 'live-name', s.name));
       a.append(el('span', 'badge bg-orange-lt', s.label));
       if (s.hold) a.append(el('span', 'badge bg-secondary-lt', s.hold === 'manual' ? 'MANUAL' : 'HELD'));
+      if (s.paused_since) {
+        a.append(el('span', 'badge bg-red text-white', 'PAUSED'));
+        const e = el('span', 'live-time');
+        e.dataset.since = s.paused_since;
+        a.append(e);
+      }
+      if (s.drift) {
+        const d = el('span', 'badge');
+        d.dataset.orig = s.drift.original;
+        d.dataset.basis = s.drift.basis;
+        d.dataset.fixed = s.drift.minutes;
+        a.append(d);
+      }
       a.append(el('span', 'live-detail', s.detail));
-      if (s.until) {
+      if (s.until && !s.paused_since) {
         const t = el('span', 'live-time');
         t.dataset.until = s.until;
         a.append(t);
@@ -42,6 +55,15 @@ export function initLiveBar() {
   }
   function tick() {
     const nowMs = Date.now() + offset;
+    bar.querySelectorAll('[data-since]').forEach((t) => {
+      t.textContent = fmtCountdown(Math.round((nowMs - Date.parse(t.dataset.since)) / 1000));
+    });
+    bar.querySelectorAll('[data-orig]').forEach((d) => {
+      // Waiting for the next performance: the gap to its original start keeps growing (or shrinking) with the clock.
+      const m = d.dataset.basis === 'waiting' ? Math.round((nowMs - Date.parse(d.dataset.orig)) / 60000) : Number(d.dataset.fixed);
+      d.textContent = m >= 1 ? `${m} min behind` : m <= -1 ? `${-m} min ahead` : 'on schedule';
+      d.className = `badge ${m >= 1 ? 'bg-orange-lt' : m <= -1 ? 'bg-green-lt' : 'bg-secondary-lt'}`;
+    });
     bar.querySelectorAll('[data-until]').forEach((t) => {
       t.textContent = `${fmtCountdown(Math.round((Date.parse(t.dataset.until) - nowMs) / 1000))} left`;
     });

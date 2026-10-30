@@ -15,22 +15,18 @@ use Modules\Core\Libraries\DomainException;
 
 class AttendeesController extends BaseController
 {
-    public function index(int $slamId): string
+    /** The old combined list: audience people are the Reviewers, judges have their own screen. */
+    public function index(int $slamId): RedirectResponse
     {
-        $slam = service('slams')->find($slamId);
-
-        return $this->render('Modules\Attendees\Views\index', [
-            'title' => 'Attendees — ' . $slam['name'], 'slam' => $slam,
-            'batches' => Db::rows("SELECT id, filename, created_at FROM import_batches WHERE slam_id = ? AND status = 'committed' ORDER BY id DESC", [$slamId]),
-        ]);
+        return redirect()->to(site_url("admin/slams/{$slamId}/reviewers"));
     }
 
     /** Where to return after saving: the screen the organiser came from. */
     private function backUrl(int $slamId): string
     {
-        $back = (string) ($this->request->getPost('back') ?? $this->request->getGet('back') ?? 'attendees');
+        $back = (string) ($this->request->getPost('back') ?? $this->request->getGet('back') ?? 'reviewers');
 
-        return site_url("admin/slams/{$slamId}/" . (in_array($back, ['reviewers', 'judges', 'attendees'], true) ? $back : 'attendees'));
+        return site_url("admin/slams/{$slamId}/" . (in_array($back, ['reviewers', 'judges'], true) ? $back : 'reviewers'));
     }
 
     public function form(int $slamId): string
@@ -38,8 +34,8 @@ class AttendeesController extends BaseController
         $type = $this->request->getGet('type');
 
         return $this->render('Modules\Attendees\Views\form', [
-            'title' => $type === 'judge' ? 'Add judge' : ($type === 'user' ? 'Add reviewer' : 'Add attendee'), 'slam' => service('slams')->find($slamId), 'a' => null,
-            'defaultType' => $type === 'judge' ? 'judge' : 'user', 'back' => (string) ($this->request->getGet('back') ?? 'attendees'),
+            'title' => $type === 'judge' ? 'Add judge' : 'Add reviewer', 'slam' => service('slams')->find($slamId), 'a' => null,
+            'defaultType' => $type === 'judge' ? 'judge' : 'user', 'back' => (string) ($this->request->getGet('back') ?? ($type === 'judge' ? 'judges' : 'reviewers')),
         ]);
     }
 
@@ -59,7 +55,7 @@ class AttendeesController extends BaseController
         return $this->render('Modules\Attendees\Views\form', [
             'title' => 'Edit attendee', 'slam' => service('slams')->find((int) $a['slam_id']), 'a' => $a,
             'status' => service('checkins')->status($id), 'qrUrl' => service('qr')->badgeUrl($a['badge_id']),
-            'defaultType' => $a['user_type'], 'back' => (string) ($this->request->getGet('back') ?? 'attendees'),
+            'defaultType' => $a['user_type'], 'back' => (string) ($this->request->getGet('back') ?? ($a['user_type'] === 'judge' ? 'judges' : 'reviewers')),
         ]);
     }
 
@@ -85,7 +81,7 @@ class AttendeesController extends BaseController
 
     public function importForm(int $slamId): string
     {
-        return $this->render('Modules\Attendees\Views\import', ['title' => 'Import attendees', 'slam' => service('slams')->find($slamId)]);
+        return $this->render('Modules\Attendees\Views\import', ['title' => 'Import reviewers and judges', 'slam' => service('slams')->find($slamId)]);
     }
 
     public function template(): ResponseInterface
@@ -132,7 +128,7 @@ class AttendeesController extends BaseController
             return redirect()->back()->with('error', $e->getMessage());
         }
 
-        return redirect()->to(site_url("admin/slams/{$slamId}/attendees"))->with('success', sprintf(
+        return redirect()->to(site_url("admin/slams/{$slamId}/reviewers"))->with('success', sprintf(
             'Import done: %d created, %d updated, %d skipped, %d invalid rows not imported.',
             $r['created'], $r['updated'], $r['skipped'], $r['failed'],
         ));

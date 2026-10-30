@@ -17,6 +17,10 @@
 
   <main class="container container-tight py-3 has-bottom-nav" style="padding-bottom: 9rem !important">
     <div v-if="welcome" class="alert alert-success" role="status">{{ welcome }}</div>
+    <div v-if="s.paused" class="alert alert-warning d-flex gap-2 align-items-start" role="status" aria-live="assertive">
+      <Icon name="action.hold" cls="icon-lg flex-none" />
+      <div><div class="fw-bold">Paused for a moment</div><div>The timer is stopped, so nothing is lost. You will get the full remaining time when we restart.<span v-if="s.paused.reason"> ({{ s.paused.reason }})</span></div></div>
+    </div>
     <div v-if="!loaded" class="text-center py-5"><div class="spinner-border" role="status"></div></div>
 
     <!-- NOW -->
@@ -28,7 +32,8 @@
           <div class="card-body">
             <div class="d-flex align-items-center mb-3">
               <span class="badge bg-red-lt me-auto"><Icon name="status.live" cls="icon-inline me-1" />Review open<template v-if="cur.performing === false"> · performance ended</template></span>
-              <Countdown :until="cur.closes_at" size="xl" />
+              <span v-if="s.paused" class="badge bg-orange-lt fs-3">Paused</span>
+              <Countdown v-else :until="cur.closes_at" size="xl" />
             </div>
             <PresenterCard :item="cur" />
           </div>
@@ -59,9 +64,9 @@
             <div v-if="submitError" class="alert alert-danger mt-3 mb-0" role="alert">{{ submitError }}</div>
           </div>
           <div class="sticky-actions">
-            <button class="btn btn-primary btn-lg w-100" type="submit" :disabled="!complete || sending">
+            <button class="btn btn-primary btn-lg w-100" type="submit" :disabled="!complete || sending || !!s.paused">
               <span v-if="sending" class="spinner-border spinner-border-sm me-2"></span>
-              {{ sending ? (retrying ? 'Retrying…' : 'Sending…') : complete ? 'Submit review' : `Answer all ${s.questions.length} questions` }}
+              {{ s.paused ? 'Paused: please wait' : sending ? (retrying ? 'Retrying…' : 'Sending…') : complete ? 'Submit review' : `Answer all ${s.questions.length} questions` }}
             </button>
           </div>
         </form>
@@ -79,7 +84,7 @@
       </div>
 
       <!-- Edit window -->
-      <EditList v-else-if="screen === 'edit'" ref="editList" :questions="s.questions" :closes-at="s.revision?.closes_at" />
+      <EditList v-else-if="screen === 'edit'" ref="editList" :questions="s.questions" :closes-at="s.revision?.closes_at" :paused="!!s.paused" />
 
       <!-- Messages -->
       <div v-else class="card text-center">

@@ -1,5 +1,30 @@
 <?= $this->extend('Modules\Core\Views\layouts\admin') ?>
-<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'reviewers']) ?><?= $this->endSection() ?>
+<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'reviewers']) ?><?php if ($batches !== []): ?>
+<div class="card mt-3 card-accent accent-blue">
+    <div class="card-header"><h3 class="card-title">Import batches</h3></div>
+    <div class="card-body">
+        <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([
+            'endpoint' => 'import-batches', 'filters' => ['slam_id' => $sid], 'order' => [[0, 'desc']], 'pii' => false,
+            'columns' => [
+                ['data' => 'id', 'title' => '#', 'priority' => 1],
+                ['data' => 'created_at', 'title' => 'When', 'render' => 'datetime', 'priority' => 3],
+                ['data' => 'filename', 'title' => 'File', 'priority' => 2],
+                ['data' => 'status', 'title' => 'Status', 'render' => 'status', 'priority' => 4],
+                ['data' => 'rows_created', 'title' => 'Created', 'orderable' => false, 'priority' => 5],
+                ['data' => 'rows_updated', 'title' => 'Updated', 'orderable' => false, 'priority' => 6],
+                ['data' => 'rows_skipped', 'title' => 'Skipped', 'orderable' => false, 'priority' => 7],
+                ['data' => 'uploaded_by', 'title' => 'By', 'orderable' => false, 'priority' => 8],
+            ],
+            'actions' => [
+                ['label' => 'Export badges CSV', 'icon' => 'action.export', 'href' => '/admin/slams/' . $sid . '/attendees/export.csv?batch={id}'],
+                ['label' => 'Deactivate whole batch', 'icon' => 'action.delete', 'post' => '/api/import-batches/{id}/deactivate', 'danger' => true,
+                    'confirm' => 'Deactivate every attendee imported in this batch? Only possible if nobody in it has checked in or reviewed.'],
+            ],
+        ]), 'attr') ?>'></table>
+    </div>
+</div>
+<?php endif ?>
+<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 <?php $sid = (int) $slam['id']; ?>
 <div class="row row-cards mb-3">
@@ -10,7 +35,7 @@
         ['Representatives', $counts['representatives'], 'nav.representatives', 'purple', 'of ' . $repsWanted . ' wanted'],
     ] as [$label, $n, $ic, $colour, $sub]): ?>
         <div class="col-6 col-xl-3">
-            <div class="card h-100"><div class="card-body d-flex align-items-center gap-3 py-3">
+            <div class="card h-100 card-accent-left accent-<?= $colour ?>"><div class="card-body d-flex align-items-center gap-3 py-3">
                 <span class="avatar avatar-md bg-<?= $colour ?>-lt flex-shrink-0"><?= icon($ic) ?></span>
                 <div class="min-w-0"><div class="h1 m-0 lh-1"><?= (int) $n ?></div><div class="mt-1"><?= esc($label) ?></div><div class="small text-secondary"><?= esc($sub) ?></div></div>
             </div></div>
@@ -64,4 +89,29 @@
         ]), 'attr') ?>'></table>
     </div>
 </div>
+<?php if ($batches !== []): ?>
+<div class="card mt-3 card-accent accent-green">
+    <div class="card-header"><h3 class="card-title">Import batches</h3></div>
+    <div class="card-body">
+        <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([
+            'endpoint' => 'import-batches', 'filters' => ['slam_id' => $sid], 'order' => [[0, 'desc']], 'pii' => false,
+            'columns' => [
+                ['data' => 'id', 'title' => '#', 'priority' => 1],
+                ['data' => 'created_at', 'title' => 'When', 'render' => 'datetime', 'priority' => 3],
+                ['data' => 'filename', 'title' => 'File', 'priority' => 2],
+                ['data' => 'status', 'title' => 'Status', 'render' => 'status', 'priority' => 4],
+                ['data' => 'rows_created', 'title' => 'Created', 'orderable' => false, 'priority' => 5],
+                ['data' => 'rows_updated', 'title' => 'Updated', 'orderable' => false, 'priority' => 6],
+                ['data' => 'rows_skipped', 'title' => 'Skipped', 'orderable' => false, 'priority' => 7],
+                ['data' => 'uploaded_by', 'title' => 'By', 'orderable' => false, 'priority' => 8],
+            ],
+            'actions' => [
+                ['label' => 'Export badges CSV', 'icon' => 'action.export', 'href' => '/admin/slams/' . $sid . '/attendees/export.csv?batch={id}'],
+                ['label' => 'Deactivate whole batch', 'icon' => 'action.delete', 'post' => '/api/import-batches/{id}/deactivate', 'danger' => true,
+                    'confirm' => 'Deactivate every attendee imported in this batch? Only possible if nobody in it has checked in or reviewed.'],
+            ],
+        ]), 'attr') ?>'></table>
+    </div>
+</div>
+<?php endif ?>
 <?= $this->endSection() ?>

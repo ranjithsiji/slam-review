@@ -41,6 +41,9 @@
     } elseif ($doc['next']) {
         $banner = 'Up next: <strong>' . esc($doc['next']['kind'] === 'break' ? $doc['next']['label'] : $doc['next']['presenter_name']) . '</strong> at ' . esc(local_time(str_replace(['T', 'Z'], [' ', ''], (string) $doc['next']['planned_start_at']), 'H:i'));
     }
+    if (! empty($doc['paused']) && ! $doc['finished']) {
+        $banner = '<span class="badge bg-orange-lt me-2">Paused</span>The programme is paused for a short while and will continue shortly. ' . $banner;
+    }
     if ($doc['late_minutes'] > 0 && ! $doc['finished']) {
         $banner .= ' <span class="badge bg-orange-lt ms-2">Running about ' . (int) $doc['late_minutes'] . ' min behind schedule</span>';
     }

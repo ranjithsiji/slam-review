@@ -2,7 +2,7 @@
 <?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'marks']) ?><?= $this->endSection() ?>
 <?= $this->section('content') ?>
 <?php $c = json_decode($run['counts_snapshot'], true); ?>
-<div class="card mb-3"><div class="card-body">
+<div class="card mb-3 card-accent accent-orange"><div class="card-body">
     <h3 class="card-title">Mark run #<?= (int) $run['id'] ?> <?= (int) $run['is_current'] ? status_badge('marks', 'official', 'Current') : '' ?> <?= (int) $run['is_final'] ? '<span class="badge bg-dark-lt">Final</span>' : '' ?></h3>
     <div class="text-secondary"><?= esc(local_time($run['calculated_at'])) ?><?= $run['note'] ? ' · ' . esc($run['note']) : '' ?></div>
     <div class="small mt-2">Weights: general reviewers <?= (float) $weights['w_general'] ?>%, representatives <?= (float) $weights['w_representative'] ?>%, judges <?= (float) $weights['w_judge'] ?>% ·

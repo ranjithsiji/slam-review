@@ -13,7 +13,7 @@
 <?php if (! $slamId): ?><div class="empty"><p class="empty-title">Create a slam first.</p></div><?php else: ?>
 <div class="row row-cards">
     <div class="col-12 col-lg-6">
-        <div class="card h-100">
+        <div class="card h-100 card-accent accent-blue">
             <div class="card-header"><h3 class="card-title"><?= icon('qr.code', 'me-1') ?>Single attendee</h3></div>
             <div class="card-body">
                 <label class="form-label" for="qr-q">Search by name, mobile or ID</label>
@@ -23,7 +23,7 @@
         </div>
     </div>
     <div class="col-12 col-lg-6">
-        <form class="card h-100" method="post" action="<?= site_url('admin/qr/batch') ?>">
+        <form class="card h-100 card-accent accent-green" method="post" action="<?= site_url('admin/qr/batch') ?>">
             <?= csrf_field() ?>
             <input type="hidden" name="slam_id" value="<?= $slamId ?>">
             <div class="card-header"><h3 class="card-title"><?= icon('action.print', 'me-1') ?>Badge PDF (A4)</h3></div>
@@ -47,7 +47,7 @@
         </form>
     </div>
     <div class="col-12 col-md-6">
-        <div class="card h-100">
+        <div class="card h-100 card-accent accent-orange">
             <div class="card-header"><h3 class="card-title">Entrance poster</h3></div>
             <div class="card-body">
                 <p class="text-secondary">A generic QR to <code><?= esc($typeUrl) ?></code> for people who lost their badge QR or want to type the ID.</p>
@@ -57,7 +57,7 @@
         </div>
     </div>
     <div class="col-12 col-md-6">
-        <div class="card h-100">
+        <div class="card h-100 card-accent accent-blue">
             <div class="card-header"><h3 class="card-title">Public schedule link</h3></div>
             <div class="card-body d-flex gap-3 align-items-center">
                 <div class="qr-box" style="width:120px"><img src="<?= site_url('admin/qr/public/' . $slamId . '.svg') ?>" alt="QR code for the public schedule"></div>

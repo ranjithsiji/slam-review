@@ -48,6 +48,8 @@ class SlamsController extends BaseController
                 [$id, $id, $id, $id, $id],
             ),
             'publicUrl' => site_url('slams/' . $slam['slug']),
+            // Presenters still in the pool (no schedule slot yet).
+            'unscheduled' => (int) Db::value("SELECT COUNT(*) FROM performances p WHERE p.slam_id = ? AND p.is_active = 1 AND NOT EXISTS (SELECT 1 FROM schedule_items si WHERE si.performance_id = p.id AND si.status <> 'skipped')", [$id]),
         ]);
     }
 

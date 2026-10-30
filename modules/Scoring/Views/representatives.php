@@ -15,7 +15,7 @@ $cols = [
 ?>
 <div class="row row-cards mb-3">
     <div class="col-12 col-lg-7">
-        <div class="card h-100">
+        <div class="card h-100 card-accent accent-pink">
             <div class="card-header"><h3 class="card-title"><?= icon('action.shuffle', 'me-2') ?>Draw representatives</h3></div>
             <div class="card-body">
                 <p class="text-secondary">Representatives are drawn at random from the audience users who reviewed <strong>every</strong> performance. They form their own scoring group with its own weight; their reviews no longer count in the general reviewers' average. After the draw you can add or remove people below.</p>
@@ -40,7 +40,7 @@ $cols = [
         </div>
     </div>
     <div class="col-12 col-lg-5">
-        <div class="card h-100"><div class="card-body">
+        <div class="card h-100 card-accent-left accent-pink"><div class="card-body">
             <div class="row g-3 text-center">
                 <div class="col-6"><div class="h1 mb-0"><?= (int) $pool ?></div><div class="text-secondary small">reviewed every performance</div></div>
                 <div class="col-6"><div class="h1 mb-0"><?= (int) $selected ?></div><div class="text-secondary small">representatives</div></div>
@@ -51,7 +51,7 @@ $cols = [
     </div>
 </div>
 
-<div class="card mb-3">
+<div class="card mb-3 card-accent accent-pink">
     <div class="card-header"><h3 class="card-title"><?= icon('nav.representatives', 'me-2') ?>Selected representatives</h3><div class="card-actions"><a class="btn btn-sm" href="#" id="reps-export"><?= icon('action.export') ?>Export CSV</a></div></div>
     <div class="card-body">
         <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([
@@ -66,7 +66,7 @@ $cols = [
     </div>
 </div>
 
-<div class="card">
+<div class="card card-accent accent-orange">
     <div class="card-header"><h3 class="card-title">Everyone who reviewed every performance</h3><div class="card-actions"><a class="btn btn-sm" href="#" id="pool-export"><?= icon('action.export') ?>Export CSV</a></div></div>
     <div class="card-body">
         <p class="small text-secondary">Audience users only (judges are their own group). Performances that were skipped do not count. This list is also usable for prizes or a raffle.</p>

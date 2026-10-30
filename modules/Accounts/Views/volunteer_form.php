@@ -1,7 +1,7 @@
 <?= $this->extend('Modules\Core\Views\layouts\admin') ?>
 <?= $this->section('content') ?>
 <div class="row justify-content-center"><div class="col-12 col-lg-6">
-<form class="card" method="post" action="<?= site_url($vol ? 'admin/volunteers/' . $vol['id'] : 'admin/volunteers/create') ?>">
+<form class="card card-accent accent-blue" method="post" action="<?= site_url($vol ? 'admin/volunteers/' . $vol['id'] : 'admin/volunteers/create') ?>">
     <?= csrf_field() ?>
     <div class="card-header"><h3 class="card-title"><?= esc($title) ?></h3></div>
     <div class="card-body">

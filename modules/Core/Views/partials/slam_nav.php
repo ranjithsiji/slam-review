@@ -6,7 +6,6 @@ $items = [
     'status'     => ['Status', "admin/slams/{$id}/status", 'nav.status'],
     'schedule'   => ['Schedule', "admin/slams/{$id}/schedule", 'nav.schedule'],
     'presenters' => ['Presenters', "admin/slams/{$id}/presenters", 'nav.presenters'],
-    'attendees'  => ['Attendees', "admin/slams/{$id}/attendees", 'nav.attendees'],
     'reviewers'  => ['Reviewers', "admin/slams/{$id}/reviewers", 'person.user'],
     'judgelist'  => ['Judges', "admin/slams/{$id}/judges", 'person.judge'],
     'checkins'   => ['Check-ins', "admin/slams/{$id}/checkins", 'nav.checkins'],

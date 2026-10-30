@@ -1,12 +1,12 @@
 <?= $this->extend('Modules\Core\Views\layouts\admin') ?>
-<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'attendees']) ?><?= $this->endSection() ?>
+<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'reviewers']) ?><?= $this->endSection() ?>
 <?= $this->section('content') ?>
 <div class="row row-cards">
 <div class="col-12 col-lg-7">
-<form class="card" method="post" action="<?= site_url($a ? 'admin/attendees/' . $a['id'] : 'admin/slams/' . $slam['id'] . '/attendees') ?>">
+<form class="card card-accent accent-blue" method="post" action="<?= site_url($a ? 'admin/attendees/' . $a['id'] : 'admin/slams/' . $slam['id'] . '/attendees') ?>">
     <?= csrf_field() ?>
-    <input type="hidden" name="back" value="<?= esc($back ?? 'attendees', 'attr') ?>">
-    <div class="card-header"><h3 class="card-title"><?= $a ? 'Edit attendee' : 'Register attendee' ?></h3></div>
+    <input type="hidden" name="back" value="<?= esc($back ?? 'reviewers', 'attr') ?>">
+    <div class="card-header"><h3 class="card-title"><?= ($a ? 'Edit ' : 'Add ') . (($a['user_type'] ?? $defaultType ?? 'user') === 'judge' ? 'judge' : 'reviewer') ?></h3></div>
     <div class="card-body">
         <p class="text-secondary small">Only pre-registered people can check in. A badge ID (2 letters + 5 digits) is generated automatically.</p>
         <div class="mb-3"><label class="form-label required" for="name">Name</label><input id="name" name="name" class="form-control<?= is_invalid($errors, 'name') ?>" required maxlength="120" value="<?= esc(old('name', $a['name'] ?? '')) ?>"><?= field_error($errors, 'name') ?></div>
@@ -14,15 +14,20 @@
             <div class="col-12 col-sm-6 mb-3"><label class="form-label required" for="mobile">Mobile</label><input id="mobile" name="mobile" type="tel" inputmode="tel" class="form-control<?= is_invalid($errors, 'mobile') ?>" required value="<?= esc(old('mobile', $a['mobile'] ?? '')) ?>"><?= field_error($errors, 'mobile') ?></div>
             <div class="col-12 col-sm-6 mb-3"><label class="form-label" for="email">Email</label><input id="email" name="email" type="email" class="form-control<?= is_invalid($errors, 'email') ?>" value="<?= esc(old('email', $a['email'] ?? '')) ?>"><?= field_error($errors, 'email') ?></div>
         </div>
+        <?php if ($a): ?>
         <div class="mb-3">
-            <label class="form-label">Type</label>
+            <label class="form-label">Role</label>
             <div class="btn-group w-100" role="group">
-                <?php foreach (['user' => 'Audience user', 'judge' => 'Judge'] as $k => $l): ?>
-                    <input type="radio" class="btn-check" name="user_type" id="t-<?= $k ?>" value="<?= $k ?>" <?= old('user_type', $a['user_type'] ?? ($defaultType ?? 'user')) === $k ? 'checked' : '' ?>>
+                <?php foreach (['user' => 'Reviewer', 'judge' => 'Judge'] as $k => $l): ?>
+                    <input type="radio" class="btn-check" name="user_type" id="t-<?= $k ?>" value="<?= $k ?>" <?= old('user_type', $a['user_type']) === $k ? 'checked' : '' ?>>
                     <label for="t-<?= $k ?>" class="btn"><?= icon($k === 'judge' ? 'person.judge' : 'person.user') ?><?= $l ?></label>
                 <?php endforeach ?>
             </div>
+            <div class="form-hint">Everyone in the audience is a reviewer. Only judges are different: they have their own question set and screen.</div>
         </div>
+        <?php else: ?>
+        <input type="hidden" name="user_type" value="<?= esc($defaultType ?? 'user', 'attr') ?>">
+        <?php endif ?>
         <?php if ($a): ?>
         <label class="form-check form-switch">
             <input type="hidden" name="is_active" value="0">
@@ -32,7 +37,7 @@
         <?php endif ?>
     </div>
     <div class="card-footer text-end">
-        <a class="btn btn-link" href="<?= site_url('admin/slams/' . $slam['id'] . '/' . (in_array($back ?? 'attendees', ['reviewers', 'judges'], true) ? $back : 'attendees')) ?>">Cancel</a>
+        <a class="btn btn-link" href="<?= site_url('admin/slams/' . $slam['id'] . '/' . (in_array($back ?? 'reviewers', ['reviewers', 'judges'], true) ? $back : 'reviewers')) ?>">Cancel</a>
         <button class="btn btn-primary" type="submit"><?= icon('action.save') ?>Save</button>
     </div>
 </form>
@@ -52,7 +57,7 @@
             </div>
         </div>
     </div>
-    <form class="card" method="post" action="<?= site_url('admin/attendees/' . $a['id'] . '/reissue-id') ?>"
+    <form class="card card-accent accent-green" method="post" action="<?= site_url('admin/attendees/' . $a['id'] . '/reissue-id') ?>"
           data-confirm="Issue a new ID? The current ID stops working immediately and any open session ends. Print a new badge afterwards." data-reason="reason" data-danger data-ok="Reissue ID">
         <?= csrf_field() ?>
         <div class="card-body">

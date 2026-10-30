@@ -12,12 +12,22 @@
             <h2 class="now-title ml-text">{{ now.title }}</h2>
             <div v-if="now.subtitle" class="text-secondary ml-text">{{ now.subtitle }}</div>
           </div>
-          <div v-if="now.timers.length" class="d-flex gap-4 text-end">
+          <div v-if="st.paused" class="text-end">
+            <div class="countdown countdown-xl text-red">{{ fmtCountdown(pausedSeconds) }}</div>
+            <div class="small text-secondary">paused for</div>
+          </div>
+          <div v-else-if="now.timers.length" class="d-flex gap-4 text-end">
             <div v-for="t in now.timers" :key="t.label">
               <Countdown :until="t.until" size="xl" :icon="false" />
               <div class="small text-secondary">{{ t.label }}</div>
             </div>
           </div>
+        </div>
+
+        <div v-if="scheduleClock" class="d-flex flex-wrap align-items-center gap-2 mt-3">
+          <span class="badge fs-4" :class="scheduleClock.cls"><Icon :name="scheduleClock.icon" cls="icon-inline me-1" />{{ scheduleClock.text }}</span>
+          <span class="small text-secondary">{{ scheduleClock.hint }}</span>
+          <button v-if="!st.paused" type="button" class="btn btn-sm" :disabled="busy" @click="shiftRemaining(scheduleClock.suggest)"><Icon name="nav.schedule" />Adjust schedule…</button>
         </div>
 
         <div v-if="now.primary || now.facts.length" class="d-flex flex-wrap align-items-center gap-3 mt-3">
@@ -31,7 +41,7 @@
 
       <div class="card-footer d-flex flex-wrap align-items-center gap-3">
         <div class="flex-fill" style="min-width: 14rem">
-          <div class="d-flex justify-content-between small text-secondary mb-1"><span>{{ progressText }}</span><span>{{ ended ? 'Finished' : `Server time ${time(serverIso)} ${tzLabel}` }}</span></div>
+          <div class="d-flex justify-content-between small text-secondary mb-1"><span>{{ progressText }}<template v-if="st.pauses?.seconds"> · paused {{ Math.max(1, Math.round(st.pauses.seconds / 60)) }} min in total</template></span><span>{{ ended ? 'Finished' : `Server time ${time(serverIso)} ${tzLabel}` }}</span></div>
           <div class="progress progress-sm" role="progressbar" :aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100" aria-label="Slam progress"><div class="progress-bar" :class="ended ? 'bg-green' : 'bg-orange'" :style="{ width: progress + '%' }"></div></div>
         </div>
         <div v-if="!ended" class="d-flex flex-wrap align-items-center gap-2">
@@ -40,12 +50,14 @@
             <button type="button" class="btn btn-sm" :class="st.slam.auto_mode === 'auto' ? 'btn-primary' : ''" :aria-pressed="st.slam.auto_mode === 'auto'" :disabled="busy" @click="setMode('auto')">Automatic</button>
             <button type="button" class="btn btn-sm" :class="st.slam.auto_mode === 'manual' ? 'btn-primary' : ''" :aria-pressed="st.slam.auto_mode === 'manual'" :disabled="busy" @click="setMode('manual')">Manual</button>
           </div>
+          <button v-if="canPause" type="button" class="btn btn-sm btn-outline-danger" :disabled="busy" @click="pause"><Icon name="action.hold" />Pause</button>
           <button v-if="st.slam.auto_mode === 'auto' && !st.slam.hold" type="button" class="btn btn-sm btn-outline-warning" :disabled="busy" @click="act('hold', {}, 'Held: the system will not start the next step by itself.')"><Icon name="action.hold" />Hold</button>
           <button v-else-if="st.slam.hold" type="button" class="btn btn-sm btn-success" :disabled="busy" @click="act('resume', {}, 'Resumed.')"><Icon name="action.resume" />Resume</button>
         </div>
       </div>
     </div>
 
+    <div v-if="st.paused" class="alert alert-warning"><Icon name="action.hold" cls="me-1" />The slam is paused. Buttons on the cards are off until you resume. Resuming adds the paused time to the running timer and moves the following slots later by it.</div>
     <div v-if="st.past_hard_stop" class="alert alert-danger"><Icon name="status.warning" cls="me-1" />Projected end plus the edit window runs past the hard stop at {{ time(st.slam.closes_at) }}. Consider shortening windows or skipping.</div>
     <div v-if="st.late_minutes > 0" class="alert alert-warning d-flex align-items-center gap-2 flex-wrap">
       <Icon name="status.time" /><div class="me-auto">Running late by <strong>{{ st.late_minutes }} min</strong>. Projected end {{ time(st.projected_end) }}.</div>
@@ -65,6 +77,8 @@
                   <h3 class="h3 m-0 ml-text" :class="{ 'text-decoration-line-through text-secondary': n.state === 'skipped' }">{{ n.title }}</h3>
                   <div v-if="n.subtitle" class="small text-secondary ml-text text-truncate">{{ n.subtitle }}</div>
                 </div>
+                <span v-if="n.lateBy" class="badge" :class="n.lateBy > 0 ? 'bg-orange-lt' : 'bg-green-lt'">{{ n.lateBy > 0 ? `${n.lateBy} min late` : `${-n.lateBy} min early` }}</span>
+                <button v-if="canChange(n)" type="button" class="btn btn-sm btn-ghost-secondary" :disabled="busy" @click="changeTime(n.item)"><Icon name="status.time" />Change time</button>
                 <span class="badge" :class="chip(n).cls"><Icon :name="chip(n).icon" cls="icon-inline me-1" />{{ chip(n).text }}</span>
                 <span class="text-secondary small">{{ whenText(n) }}</span>
               </div>
@@ -135,7 +149,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import TablerLoading from '@vue-tabler/Loading.vue';
 import { createPoller } from '../../shared/poller.js';
-import { startTicker, now as clockNow, time, dateTime, tzLabel } from '../../shared/clock.js';
+import { startTicker, now as clockNow, time, dateTime, tzLabel, fmtCountdown } from '../../shared/clock.js';
 import { useControlActions } from './useControlActions.js';
 import Icon from '../../shared/components/Icon.vue';
 import Countdown from '../../shared/components/Countdown.vue';
@@ -157,7 +171,7 @@ const poll = createPoller(`/api/slams/${slamId}/control-state`, {
 });
 const {
   busy, api, act, itemApi, confirmApi, advance, customExtend, openItem, skip, gateExtend, gateReopen, startPerformance, endPerformance, closeGateAndStart,
-  endReviewing, revisionOpen, revisionSkip, calcMarks, endEvent, reflowRemaining,
+  endReviewing, revisionOpen, revisionSkip, calcMarks, endEvent, reflowRemaining, pause, resume, shiftRemaining, changeTime,
 } = useControlActions({ slamId, st, modal, poll });
 const setMode = (mode) => { if (st.slam.auto_mode !== mode) act('mode', { mode }, mode === 'manual' ? 'Manual: every step waits for you.' : 'Automatic from the planned times.'); };
 
@@ -194,15 +208,38 @@ const itemState = (i) => (i.status === 'skipped' ? 'skipped' : i.status === 'clo
 const gateIsClosed = computed(() => ['checkin_closed', 'reviewing'].includes(st.slam?.status));
 const anyRunning = computed(() => st.items.some((i) => itemState(i) === 'current'));
 const nextPerf = computed(() => (gateIsClosed.value && !anyRunning.value ? perfs.value.find((i) => i.status === 'pending') || null : null));
+const PAUSABLE = ['open', 'checkin_open', 'checkin_closed', 'reviewing', 'reviews_complete', 'revision', 'revision_closed'];
+const canPause = computed(() => !st.paused && PAUSABLE.includes(st.slam?.status));
+const pausedSeconds = computed(() => (st.paused ? Math.max(0, Math.round((clockNow.value - Date.parse(st.paused.since)) / 1000)) : 0));
+const canChange = (n) => !!n.item && n.item.status === 'pending' && !isPerforming(n.item) && !st.paused && gateOrBefore.value;
+const gateOrBefore = computed(() => ['open', 'checkin_open', 'checkin_closed', 'reviewing'].includes(st.slam?.status));
+// Behind / ahead of the ORIGINAL plan (never rewritten by pauses or shifts).
+const driftMin = computed(() => {
+  const d = st.drift;
+  if (!d) return null;
+
+  return d.basis === 'waiting' ? Math.round((clockNow.value - Date.parse(d.original)) / 60000) : d.minutes;
+});
+const scheduleClock = computed(() => {
+  const m = driftMin.value;
+  if (m === null || ended.value) return null;
+  if (m >= 1) return { cls: 'bg-orange-lt', icon: 'status.time', text: `${m} min behind schedule`, hint: st.drift.basis === 'waiting' ? 'The next performance was planned earlier. This grows while you wait.' : 'This performance started later than the original plan.', suggest: m };
+  if (m <= -1) return { cls: 'bg-green-lt', icon: 'status.ok', text: `${-m} min ahead of schedule`, hint: 'You can start the next performance early, or keep the plan.', suggest: m };
+
+  return { cls: 'bg-secondary-lt', icon: 'status.ok', text: 'On schedule', hint: 'Compared with the original plan.', suggest: 5 };
+});
 const itemNode = (i) => {
   const state = itemState(i);
+  const startedAt = i.performing_started_at || i.actual_open_at;
+  const lateBy = state !== 'upcoming' && state !== 'skipped' && startedAt && i.item_type === 'performance' ? Math.round((Date.parse(startedAt) - Date.parse(i.original_start_at)) / 60000) : 0;
+  const movedFrom = state === 'upcoming' && i.original_start_at && i.original_start_at !== i.planned_start_at ? time(i.original_start_at) : '';
   const brk = i.item_type === 'break';
   const ran = i.actual_open_at ? `${time(i.performing_started_at || i.actual_open_at)}–${time(i.performing_ended_at || i.actual_close_at)}` : '';
 
   return {
     key: `i${i.id}`, item: i, title: brk ? i.label : i.presenter_name, subtitle: brk ? '' : i.topic, state,
     icon: brk ? `break.${i.break_type || 'other'}` : 'person.user', isNext: nextPerf.value?.id === i.id,
-    planned: i.projected_start_at || i.planned_start_at, actual: i.performing_started_at || i.actual_open_at,
+    planned: i.projected_start_at || i.planned_start_at, actual: i.performing_started_at || i.actual_open_at, lateBy: Math.abs(lateBy) >= 1 ? lateBy : 0, movedFrom,
     summary: state === 'done' ? (brk ? `Ran ${ran}.` : `Performed ${ran}. Review closed ${time(i.actual_close_at)}, ${i.reviews} review(s).`) : '',
     hint: brk ? `${i.duration_minutes} min` : `${i.duration_minutes} min review window`,
   };
@@ -222,7 +259,7 @@ const chip = (n) => (n.state === 'done' ? { text: 'Done', cls: 'bg-green-lt', ic
 function whenText(n) {
   if (n.state === 'done') return n.actual ? `at ${time(n.actual)}` : '';
   if (n.state === 'current') return n.actual ? `since ${time(n.actual)}` : '';
-  if (n.planned) return `${n.planLabel || 'planned'} ${n.item ? time(n.planned) : dt(n.planned)}`;
+  if (n.planned) return `${n.planLabel || 'planned'} ${n.item ? time(n.planned) : dt(n.planned)}${n.movedFrom ? ` (was ${n.movedFrom})` : ''}`;
 
   return n.step && n.step.plan ? 'by hand' : '';
 }
@@ -313,7 +350,7 @@ function stepActions(n) {
 
   return out;
 }
-const actionsFor = (n) => (n.item ? itemActions(n) : stepActions(n));
+const actionsFor = (n) => (st.paused ? [] : n.item ? itemActions(n) : stepActions(n));
 
 // ---- the "Now" card ----
 const now = computed(() => {
@@ -327,6 +364,13 @@ const now = computed(() => {
     const p = nextPerf.value || perfs.value.find((i) => i.status === 'pending' && !isPerforming(i) && i.id !== runItem?.id);
     return p ? `${p.presenter_name} (${time(p.projected_start_at || p.planned_start_at)})` : '';
   })();
+  if (st.paused) {
+    return {
+      ...base, tone: 'paused', icon: 'action.hold', kicker: 'Paused', title: 'The slam is paused', subtitle: st.paused.reason ? `Reason: ${st.paused.reason}` : 'All timers are stopped and reviewers cannot submit.',
+      primary: { label: 'Resume', cls: 'btn-success', icon: 'action.resume', run: resume, primary: true },
+      facts: ['On resume the paused time is added to the running timer and the schedule moves later by it.'],
+    };
+  }
   if (ended.value) return { ...base, tone: 'done', icon: 'phase.ended', title: 'The event has ended', subtitle: 'Everything is read-only. Marks and exports remain available.' };
   if (runItem) {
     const open = runItem.status === 'open';

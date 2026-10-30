@@ -149,6 +149,11 @@ final class Clock
         return self::now()->setTimezone(new DateTimeZone(self::tz()))->format('Y-m-d');
     }
 
+    public static function addSeconds(string $dbValue, int $seconds): string
+    {
+        return self::db(self::parse($dbValue)->modify(sprintf('%+d seconds', $seconds)));
+    }
+
     public static function addMinutes(string $dbValue, int $minutes): string
     {
         return self::db(self::parse($dbValue)->modify(sprintf('%+d minutes', $minutes)));

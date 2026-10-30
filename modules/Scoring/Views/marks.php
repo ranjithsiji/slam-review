@@ -1,7 +1,7 @@
 <?= $this->extend('Modules\Core\Views\layouts\admin') ?>
 <?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'marks']) ?><?= $this->endSection() ?>
 <?= $this->section('content') ?>
-<div class="card mb-3">
+<div class="card mb-3 card-accent-left accent-orange">
     <div class="card-body d-flex flex-wrap gap-3 align-items-center">
         <div class="me-auto">
             <?= $official ? status_badge('marks', 'official') : status_badge('marks', 'provisional') ?>
@@ -25,7 +25,7 @@
         </div>
     </div>
 </div>
-<div class="card mb-3">
+<div class="card mb-3 card-accent accent-blue">
     <div class="card-header">
         <form id="marks-filters" class="d-flex gap-2 align-items-center">
             <input type="hidden" name="slam_id" value="<?= (int) $slam['id'] ?>">
@@ -58,7 +58,7 @@
     </div>
 </div>
 <?= view('Modules\Scoring\Views\breakdown', ['rows' => $rows, 'weights' => $weights, 'questions' => $questions]) ?>
-<div class="card">
+<div class="card card-accent accent-orange">
     <div class="card-header"><h3 class="card-title">Mark runs</h3></div>
     <div class="card-body">
         <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([

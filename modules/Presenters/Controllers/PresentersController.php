@@ -35,33 +35,33 @@ class PresentersController extends BaseController
     {
         $slam = service('slams')->find($slamId);
 
-        return $this->render('Modules\Presenters\Views\index', ['title' => 'Presenters — ' . $slam['name'], 'slam' => $slam]);
+        $total       = (int) Db::value('SELECT COUNT(*) FROM performances WHERE slam_id = ? AND is_active = 1', [$slamId]);
+        $unscheduled = (int) Db::value("SELECT COUNT(*) FROM performances p WHERE p.slam_id = ? AND p.is_active = 1 AND NOT EXISTS (SELECT 1 FROM schedule_items si WHERE si.performance_id = p.id AND si.status <> 'skipped')", [$slamId]);
+
+        return $this->render('Modules\Presenters\Views\index', ['title' => 'Presenters — ' . $slam['name'], 'slam' => $slam, 'total' => $total, 'unscheduled' => $unscheduled]);
     }
 
     public function form(int $slamId): string
     {
-        $slam  = service('slams')->find($slamId);
-        $items = service('schedule')->items($slamId);
-        $next  = service('schedule')->nextStart($slam, service('schedule')->normalise(service('schedule')->toDraft($items)));
+        $slam = service('slams')->find($slamId);
 
         return $this->render('Modules\Presenters\Views\form', [
-            'title' => 'Add presenter', 'slam' => $slam, 'nextStart' => $next,
+            'title' => 'Add presenter', 'slam' => $slam,
             'pool' => service('presenters')->pool($slamId),
         ]);
     }
 
     public function create(int $slamId): RedirectResponse
     {
-        $in = $this->input();
-        if (! empty($in['planned_start_at'])) {
-            $in['planned_start_at'] = Clock::fromLocalInput((string) $in['planned_start_at']);
-        }
+        $in    = $this->input();
+        $again = ! empty($in['again']);
 
-        return $this->formAction(function () use ($slamId, $in) {
-            service('presenters')->addToSlam($slamId, $in, $this->actor(), $this->uploadedPhoto());
+        return $this->formAction(function () use ($slamId, $in, $again) {
+            // The pool comes first: no schedule slot is created here; the running order is built on the Schedule page.
+            service('presenters')->addToSlam($slamId, $in, $this->actor(), $this->uploadedPhoto(), false);
 
-            return site_url("admin/slams/{$slamId}/presenters");
-        }, 'Presenter added to the schedule.');
+            return site_url("admin/slams/{$slamId}/presenters" . ($again ? '/new' : ''));
+        }, 'Presenter added to the pool. Build the schedule from the pool when everyone is in.');
     }
 
     public function editPresenter(int $id): string

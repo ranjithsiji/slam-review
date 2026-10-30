@@ -4,12 +4,12 @@
 <?= $this->section('content') ?>
 <div class="mb-3"><?= in_array($slam['status'], ['marks_calculated', 'ended'], true) ? '' : status_badge('marks', 'provisional') ?> <span class="text-secondary small">Computed from the current answers.</span></div>
 <div class="row row-cards" data-stats="<?= site_url('api/slams/' . $slam['id'] . '/stats') ?>">
-    <div class="col-12 col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Final marks by group</h3></div><div class="card-body"><canvas data-chart="groups" height="260" aria-label="Average marks per performance by group" role="img"></canvas></div></div></div>
-    <div class="col-12 col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Review marks out of 10 (rounded)</h3></div><div class="card-body"><canvas data-chart="dist" height="260" aria-label="How many reviews got each mark out of 10, by group" role="img"></canvas></div></div></div>
-    <div class="col-12 col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Participation per performance</h3></div><div class="card-body"><canvas data-chart="participation" height="260" aria-label="Reviews per performance" role="img"></canvas></div></div></div>
-    <div class="col-12 col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Summary</h3></div><div class="card-body" data-summary></div></div></div>
+    <div class="col-12 col-lg-6"><div class="card card-accent accent-orange"><div class="card-header"><h3 class="card-title">Final marks by group</h3></div><div class="card-body"><canvas data-chart="groups" height="260" aria-label="Average marks per performance by group" role="img"></canvas></div></div></div>
+    <div class="col-12 col-lg-6"><div class="card card-accent accent-orange"><div class="card-header"><h3 class="card-title">Review marks out of 10 (rounded)</h3></div><div class="card-body"><canvas data-chart="dist" height="260" aria-label="How many reviews got each mark out of 10, by group" role="img"></canvas></div></div></div>
+    <div class="col-12 col-lg-6"><div class="card card-accent accent-orange"><div class="card-header"><h3 class="card-title">Participation per performance</h3></div><div class="card-body"><canvas data-chart="participation" height="260" aria-label="Reviews per performance" role="img"></canvas></div></div></div>
+    <div class="col-12 col-lg-6"><div class="card card-accent accent-purple"><div class="card-header"><h3 class="card-title">Summary</h3></div><div class="card-body" data-summary></div></div></div>
     <div class="col-12">
-        <div class="card"><div class="card-header"><h3 class="card-title">Per-question average points by group</h3></div><div class="card-body">
+        <div class="card card-accent accent-azure"><div class="card-header"><h3 class="card-title">Per-question average points by group</h3></div><div class="card-body">
             <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([
                 'endpoint' => 'mark-stats', 'filters' => ['slam_id' => (int) $slam['id']], 'order' => [[0, 'asc']], 'pii' => false,
                 'columns' => [

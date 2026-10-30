@@ -59,7 +59,10 @@ class ControlController extends BaseController
                     $status === 'revision_closed' => ['Scores locked', null],
                     default => ['Marks are calculated next', null],
                 };
+                $drift = service('slamPhase')->drift($slam, service('slamPhase')->projection($slam)['items']);
                 $out[] = [
+                    'paused_since' => $slam['paused_at'] !== null ? Clock::iso($slam['paused_at']) : null,
+                    'drift' => $drift === null ? null : ['minutes' => $drift['minutes'], 'basis' => $drift['basis'], 'original' => $drift['original']],
                     'id' => $id, 'name' => $slam['name'], 'status' => $status, 'label' => SlamPhaseService::LABELS[$status] ?? $status,
                     'detail' => $detail, 'until' => $until, 'hold' => (bool) $slam['hold_next_step'] || $slam['auto_mode'] === 'manual' ? ($slam['auto_mode'] === 'manual' ? 'manual' : 'held') : null,
                     'url' => site_url("admin/slams/{$id}/status"),
@@ -86,7 +89,7 @@ class ControlController extends BaseController
                 'id' => (int) $it['id'], 'item_type' => $it['item_type'], 'break_type' => $it['break_type'], 'label' => $it['label'],
                 'performance_id' => $it['performance_id'] !== null ? (int) $it['performance_id'] : null,
                 'status' => $it['status'], 'is_pinned' => (bool) $it['is_pinned'], 'duration_minutes' => (int) $it['duration_minutes'],
-                'planned_start_at' => Clock::iso($it['planned_start_at']), 'projected_start_at' => Clock::iso($it['projected_start_at']),
+                'planned_start_at' => Clock::iso($it['planned_start_at']), 'original_start_at' => Clock::iso($it['original_start_at'] ?? $it['planned_start_at']), 'projected_start_at' => Clock::iso($it['projected_start_at']),
                 'projected_end_at' => Clock::iso($it['projected_end_at']),
                 'performing_started_at' => Clock::iso($it['performing_started_at'] ?? null), 'performing_ended_at' => Clock::iso($it['performing_ended_at'] ?? null),
                 'window_closes_at' => $it['status'] === 'open' ? Clock::iso(ReviewWindowService::effectiveClose(['closes_at' => $it['window_closes_at'], 'extended_minutes_total' => $it['window_ext']], $slam)) : null,
@@ -130,6 +133,9 @@ class ControlController extends BaseController
                     'close_grace_minutes' => (int) $slam['close_grace_minutes'], 'changeover_minutes' => (int) $slam['changeover_minutes'],
                 ],
                 'phase_times' => $phaseTimes,
+                'paused' => $slam['paused_at'] !== null ? ['since' => Clock::iso($slam['paused_at']), 'reason' => $slam['pause_reason']] : null,
+                'pauses' => ['count' => (int) Db::value('SELECT COUNT(*) FROM slam_pauses WHERE slam_id = ? AND resumed_at IS NOT NULL', [$id]), 'seconds' => (int) Db::value('SELECT COALESCE(SUM(seconds), 0) FROM slam_pauses WHERE slam_id = ?', [$id])],
+                'drift' => $phase->drift($slam, $proj['items']),
                 'phases' => array_map(static fn ($p) => ['key' => $p, 'label' => SlamPhaseService::LABELS[$p]], SlamPhaseService::ORDER),
                 'readiness' => in_array($slam['status'], ['draft', 'scheduled'], true) ? service('slams')->readiness($id) : [],
                 'window' => $win !== null ? [
@@ -265,6 +271,35 @@ class ControlController extends BaseController
                 'end'   => $p->endPerformance($id, $itemId, $actor),
                 default => throw new DomainException('not_found', 'Unknown action.', 404),
             };
+
+            return ['ok' => true];
+        });
+    }
+
+    /** Pause / resume the whole slam; shift or reschedule while it runs. */
+    public function timing(int $id, string $what): ResponseInterface
+    {
+        $in    = $this->input();
+        $actor = $this->actor();
+        $p     = service('slamPhase');
+
+        return $this->api(function () use ($id, $what, $in, $actor, $p) {
+            return match ($what) {
+                'pause'  => $p->pause($id, isset($in['reason']) ? (string) $in['reason'] : null, $actor) + ['ok' => true],
+                'resume' => $p->resume($id, $actor) + ['ok' => true],
+                'shift'  => ['ok' => true] + array_intersect_key($p->shiftRemaining($id, (int) ($in['minutes'] ?? 0), ! empty($in['include_pinned']), $actor), ['moved' => 1, 'pinned' => 1]),
+                default  => throw new DomainException('not_found', 'Unknown action.', 404),
+            };
+        });
+    }
+
+    public function reschedule(int $id, int $itemId): ResponseInterface
+    {
+        $in = $this->input();
+
+        return $this->api(function () use ($id, $itemId, $in) {
+            $start = $this->utcFromIstInput($in['start'] ?? null) ?? throw new DomainException('validation', 'Choose the new start time.', 422);
+            service('slamPhase')->rescheduleItem($id, $itemId, $start, isset($in['duration']) && $in['duration'] !== '' ? (int) $in['duration'] : null, ! empty($in['shift_following']), $this->actor());
 
             return ['ok' => true];
         });

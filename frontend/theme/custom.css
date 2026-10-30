@@ -186,3 +186,25 @@ html { scroll-padding-top: 5rem; scroll-padding-bottom: 8rem; }
 .status-timeline > li.is-skipped::before { background: var(--tblr-border-color); }
 .st-dot-skipped { background: var(--tblr-gray-300, #ced4da); }
 .status-card-skipped { border-left: 4px solid var(--tblr-border-color); opacity: .6; }
+
+/* Paused: unmistakable, and the timers stop. */
+.now-paused { border-left-color: var(--tblr-red); background: linear-gradient(90deg, rgba(214, 57, 57, .09), transparent 55%); }
+.now-paused .now-icon { background: var(--tblr-red); color: #fff; }
+.text-red { color: var(--tblr-red) !important; }
+
+/* Colour-coded boxes on organiser screens: each card gets an accent (top edge, tinted header, coloured title icon). */
+.accent-blue   { --accent: var(--tblr-blue); }
+.accent-green  { --accent: var(--tblr-green); }
+.accent-orange { --accent: var(--tblr-orange); }
+.accent-purple { --accent: var(--tblr-purple); }
+.accent-azure  { --accent: var(--tblr-azure); }
+.accent-teal   { --accent: var(--tblr-teal); }
+.accent-pink   { --accent: var(--tblr-pink); }
+.accent-indigo { --accent: var(--tblr-indigo); }
+.card-accent { border-top: 3px solid var(--accent, var(--tblr-primary)); }
+.card-accent > .card-header { background: color-mix(in srgb, var(--accent, var(--tblr-primary)) 11%, transparent); border-bottom-color: color-mix(in srgb, var(--accent, var(--tblr-primary)) 25%, transparent); }
+.card-accent > .card-header .card-title { color: color-mix(in srgb, var(--accent, var(--tblr-primary)) 80%, var(--tblr-body-color)); }
+.card-accent > .card-header .card-title .icon { color: var(--accent, var(--tblr-primary)); }
+/* Stat tiles: a coloured left edge instead. */
+.card-accent-left { border-left: 4px solid var(--accent, var(--tblr-primary)); }
+.card-accent-left .h1 { color: color-mix(in srgb, var(--accent, var(--tblr-primary)) 85%, var(--tblr-body-color)); }

@@ -107,6 +107,9 @@ class ReviewService
                 if (Db::value('SELECT id FROM checkins WHERE attendee_id = ? AND checked_out_at IS NULL', [$attendee['id']]) === null) {
                     throw new DomainException('not_checked_in', 'You are not checked in.', 403);
                 }
+                if ($slam['paused_at'] !== null) {
+                    throw new DomainException('paused', 'The slam is paused for a moment. Your review time is stopped; please wait.', 409);
+                }
                 if ($slam['status'] !== 'reviewing') {
                     throw new DomainException('no_open_window', 'Reviews are not open right now.', 409);
                 }
@@ -183,6 +186,9 @@ class ReviewService
                 }
                 if (in_array($slam['status'], ['revision_closed', 'closed', 'marks_calculated', 'ended'], true)) {
                     throw new DomainException('scores_locked', 'Scores are locked.', 409);
+                }
+                if ($slam['paused_at'] !== null) {
+                    throw new DomainException('paused', 'The slam is paused for a moment. Your edit time is stopped; please wait.', 409);
                 }
                 $rw = service('slamPhase')->windows()->openRevisionWindow($slamId);
                 if ($slam['status'] !== 'revision' || $rw === null || Clock::now() >= Clock::parse(ReviewWindowService::effectiveClose($rw, $slam))) {

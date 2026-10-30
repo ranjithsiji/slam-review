@@ -73,6 +73,13 @@
       </div>
     </div>
 
+    <div v-if="unscheduled.length && !readOnly" class="alert alert-info d-flex flex-wrap align-items-center gap-2">
+      <Icon name="status.info" />
+      <div class="me-auto"><strong>{{ unscheduled.length }} presenter{{ unscheduled.length === 1 ? '' : 's' }} in the pool {{ unscheduled.length === 1 ? 'is' : 'are' }} not in the schedule yet.</strong> Add them one by one from the pool, drag them in, or let Generate place them all.</div>
+      <button type="button" class="btn btn-sm" @click="addAllUnscheduled">Add all to the end</button>
+      <button type="button" class="btn btn-sm btn-primary" @click="openGenerate"><Icon name="action.shuffle" />Generate schedule…</button>
+    </div>
+
     <div class="row g-3">
       <div class="col-12" :class="{ 'col-lg-8': poolVisible }">
         <!-- Timeline -->
@@ -336,6 +343,10 @@ function bulkRemove() {
 function addSlot(performanceId) {
   const start = nextStart(data.slam, draft.value, 'performance');
   commit([...draft.value, { id: null, item_type: 'performance', break_type: null, performance_id: performanceId, label: null, planned_start_at: start, duration_minutes: data.slam.default_review_minutes, is_pinned: false, status: 'pending' }]);
+}
+function addAllUnscheduled() {
+  for (const p of [...unscheduled.value]) addSlot(p.id);
+  toast('All pool presenters added to the draft. Check the times, then save.');
 }
 function addBreak(type) {
   const start = nextStart(data.slam, draft.value, 'break');

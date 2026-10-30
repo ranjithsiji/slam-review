@@ -26,7 +26,7 @@ export const renderers = {
   active: (v) => (Number(v) ? badge('checkin', 'checked_in', 'Active') : badge('checkin', 'checked_out', 'Inactive')),
   checkedin: (v) => (Number(v) ? badge('checkin', 'checked_in') : badge('checkin', 'never')),
   phase: (v) => badge('phase', v),
-  slot: (v) => (v ? badge('slot', v) : '<span class="text-secondary">—</span>'),
+  slot: (v) => (v ? badge('slot', v) : '<span class="badge bg-orange-lt">In the pool, not scheduled</span>'),
   user_type: (v) => badge('user_type', v),
   outcome: (v) => `<span class="badge bg-${v === 'success' ? 'green' : v === 'denied' ? 'orange' : 'red'}-lt">${esc(v)}</span>`,
   thumb: (v) => (v ? `<img src="/${esc(v)}" alt="" class="avatar avatar-sm avatar-photo" loading="lazy">` : `<span class="avatar avatar-sm">${iconHtml('person.user')}</span>`),

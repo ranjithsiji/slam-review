@@ -130,6 +130,8 @@ class SlamPhaseService
         $sid = (int) $slam['id'];
         switch ($to) {
             case 'open':
+                // The plan as it stands when the slam goes live is the baseline "behind/ahead" is measured against.
+                db_connect()->query('UPDATE schedule_items SET original_start_at = planned_start_at WHERE slam_id = ?', [$sid]);
                 $log->log($actor, 'slam.activated', ['slam_id' => $sid, 'target_type' => 'slam', 'target_id' => $sid]);
                 break;
             case 'checkin_open':
@@ -190,8 +192,8 @@ class SlamPhaseService
         }
 
         $slam = Db::row('SELECT * FROM slams WHERE id = ?', [$slamId]);
-        if ($slam === null) {
-            return [];
+        if ($slam === null || $slam['paused_at'] !== null) {
+            return []; // a paused slam applies nothing by itself
         }
         if ($this->nextDue($slam) === null) {
             // Cache when the next thing can become due (re-check at least once a minute).
@@ -249,6 +251,9 @@ class SlamPhaseService
      */
     public function nextDueAt(array $slam): ?\DateTimeImmutable
     {
+        if ($slam['paused_at'] !== null) {
+            return null;
+        }
         $sid  = (int) $slam['id'];
         $cand = [];
         if (in_array($slam['status'], self::LIVE, true)) {
@@ -613,15 +618,18 @@ class SlamPhaseService
     // ------------------------------------------------------------------
 
     /** @param callable(array): mixed $fn */
-    private function override(int $slamId, Actor $actor, callable $fn): array
+    private function override(int $slamId, Actor $actor, callable $fn, bool $allowPaused = false): array
     {
         if (! $actor->isAdmin()) {
             throw new DomainException('forbidden', 'Only an admin can do this.', 403);
         }
         // Apply anything already due first, so the admin acts on the real state.
         $this->tick($slamId, true);
-        $result = Db::tx(function () use ($slamId, $fn): array {
+        $result = Db::tx(function () use ($slamId, $fn, $allowPaused): array {
             $slam = Db::lockSlam($slamId);
+            if ($slam['paused_at'] !== null && ! $allowPaused) {
+                throw new DomainException('paused', 'The slam is paused. Resume it first.', 409);
+            }
             $fn($slam);
 
             return Db::lockSlam($slamId);
@@ -941,7 +949,7 @@ class SlamPhaseService
         return $this->override($slamId, $actor, function (array $s) use ($hold, $actor, $reason): void {
             db_connect()->table('slams')->where('id', $s['id'])->update(['hold_next_step' => $hold ? 1 : 0, 'updated_at' => Clock::db()]);
             service('activityLog')->log($actor, $hold ? 'phase.hold' : 'phase.resume', ['slam_id' => (int) $s['id'], 'target_type' => 'slam', 'target_id' => (int) $s['id'], 'reason' => $reason]);
-        });
+        }, true);
     }
 
     public function setMode(int $slamId, string $mode, Actor $actor): array
@@ -953,7 +961,216 @@ class SlamPhaseService
         return $this->override($slamId, $actor, function (array $s) use ($mode, $actor): void {
             db_connect()->table('slams')->where('id', $s['id'])->update(['auto_mode' => $mode, 'updated_at' => Clock::db()]);
             service('activityLog')->log($actor, 'phase.mode_changed', ['slam_id' => (int) $s['id'], 'target_type' => 'slam', 'target_id' => (int) $s['id'], 'old' => ['auto_mode' => $s['auto_mode']], 'new' => ['auto_mode' => $mode]]);
+        }, true);
+    }
+
+    /** Phases in which a slam can be paused (something is running or about to). */
+    public const PAUSABLE = ['open', 'checkin_open', 'checkin_closed', 'reviewing', 'reviews_complete', 'revision', 'revision_closed'];
+
+    /**
+     * Pause the whole slam (a power cut, a technical problem, a long delay):
+     * nothing starts or ends by itself, reviewers cannot submit and every timer
+     * is frozen until resume() moves them by the length of the pause.
+     */
+    public function pause(int $slamId, ?string $reason, Actor $actor): array
+    {
+        $result = $this->override($slamId, $actor, function (array $s) use ($reason, $actor): void {
+            if ($s['paused_at'] !== null) {
+                throw new DomainException('already_paused', 'The slam is already paused.', 409);
+            }
+            if (! in_array($s['status'], self::PAUSABLE, true)) {
+                throw new DomainException('not_pausable', 'A slam can be paused only while it is running.', 409);
+            }
+            $reason = $reason !== null && trim($reason) !== '' ? mb_substr(trim($reason), 0, 255) : null;
+            $now    = Clock::db();
+            db_connect()->table('slams')->where('id', $s['id'])->update(['paused_at' => $now, 'pause_reason' => $reason, 'updated_at' => $now]);
+            db_connect()->table('slam_pauses')->insert(['slam_id' => $s['id'], 'paused_at' => $now, 'reason' => $reason, 'paused_by' => $actor->id]);
+            service('activityLog')->log($actor, 'slam.paused', ['slam_id' => (int) $s['id'], 'target_type' => 'slam', 'target_id' => (int) $s['id'], 'reason' => $reason]);
+        }, true);
+        service('publicCache')->purge($slamId);
+
+        return $result;
+    }
+
+    /**
+     * Resume after a pause. The lapsed time is calculated and everything that
+     * was waiting moves later by it: the running review/edit window, a running
+     * break, the gate close time, the hard stop, and every pending slot (pinned
+     * ones stay at their clock time and are reported).
+     *
+     * @return array{seconds: int, minutes: int, shifted: array<string, mixed>}
+     */
+    public function resume(int $slamId, Actor $actor): array
+    {
+        $info = ['seconds' => 0, 'minutes' => 0, 'shifted' => []];
+        $this->override($slamId, $actor, function (array $s) use ($actor, &$info): void {
+            if ($s['paused_at'] === null) {
+                throw new DomainException('not_paused', 'The slam is not paused.', 409);
+            }
+            $db      = db_connect();
+            $secs    = max(0, Clock::now()->getTimestamp() - Clock::parse($s['paused_at'])->getTimestamp());
+            $mins    = (int) ceil($secs / 60);
+            $sid     = (int) $s['id'];
+            $shifted = [];
+            $this->ensureBaseline($sid);
+
+            if (($w = $this->windows->openWindow($sid)) !== null) {
+                $db->query('UPDATE review_windows SET closes_at = DATE_ADD(closes_at, INTERVAL ? SECOND) WHERE id = ?', [$secs, $w['id']]);
+                $shifted['review_window'] = true;
+            }
+            if (($rw = $this->windows->openRevisionWindow($sid)) !== null) {
+                $db->query('UPDATE revision_windows SET closes_at = DATE_ADD(closes_at, INTERVAL ? SECOND) WHERE id = ?', [$secs, $rw['id']]);
+                $shifted['edit_window'] = true;
+            }
+            $db->query("UPDATE schedule_items SET ends_at = DATE_ADD(ends_at, INTERVAL ? SECOND) WHERE slam_id = ? AND item_type = 'break' AND status = 'open' AND ends_at IS NOT NULL", [$secs, $sid]);
+            $upd = ['paused_at' => null, 'pause_reason' => null, 'updated_at' => Clock::db(), 'closes_at' => Clock::addMinutes($s['closes_at'], $mins)];
+            $shifted['hard_stop_minutes'] = $mins;
+            if ($s['status'] === 'checkin_open' && $s['checkin_closes_at'] !== null) {
+                $upd['checkin_closes_at'] = Clock::addSeconds($s['checkin_closes_at'], $secs);
+                $shifted['gate_close'] = true;
+            }
+            if ($s['event_ends_at'] !== null) {
+                $upd['event_ends_at'] = Clock::addMinutes($s['event_ends_at'], $mins);
+            }
+            if ($s['reviews_start_at'] !== null && Clock::parse($s['reviews_start_at']) > Clock::parse($s['paused_at'])) {
+                $upd['reviews_start_at'] = Clock::addMinutes($s['reviews_start_at'], $mins);
+            }
+            $db->table('slams')->where('id', $sid)->update($upd);
+            $r = $this->shiftPending($sid, $mins, false);
+            $shifted['items'] = $r['moved'];
+            $shifted['pinned_not_moved'] = $r['pinned'];
+            if ($r['moved'] > 0 || $r['pinned'] > 0) {
+                $this->bumpScheduleVersion($s);
+            }
+            $db->query('UPDATE slam_pauses SET resumed_at = ?, seconds = ?, resumed_by = ?, shifted = ? WHERE slam_id = ? AND resumed_at IS NULL ORDER BY id DESC LIMIT 1', [Clock::db(), $secs, $actor->id, json_encode($shifted), $sid]);
+            service('activityLog')->log($actor, 'slam.resumed', ['slam_id' => $sid, 'target_type' => 'slam', 'target_id' => $sid, 'meta' => ['seconds' => $secs, 'minutes_shifted' => $mins, 'shifted' => $shifted]]);
+            $info = ['seconds' => $secs, 'minutes' => $mins, 'shifted' => $shifted];
+        }, true);
+        service('publicCache')->purge($slamId);
+        cache()->delete(service('publicCache')->key('tickcheck', $slamId));
+
+        return $info;
+    }
+
+    /** The plan as it stood when the slam went live, for items that have none yet. */
+    private function ensureBaseline(int $slamId): void
+    {
+        db_connect()->query('UPDATE schedule_items SET original_start_at = planned_start_at WHERE slam_id = ? AND original_start_at IS NULL', [$slamId]);
+    }
+
+    /** @return array{moved: int, pinned: int} pending slots moved by N minutes (negative = earlier) */
+    private function shiftPending(int $slamId, int $minutes, bool $includePinned, int $afterPosition = -1): array
+    {
+        $moved = 0;
+        $pinned = 0;
+        foreach (Db::rows("SELECT * FROM schedule_items WHERE slam_id = ? AND status = 'pending' AND position > ? ORDER BY position", [$slamId, $afterPosition]) as $r) {
+            if ((int) $r['is_pinned'] === 1 && ! $includePinned) {
+                $pinned++;
+                continue;
+            }
+            db_connect()->table('schedule_items')->where('id', $r['id'])->update(['planned_start_at' => Clock::addMinutes($r['planned_start_at'], $minutes), 'updated_at' => Clock::db()]);
+            $moved++;
+        }
+
+        return ['moved' => $moved, 'pinned' => $pinned];
+    }
+
+    /** Move every remaining (pending) slot earlier or later by N minutes while the slam runs. */
+    public function shiftRemaining(int $slamId, int $minutes, bool $includePinned, Actor $actor): array
+    {
+        if ($minutes === 0 || abs($minutes) > 240) {
+            throw new DomainException('invalid_minutes', 'Shift by 1 to 240 minutes (negative moves earlier).');
+        }
+        $out = ['moved' => 0, 'pinned' => 0];
+        $result = $this->override($slamId, $actor, function (array $s) use ($minutes, $includePinned, $actor, &$out): void {
+            $this->ensureBaseline((int) $s['id']);
+            $out = $this->shiftPending((int) $s['id'], $minutes, $includePinned);
+            if ($out['moved'] === 0) {
+                throw new DomainException('nothing_to_shift', 'There is nothing left to move.');
+            }
+            $this->bumpScheduleVersion($s);
+            service('activityLog')->log($actor, 'schedule.shifted', ['slam_id' => (int) $s['id'], 'meta' => ['minutes' => $minutes, 'moved' => $out['moved'], 'pinned_not_moved' => $out['pinned']]]);
         });
+
+        return $out + ['slam' => $result];
+    }
+
+    /**
+     * Change one pending slot while the slam runs: its start time and/or length,
+     * optionally moving the slots after it by the same amount.
+     */
+    public function rescheduleItem(int $slamId, int $itemId, string $newStartUtc, ?int $duration, bool $shiftFollowing, Actor $actor): array
+    {
+        return $this->override($slamId, $actor, function (array $s) use ($itemId, $newStartUtc, $duration, $shiftFollowing, $actor): void {
+            $item = Db::row('SELECT * FROM schedule_items WHERE id = ? AND slam_id = ?', [$itemId, $s['id']]);
+            if ($item === null || $item['status'] !== 'pending') {
+                throw new DomainException('item_not_pending', 'Only a slot that has not started can be rescheduled.');
+            }
+            $newDur = $duration ?? (int) $item['duration_minutes'];
+            if ($newDur < 1 || $newDur > 600) {
+                throw new DomainException('invalid_minutes', 'Duration must be 1 to 600 minutes.');
+            }
+            $startDelta = (int) round((Clock::parse($newStartUtc)->getTimestamp() - Clock::parse($item['planned_start_at'])->getTimestamp()) / 60);
+            $durDelta   = $newDur - (int) $item['duration_minutes'];
+            if ($startDelta === 0 && $durDelta === 0) {
+                throw new DomainException('nothing_changed', 'Nothing to change.');
+            }
+            $this->ensureBaseline((int) $s['id']);
+            if (! $shiftFollowing) {
+                $next = Db::row("SELECT planned_start_at FROM schedule_items WHERE slam_id = ? AND status = 'pending' AND position > ? ORDER BY position LIMIT 1", [$s['id'], $item['position']]);
+                if ($next !== null && Clock::parse(Clock::addMinutes($item['planned_start_at'], $startDelta + $newDur)) > Clock::parse($next['planned_start_at'])) {
+                    throw new DomainException('overlap', 'This would run into the next slot. Move the following slots too.', 422);
+                }
+            }
+            db_connect()->table('schedule_items')->where('id', $itemId)->update([
+                'planned_start_at' => Clock::addMinutes($item['planned_start_at'], $startDelta), 'duration_minutes' => $newDur, 'updated_at' => Clock::db(),
+            ]);
+            $moved = 0;
+            if ($shiftFollowing && $startDelta + $durDelta !== 0) {
+                $moved = $this->shiftPending((int) $s['id'], $startDelta + $durDelta, false, (int) $item['position'])['moved'];
+            }
+            $this->bumpScheduleVersion($s);
+            service('activityLog')->log($actor, 'schedule.item_time_changed', [
+                'slam_id' => (int) $s['id'], 'target_type' => 'schedule_item', 'target_id' => $itemId,
+                'old' => ['planned_start_at' => $item['planned_start_at'], 'duration_minutes' => (int) $item['duration_minutes']],
+                'new' => ['planned_start_at' => Clock::addMinutes($item['planned_start_at'], $startDelta), 'duration_minutes' => $newDur],
+                'meta' => ['following_moved' => $moved, 'during' => 'live'],
+            ]);
+        });
+    }
+
+    /**
+     * How far the slam is from its original plan, in minutes (positive = behind,
+     * negative = ahead): the running (or last started) performance's real start
+     * against its original start; while waiting for the next one, now against its
+     * original start. Null when it cannot be measured yet.
+     *
+     * @param list<array<string,mixed>> $items rows of projection()['items']
+     * @return array{minutes: int, basis: string, original: string, started: ?string, item_id: int}|null
+     */
+    public function drift(array $slam, array $items): ?array
+    {
+        if (! in_array($slam['status'], ['checkin_closed', 'reviewing'], true)) {
+            return null;
+        }
+        $live = array_values(array_filter($items, static fn ($i) => $i['item_type'] === 'performance' && $i['status'] !== 'skipped' && (int) ($i['perf_active'] ?? 1) === 1));
+        $orig = static fn (array $i): string => $i['original_start_at'] ?? $i['planned_start_at'];
+        foreach ($live as $i) {
+            if ($i['status'] === 'open' || (! empty($i['performing_started_at']) && empty($i['performing_ended_at']))) {
+                $started = $i['performing_started_at'] ?? $i['actual_start_at'];
+
+                return ['minutes' => (int) round((Clock::parse($started)->getTimestamp() - Clock::parse($orig($i))->getTimestamp()) / 60),
+                    'basis' => 'started', 'original' => Clock::iso($orig($i)), 'started' => Clock::iso($started), 'item_id' => (int) $i['id']];
+            }
+        }
+        foreach ($live as $i) {
+            if ($i['status'] === 'pending') {
+                return ['minutes' => (int) round((Clock::now()->getTimestamp() - Clock::parse($orig($i))->getTimestamp()) / 60),
+                    'basis' => 'waiting', 'original' => Clock::iso($orig($i)), 'started' => null, 'item_id' => (int) $i['id']];
+            }
+        }
+
+        return null;
     }
 
     /** What "Advance now" would do in the current state (for the button label). */

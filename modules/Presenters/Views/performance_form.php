@@ -2,7 +2,7 @@
 <?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'presenters']) ?><?= $this->endSection() ?>
 <?= $this->section('content') ?>
 <div class="row justify-content-center"><div class="col-12 col-lg-8">
-<form class="card" method="post" action="<?= site_url('admin/performances/' . $perf['id']) ?>">
+<form class="card card-accent accent-blue" method="post" action="<?= site_url('admin/performances/' . $perf['id']) ?>">
     <?= csrf_field() ?>
     <div class="card-header"><h3 class="card-title"><?= esc($perf['presenter_name']) ?></h3></div>
     <div class="card-body">

@@ -1,11 +1,11 @@
 <?= $this->extend('Modules\Core\Views\layouts\admin') ?>
-<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'attendees']) ?><?= $this->endSection() ?>
+<?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'reviewers']) ?><?= $this->endSection() ?>
 <?= $this->section('content') ?>
 <div class="row justify-content-center"><div class="col-12 col-lg-8">
-<form class="card" method="post" action="<?= site_url('admin/attendees/import/preview') ?>" enctype="multipart/form-data" data-once>
+<form class="card card-accent accent-blue" method="post" action="<?= site_url('admin/attendees/import/preview') ?>" enctype="multipart/form-data" data-once>
     <?= csrf_field() ?>
     <input type="hidden" name="slam_id" value="<?= (int) $slam['id'] ?>">
-    <div class="card-header"><h3 class="card-title">Import attendees (step 1 of 2: check the file)</h3></div>
+    <div class="card-header"><h3 class="card-title">Import reviewers and judges (step 1 of 2: check the file)</h3></div>
     <div class="card-body">
         <p>Upload a CSV with a header row. Nothing is saved until you confirm on the next screen. Importing never checks anyone in.</p>
         <div class="table-responsive mb-3">

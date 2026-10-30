@@ -7,7 +7,8 @@
           <div class="fw-bold">Edit your scores</div>
           <div class="small text-secondary">Only performances you already reviewed. Changes are saved one by one.</div>
         </div>
-        <Countdown :until="closesAt" size="xl" />
+        <span v-if="paused" class="badge bg-orange-lt fs-3">Paused</span>
+        <Countdown v-else :until="closesAt" size="xl" />
       </div>
     </div>
     <div v-if="loading" class="text-center py-4"><div class="spinner-border" role="status"></div></div>
@@ -42,7 +43,7 @@ import Icon from '../../shared/components/Icon.vue';
 import Countdown from '../../shared/components/Countdown.vue';
 import ScoreQuestion from './ScoreQuestion.vue';
 
-const props = defineProps({ questions: Array, closesAt: String });
+const props = defineProps({ questions: Array, closesAt: String, paused: Boolean });
 const reviews = ref([]);
 const editable = ref(false);
 const loading = ref(true);

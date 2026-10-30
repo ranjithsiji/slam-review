@@ -5,7 +5,8 @@
     <div class="modal-body">
       <p v-if="message" class="text-secondary">{{ message }}</p>
       <div v-for="f in fields" :key="f.name" class="mb-3">
-        <TablerInput v-model="values[f.name]" :label="f.label" :type="f.type || 'text'" :description="f.hint || ''" :required="f.required" :placeholder="f.placeholder || ''" :error="errors[f.name] || ''" />
+        <label v-if="f.type === 'checkbox'" class="form-check mb-0"><input v-model="values[f.name]" type="checkbox" class="form-check-input"><span class="form-check-label">{{ f.label }}</span><span v-if="f.hint" class="form-check-description">{{ f.hint }}</span></label>
+        <TablerInput v-else v-model="values[f.name]" :label="f.label" :type="f.type || 'text'" :description="f.hint || ''" :required="f.required" :placeholder="f.placeholder || ''" :error="errors[f.name] || ''" />
       </div>
       <div v-if="error" class="alert alert-danger mb-0">{{ error }}</div>
     </div>
@@ -54,7 +55,7 @@ function close() { if (!busy.value) open.value = false; }
 async function confirm() {
   Object.keys(errors).forEach((k) => delete errors[k]);
   for (const f of fields.value) {
-    if (f.required && String(values[f.name] ?? '').trim() === '') { errors[f.name] = 'Required.'; return; }
+    if (f.type !== 'checkbox' && f.required && String(values[f.name] ?? '').trim() === '') { errors[f.name] = 'Required.'; return; }
   }
   busy.value = true;
   error.value = '';

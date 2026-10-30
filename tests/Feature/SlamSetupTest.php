@@ -113,4 +113,25 @@ final class SlamSetupTest extends SlamTestCase
         $this->at('2026-11-01 03:30:00', $b['id']);
         $this->assertSame($b['id'], service('slams')->currentId(), 'a running slam beats an upcoming one');
     }
+
+    public function testPresentersJoinThePoolFirstAndAreScheduledLater(): void
+    {
+        $s  = $this->makeSlam(1, 1, 0);
+        $id = $s['id'];
+        // Added through the presenter form: no schedule time, no slot.
+        $r = service('presenters')->addToSlam($id, ['name' => 'Pool Presenter', 'topic' => 'Pooled talk', 'abstract' => 'A'], $this->admin, null, false);
+        $this->assertNull($r['schedule_item_id']);
+        $this->assertSame(0, (int) Db::value('SELECT COUNT(*) FROM schedule_items WHERE performance_id = ?', [$r['performance_id']]));
+
+        $dt   = service('dataTables');
+        $rows = fn (array $f) => $dt->handle('performances', ['filters' => ['slam_id' => $id] + $f, 'length' => 50], $this->admin)['data'];
+        $this->assertSame(['Pool Presenter'], array_column($rows(['scheduled' => '0']), 'presenter_name'), 'only the pool presenter is unscheduled');
+        $this->assertCount(1, $rows(['scheduled' => '1']));
+        $this->assertNull($rows(['scheduled' => '0'])[0]['planned_start_at']);
+
+        // Building the schedule from the pool places them.
+        service('schedule')->appendItem($id, ['item_type' => 'performance', 'performance_id' => $r['performance_id']], $this->admin);
+        $this->assertSame([], $rows(['scheduled' => '0']));
+        $this->assertCount(2, $rows(['scheduled' => '1']));
+    }
 }

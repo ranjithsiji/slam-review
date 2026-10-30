@@ -22,7 +22,7 @@ $detail = static function (array $r, string $g) use ($questions): string {
     return implode(' · ', $parts);
 };
 ?>
-<div class="card mb-3">
+<div class="card mb-3 card-accent accent-orange">
     <div class="card-header"><h3 class="card-title"><?= icon('action.calculate', 'me-2') ?>How the final marks are calculated</h3></div>
     <div class="card-body border-bottom">
         <ol class="mb-2 ps-3">

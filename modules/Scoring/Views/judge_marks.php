@@ -68,7 +68,7 @@ $entered  = array_sum(array_map('count', $marks));
         <?php endif ?>
     </div>
     <div class="col-12 col-lg-7">
-        <div class="card">
+        <div class="card card-accent accent-orange">
             <div class="card-header"><h3 class="card-title">All judges' marks</h3></div>
             <div class="table-responsive">
                 <table class="table table-vcenter card-table table-sm">

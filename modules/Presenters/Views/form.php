@@ -1,10 +1,10 @@
 <?= $this->extend('Modules\Core\Views\layouts\admin') ?>
 <?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'presenters']) ?><?= $this->endSection() ?>
 <?= $this->section('content') ?>
-<form method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/presenters') ?>" enctype="multipart/form-data" class="row row-cards">
+<form id="presenter-form" method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/presenters') ?>" enctype="multipart/form-data" class="row row-cards">
     <?= csrf_field() ?>
     <div class="col-12 col-lg-6">
-        <div class="card">
+        <div class="card card-accent accent-indigo">
             <div class="card-header"><h3 class="card-title">Presenter</h3></div>
             <div class="card-body">
                 <?php if ($pool !== []): ?>
@@ -30,27 +30,24 @@
         </div>
     </div>
     <div class="col-12 col-lg-6">
-        <div class="card mb-3">
+        <div class="card mb-3 card-accent accent-green">
             <div class="card-header"><h3 class="card-title">Talk in this slam</h3></div>
             <div class="card-body">
                 <div class="mb-3"><label class="form-label required" for="topic">Topic</label><input id="topic" name="topic" class="form-control<?= is_invalid($errors, 'topic') ?>" required maxlength="200" value="<?= esc(old('topic')) ?>"><?= field_error($errors, 'topic') ?></div>
                 <div class="mb-0"><label class="form-label" for="abstract">Abstract</label><textarea id="abstract" name="abstract" class="form-control<?= is_invalid($errors, 'abstract') ?>" rows="5" data-maxlength="2000"><?= esc(old('abstract')) ?></textarea><?= field_error($errors, 'abstract') ?></div>
             </div>
         </div>
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Schedule slot</h3></div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-7 mb-3"><label class="form-label" for="planned_start_at">Planned start (<?= esc(tz_label()) ?>)</label><input id="planned_start_at" name="planned_start_at" type="datetime-local" class="form-control" value="<?= esc(old('planned_start_at', local_input($nextStart))) ?>"></div>
-                    <div class="col-5 mb-3"><label class="form-label" for="duration_minutes">Minutes</label><input id="duration_minutes" name="duration_minutes" type="number" min="1" max="240" class="form-control" value="<?= esc(old('duration_minutes', (string) $slam['default_review_minutes'])) ?>"></div>
-                </div>
-                <div class="form-hint">Prefilled with the next free time after the last slot plus the changeover.</div>
-            </div>
+        <div class="alert alert-info mb-0">
+            <div class="d-flex gap-2"><?= icon('status.info', 'flex-none') ?><div>
+                <strong>No schedule time needed here.</strong> Presenters go into this slam's <em>pool</em> first. When the pool is ready, build the running order on the
+                <a href="<?= site_url('admin/slams/' . $slam['id'] . '/schedule') ?>">Schedule</a> page, then publish it.
+            </div></div>
         </div>
     </div>
     <div class="col-12 sticky-actions d-flex justify-content-end gap-2">
         <a href="<?= site_url('admin/slams/' . $slam['id'] . '/presenters') ?>" class="btn btn-link">Cancel</a>
-        <button class="btn btn-primary" type="submit"><?= icon('action.save') ?>Add to slam</button>
+        <button class="btn" type="submit" name="again" value="1"><?= icon('action.add') ?>Add &amp; add another</button>
+        <button class="btn btn-primary" type="submit"><?= icon('action.save') ?>Add to pool</button>
     </div>
 </form>
 <?= $this->endSection() ?>

@@ -6,7 +6,7 @@
 <noscript><div class="alert alert-warning">Please enable JavaScript to see the live status.</div></noscript>
 <div class="row row-cards mt-3">
     <div class="col-12 col-xl-6">
-        <div class="card">
+        <div class="card card-accent accent-blue">
             <div class="card-header"><h3 class="card-title">Phase log</h3></div>
             <div class="card-body">
                 <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([
@@ -25,7 +25,7 @@
         </div>
     </div>
     <div class="col-12 col-xl-6">
-        <div class="card">
+        <div class="card card-accent accent-teal">
             <div class="card-header"><h3 class="card-title">Live activity</h3><div class="card-actions"><a href="<?= site_url('admin/activity-log?slam_id=' . $slam['id']) ?>" class="btn btn-sm">Full log</a></div></div>
             <div class="card-body">
                 <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([

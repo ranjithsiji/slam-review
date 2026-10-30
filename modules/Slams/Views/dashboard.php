@@ -17,7 +17,7 @@
 <div class="row row-cards">
     <?php foreach ($slams as $s): ?>
         <div class="col-12 col-md-6 col-xl-4">
-            <div class="card h-100">
+            <div class="card h-100 card-accent accent-blue">
                 <div class="card-body">
                     <div class="d-flex align-items-start mb-2">
                         <div class="me-auto">

@@ -95,6 +95,7 @@ class PublicScheduleService
                 'next'         => $next !== null ? array_intersect_key($next, array_flip(['id', 'kind', 'label', 'presenter_name', 'topic', 'planned_start_at'])) : null,
                 'late_minutes' => in_array($slam['status'], ['checkin_closed', 'reviewing'], true) ? (int) $live['late_minutes'] : 0,
                 'finished'     => $finished,
+                'paused'       => $slam['paused_at'] !== null,
                 'slots'        => $slots,
             ];
             $doc['etag'] = '"' . substr(md5(json_encode($doc)), 0, 16) . '"';

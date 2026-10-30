@@ -28,8 +28,9 @@ class ReviewWindowService
 
     public static function isRunning(?array $window, array $slam): bool
     {
+        // A paused slam keeps its window: the deadline moves by the pause when it resumes.
         return $window !== null && $window['closed_at'] === null
-            && Clock::now() < Clock::parse(self::effectiveClose($window, $slam));
+            && (! empty($slam['paused_at']) || Clock::now() < Clock::parse(self::effectiveClose($window, $slam)));
     }
 
     /** The open (not yet closed) review window of a slam, if any. */

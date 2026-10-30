@@ -17,7 +17,7 @@
         ['Reviews', $counts['reviews'], 'nav.questions', 'azure'],
     ] as [$label, $n, $ic, $colour]): ?>
         <div class="col-6 col-md-4 col-xl">
-            <div class="card h-100"><div class="card-body d-flex align-items-center gap-3 py-3">
+            <div class="card h-100 card-accent-left accent-<?= $colour ?>"><div class="card-body d-flex align-items-center gap-3 py-3">
                 <span class="avatar avatar-md bg-<?= $colour ?>-lt flex-shrink-0"><?= icon($ic) ?></span>
                 <div class="min-w-0"><div class="h1 m-0 lh-1"><?= (int) $n ?></div><div class="text-secondary mt-1"><?= esc($label) ?></div></div>
             </div></div>
@@ -27,7 +27,7 @@
 <!-- Row 2: details. -->
 <div class="row row-cards">
     <div class="col-12 col-lg-7">
-        <div class="card h-100">
+        <div class="card h-100 card-accent accent-blue">
             <div class="card-header"><h3 class="card-title">Times (<?= esc(tz_label()) ?>)</h3>
                 <div class="card-actions"><a href="<?= site_url('admin/slams/' . $slam['id'] . '/edit') ?>" class="btn btn-sm"><?= icon('action.edit') ?>Edit</a></div></div>
             <div class="list-group list-group-flush">
@@ -47,16 +47,17 @@
         </div>
     </div>
     <div class="col-12 col-lg-5">
-        <div class="card mb-3">
+        <div class="card mb-3 card-accent accent-green">
             <div class="card-header"><h3 class="card-title">Public schedule</h3></div>
             <div class="card-body">
+                <?php if ($unscheduled > 0): ?><div class="alert alert-warning py-2"><?= icon('status.warning', 'me-1') ?><?= (int) $unscheduled ?> presenter<?= $unscheduled === 1 ? '' : 's' ?> in the pool <?= $unscheduled === 1 ? 'is' : 'are' ?> not in the schedule yet. <a href="<?= site_url('admin/slams/' . $slam['id'] . '/schedule') ?>">Build the schedule</a></div><?php endif ?>
                 <p class="mb-2"><?= (int) $slam['schedule_is_public'] ? status_badge('public', 'live', 'Published') : '<span class="badge bg-secondary-lt">Not published</span>' ?></p>
                 <div class="input-group mb-2">
                     <input class="form-control" readonly value="<?= esc($publicUrl) ?>" aria-label="Public link">
                     <button class="btn" type="button" data-copy="<?= esc($publicUrl, 'attr') ?>"><?= icon('action.copy') ?></button>
                 </div>
                 <form method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/publish') ?>" class="d-flex gap-2 flex-wrap"
-                      data-confirm="<?= (int) $slam['schedule_is_public'] ? 'Hide the public schedule? The link will return 404.' : 'Publish the running order, presenters and topics to anyone with the link?' ?>">
+                      data-confirm="<?= (int) $slam['schedule_is_public'] ? 'Hide the public schedule? The link will return 404.' : ($unscheduled > 0 ? $unscheduled . ' presenter(s) are still in the pool and are NOT in the schedule, so they will not appear. ' : '') . 'Publish the running order, presenters and topics to anyone with the link?' ?>">
                     <?= csrf_field() ?>
                     <input type="hidden" name="public" value="<?= (int) $slam['schedule_is_public'] ? 0 : 1 ?>">
                     <button class="btn <?= (int) $slam['schedule_is_public'] ? 'btn-outline-danger' : 'btn-success' ?>" type="submit"><?= (int) $slam['schedule_is_public'] ? 'Unpublish' : 'Publish schedule' ?></button>
@@ -64,7 +65,7 @@
                 </form>
             </div>
         </div>
-        <div class="card">
+        <div class="card card-accent accent-teal">
             <div class="card-header"><h3 class="card-title">Venue &amp; contact</h3></div>
             <div class="card-body">
                 <div><?= icon('place.venue', 'me-1') ?><strong><?= esc($slam['venue_name']) ?></strong></div>

@@ -20,7 +20,7 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
     <?= csrf_field() ?>
     <div class="row row-cards">
         <div class="col-12 col-lg-6">
-            <div class="card">
+            <div class="card card-accent accent-blue">
                 <div class="card-header"><h3 class="card-title">Slam details</h3></div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -67,7 +67,7 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
             </div>
         </div>
         <div class="col-12 col-lg-6">
-            <div class="card mb-3">
+            <div class="card mb-3 card-accent accent-green">
                 <div class="card-header"><h3 class="card-title">When &amp; how it runs (<?= esc(tz_label()) ?>)</h3></div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -107,7 +107,7 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
                     </details>
                 </div>
             </div>
-            <div class="card">
+            <div class="card card-accent accent-orange">
                 <div class="card-header"><h3 class="card-title">Automation (minutes)</h3></div>
                 <div class="card-body">
                     <p class="text-secondary small">Placeholders: confirm with the organisers before the event.</p>

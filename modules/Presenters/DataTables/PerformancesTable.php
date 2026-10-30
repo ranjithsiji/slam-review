@@ -35,7 +35,11 @@ class PerformancesTable extends TableDefinition
 
     public function filters(): array
     {
-        return ['slam_id' => self::intFilter('p.slam_id')];
+        return [
+            'slam_id'   => self::intFilter('p.slam_id'),
+            // 1 = in the schedule, 0 = still in the pool
+            'scheduled' => static fn ($v) => [$v === '1' || $v === 1 || $v === true ? 'si.id IS NOT NULL' : 'si.id IS NULL', []],
+        ];
     }
 
     public function requiredFilters(): array

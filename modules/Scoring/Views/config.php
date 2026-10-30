@@ -2,7 +2,7 @@
 <?= $this->section('header') ?><?= view('Modules\Core\Views\partials\slam_nav', ['slam' => $slam, 'active' => 'marks']) ?><?= $this->endSection() ?>
 <?= $this->section('content') ?>
 <?php $jt = old('judge_timing', $judging['timing']); $jm = old('judge_mode', $judging['mode']); $jl = $judgingLocked !== null; ?>
-<form method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/judging') ?>" class="card mb-3">
+<form method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/judging') ?>" class="card mb-3 card-accent accent-purple">
     <?= csrf_field() ?>
     <div class="card-header"><h3 class="card-title"><?= icon('person.judge', 'me-2') ?>Judges' marks</h3></div>
     <div class="card-body">
@@ -46,7 +46,7 @@
 <form method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/mark-config') ?>" class="row row-cards">
     <?= csrf_field() ?>
     <div class="col-12 col-lg-5">
-        <div class="card">
+        <div class="card card-accent accent-orange">
             <div class="card-header"><h3 class="card-title">Group weights (must add up to 100)</h3></div>
             <div class="card-body">
                 <?php foreach ([
@@ -66,7 +66,7 @@
         </div>
     </div>
     <div class="col-12 col-lg-7">
-        <div class="card">
+        <div class="card card-accent accent-azure">
             <div class="card-header"><h3 class="card-title">Question weights</h3></div>
             <div class="card-body">
                 <?php foreach (['user' => 'Audience (general reviewers and representatives)', 'judge' => $judging['consolidated'] ? 'Judge criteria (not used: judges give one overall mark)' : 'Judge criteria'] as $aud => $label): ?>

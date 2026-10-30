@@ -43,6 +43,7 @@ class ParticipantsController extends BaseController
                 'opened'         => count($scores->openedItemIds($slamId)),
             ],
             'repsLocked' => $reps->lockedReason($slam), 'repsWanted' => $reps->count($slamId),
+            'batches' => Db::rows("SELECT id, filename, created_at FROM import_batches WHERE slam_id = ? AND status = 'committed' ORDER BY id DESC", [$slamId]),
         ]);
     }
 

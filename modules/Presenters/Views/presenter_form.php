@@ -2,7 +2,7 @@
 <?= $this->section('content') ?>
 <div class="row row-cards justify-content-center">
 <div class="col-12 col-lg-7">
-<form class="card" method="post" action="<?= site_url('admin/presenters/' . $p['id']) ?>" enctype="multipart/form-data">
+<form class="card card-accent accent-indigo" method="post" action="<?= site_url('admin/presenters/' . $p['id']) ?>" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <div class="card-header"><h3 class="card-title">Presenter</h3></div>
     <div class="card-body">
@@ -33,7 +33,7 @@
 <?php endif ?>
 </div>
 <div class="col-12 col-lg-5">
-    <div class="card">
+    <div class="card card-accent accent-green">
         <div class="card-header"><h3 class="card-title">Performances</h3></div>
         <div class="list-group list-group-flush">
             <?php foreach ($performances as $perf): ?>

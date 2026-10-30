@@ -13,14 +13,14 @@ $modeTxt = $endMode ? 'Entered by you at the end of the slam' : 'Live on their p
         [$endMode ? 'Marks entered' : 'Reviews submitted', $endMode ? $progress['entered'] : (int) \Modules\Core\Libraries\Db::value("SELECT COUNT(*) FROM reviews r JOIN attendees a ON a.id = r.attendee_id WHERE a.slam_id = ? AND a.user_type = 'judge'", [$sid]), 'status.ok', 'orange', $endMode ? 'of ' . $progress['expected'] . ' (judges × performances)' : $counts['opened'] . ' performance(s) ran'],
     ] as [$label, $n, $ic, $colour, $sub]): ?>
         <div class="col-6 col-xl-3">
-            <div class="card h-100"><div class="card-body d-flex align-items-center gap-3 py-3">
+            <div class="card h-100 card-accent-left accent-<?= $colour ?>"><div class="card-body d-flex align-items-center gap-3 py-3">
                 <span class="avatar avatar-md bg-<?= $colour ?>-lt flex-shrink-0"><?= icon($ic) ?></span>
                 <div class="min-w-0"><div class="h1 m-0 lh-1"><?= (int) $n ?></div><div class="mt-1"><?= esc($label) ?></div><div class="small text-secondary"><?= esc($sub) ?></div></div>
             </div></div>
         </div>
     <?php endforeach ?>
     <div class="col-6 col-xl-3">
-        <div class="card h-100"><div class="card-body py-3">
+        <div class="card h-100 card-accent-left accent-indigo"><div class="card-body py-3">
             <div class="text-secondary small">How judges mark</div>
             <div class="fw-bold"><?= esc($modeTxt) ?></div>
             <a href="<?= site_url("admin/slams/{$sid}/mark-config") ?>" class="small"><?= icon('nav.settings', 'icon-inline me-1') ?>Change</a>

@@ -45,6 +45,15 @@
                    pattern="[A-Za-z]{2}[0-9]{5}" aria-describedby="fmt" data-badge-input value="<?= esc((string) old('badge_id')) ?>">
             <div id="fmt" class="form-hint text-center mt-2">2 letters + 5 digits, for example KR48213</div>
             <button class="btn btn-primary btn-lg w-100 mt-3" type="submit"><?= icon('nav.checkins') ?>Continue</button>
+            <div class="hr-text my-3">or</div>
+            <!-- Scan the QR code on the badge with the phone camera (works only over https or localhost). -->
+            <button type="button" class="btn btn-lg w-100" data-scan-start><?= icon('qr.scan') ?>Scan the QR code on my badge</button>
+            <div data-scan-box hidden class="mt-3">
+                <div id="qr-reader" class="rounded overflow-hidden mx-auto" style="max-width:360px"></div>
+                <div class="text-center small text-secondary mt-2" data-scan-hint>Starting the camera… allow access if your phone asks.</div>
+                <button type="button" class="btn w-100 mt-2" data-scan-stop>Stop camera</button>
+            </div>
+            <div class="alert alert-warning mt-3 mb-0" data-scan-error role="alert" hidden></div>
         <?php endif ?>
     </div>
 </form>
