@@ -1,5 +1,4 @@
 <?php $this->setVar('title', $slam['name'] . ' · schedule'); $this->setVar('indexable', true); ?>
-<?php $this->setVar('ownToggle', true); ?>
 <?= $this->extend('Modules\Core\Views\layouts\public') ?>
 <?= $this->section('meta') ?>
 <meta property="og:title" content="<?= esc($slam['name'], 'attr') ?>">
@@ -8,12 +7,6 @@
 <meta property="og:url" content="<?= esc($url, 'attr') ?>">
 <?php if ($slam['banner_path']): ?><meta property="og:image" content="<?= base_url($slam['banner_path']) ?>"><?php endif ?>
 <meta name="twitter:card" content="summary">
-<?= $this->endSection() ?>
-<?= $this->section('top') ?>
-<header class="navbar navbar-expand"><div class="container-xl">
-    <a href="<?= site_url('slams') ?>" class="navbar-brand"><?= brand_logo('brand-logo-nav') ?></a>
-    <div class="ms-auto"><?= theme_toggle() ?></div>
-</div></header>
 <?= $this->endSection() ?>
 <?= $this->section('content') ?>
 <div data-public-schedule="<?= site_url('api/public/slams/' . $slam['slug'] . '/schedule') ?>">

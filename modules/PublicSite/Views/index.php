@@ -1,12 +1,5 @@
 <?php $this->setVar('title', 'Science Slam schedules'); $this->setVar('indexable', true); ?>
-<?php $this->setVar('ownToggle', true); ?>
 <?= $this->extend('Modules\Core\Views\layouts\public') ?>
-<?= $this->section('top') ?>
-<header class="navbar navbar-expand"><div class="container-xl">
-    <a href="<?= site_url('/') ?>" class="navbar-brand"><?= brand_logo('brand-logo-nav') ?></a>
-    <div class="ms-auto"><?= theme_toggle() ?></div>
-</div></header>
-<?= $this->endSection() ?>
 <?= $this->section('content') ?>
 <h1 class="mb-3">Slams</h1>
 <?php if ($slams === []): ?><div class="empty"><p class="empty-title">No schedules are published yet.</p></div><?php endif ?>

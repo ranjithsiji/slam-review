@@ -74,7 +74,7 @@ class JudgeMarkService
             throw new DomainException('forbidden', 'Only an admin can enter judges\' marks.', 403);
         }
 
-        return Db::tx(function ($db) use ($slamId, $judgeId, $marks, $actor): array {
+        $result = Db::tx(function ($db) use ($slamId, $judgeId, $marks, $actor): array {
             $slam = Db::lockSlam($slamId);
             if (($why = $this->lockedReason($slam)) !== null) {
                 throw new DomainException('forbidden_transition', $why, 409);
@@ -152,6 +152,17 @@ class JudgeMarkService
 
             return ['saved' => $saved, 'removed' => $removed];
         });
+        // Marks are calculated by the software from the weights: after Slam Close every change of the entered
+        // marks recalculates, so Marks, Final scores and the Leaderboard never lag behind.
+        if ($result['saved'] + $result['removed'] > 0 && in_array(service('slams')->find($slamId)['status'], ['closed', 'marks_calculated'], true)) {
+            try {
+                service('markRuns')->calculate($slamId, $actor, "Automatic: judges' marks entered");
+            } catch (\Throwable) {
+                // the marks are saved; the Marks screen offers a manual recalculation
+            }
+        }
+
+        return $result;
     }
 
     /** @return array{entered: int, expected: int} */

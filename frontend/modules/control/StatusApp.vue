@@ -36,6 +36,19 @@
           <span v-for="f in now.facts" :key="f" class="text-secondary"><Icon name="status.info" cls="icon-inline me-1" />{{ f }}</span>
         </div>
 
+        <div v-if="st.turnout && ['reviewing', 'reviews_complete', 'revision'].includes(st.slam.status)" class="turnout-now mt-3">
+          <div class="d-flex flex-wrap align-items-baseline gap-2">
+            <strong>{{ st.turnout.open ? 'Voting now' : 'Last review' }}:</strong><span class="ml-text">{{ st.turnout.presenter_name }}</span>
+            <span class="ms-md-auto fs-3 fw-bold">{{ st.turnout.voted }} of {{ st.turnout.checked_in }} voted</span>
+            <span class="badge" :class="st.turnout.percent >= 70 ? 'bg-green-lt' : st.turnout.percent >= 40 ? 'bg-orange-lt' : 'bg-red-lt'">{{ st.turnout.percent }}%</span>
+          </div>
+          <div class="progress progress-sm my-1" role="progressbar" :aria-valuenow="st.turnout.percent" aria-valuemin="0" aria-valuemax="100" aria-label="Voting turnout"><div class="progress-bar" :class="st.turnout.percent >= 70 ? 'bg-green' : st.turnout.percent >= 40 ? 'bg-orange' : 'bg-red'" :style="{ width: st.turnout.percent + '%' }"></div></div>
+          <div class="d-flex flex-wrap align-items-center gap-2 small text-secondary">
+            <span>{{ st.turnout.not_voted }} checked in but not voted · {{ st.turnout.voted_total }} votes counted in total</span>
+            <a v-if="st.idle_count > 0" class="ms-md-auto text-orange fw-bold" :href="`/admin/slams/${st.slam.id}/not-reviewing`"><Icon name="status.warning" cls="icon-inline me-1" />{{ st.idle_count }} not reviewing → check out</a>
+          </div>
+        </div>
+
         <div v-if="now.next" class="now-next mt-3"><Icon name="action.advance" cls="icon-inline me-1" /><strong>Up next:</strong> <span class="ml-text">{{ now.next }}</span></div>
       </div>
 
@@ -65,6 +78,34 @@
     </div>
 
     <!-- Vertical timeline: green = done, orange = now, grey = still to come -->
+    <!-- Who is live right now -->
+    <div v-if="st.presence && !['draft', 'scheduled', 'ended'].includes(st.slam.status)" class="row row-cards mb-3" aria-label="Live now">
+      <div class="col-12 col-md-4">
+        <div class="card card-accent accent-blue h-100"><div class="card-body d-flex align-items-center gap-3">
+          <span class="live-dot" :class="{ on: st.presence.users.inside > 0 }" aria-hidden="true"></span>
+          <div class="flex-fill"><div class="text-secondary small text-uppercase fw-bold">Reviewers live now</div>
+            <div class="h1 m-0">{{ st.presence.users.inside }}<span class="fs-4 text-secondary fw-normal"> of {{ st.presence.users.total }} registered</span></div>
+            <div class="small text-secondary">{{ st.presence.users.phone }} with their phone linked</div></div>
+        </div></div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card card-accent accent-purple h-100"><div class="card-body d-flex align-items-center gap-3">
+          <span class="live-dot" :class="{ on: st.presence.judges.inside > 0 }" aria-hidden="true"></span>
+          <div class="flex-fill"><div class="text-secondary small text-uppercase fw-bold">Judges live now</div>
+            <div class="h1 m-0">{{ st.presence.judges.inside }}<span class="fs-4 text-secondary fw-normal"> of {{ st.presence.judges.total }}</span></div>
+            <div class="small text-secondary">{{ st.presence.judges.phone }} with their phone linked</div></div>
+        </div></div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card card-accent accent-green h-100"><div class="card-body d-flex align-items-center gap-3">
+          <span class="live-dot" :class="{ on: st.presence.volunteers.online > 0 }" aria-hidden="true"></span>
+          <div class="flex-fill"><div class="text-secondary small text-uppercase fw-bold">Volunteers live now</div>
+            <div class="h1 m-0">{{ st.presence.volunteers.online }}<span class="fs-4 text-secondary fw-normal"> of {{ st.presence.volunteers.total }}</span></div>
+            <div class="small text-secondary ml-text">{{ st.presence.volunteers.names.length ? st.presence.volunteers.names.join(', ') : 'No desk is open' }}</div></div>
+        </div></div>
+      </div>
+    </div>
+
     <ol class="status-timeline" aria-label="Slam timeline">
       <template v-for="n in nodes" :key="n.key">
         <li v-if="n.groupStart" class="status-group" aria-hidden="true"><span>Performances</span><span class="text-secondary fw-normal">{{ doneCount }} of {{ perfs.length }} done</span></li>
@@ -126,6 +167,21 @@
                 <div v-else class="text-secondary">{{ idleText }}</div>
               </div>
               <div v-if="n.state === 'current' && st.next_due_at && st.slam.auto_mode === 'auto' && !st.slam.hold && n.step" class="small text-secondary mt-2"><Icon name="status.time" cls="icon-inline me-1" />Next automatic step at {{ time(st.next_due_at) }} (<Countdown :until="st.next_due_at" :icon="false" />)</div>
+            </div>
+
+            <!-- Stage controls for the performance on stage -->
+            <div v-if="stagePanel(n)" class="stage-panel card-body border-top">
+              <div v-for="r in stagePanel(n)" :key="r.key" class="stage-row">
+                <button type="button" class="btn btn-lg stage-btn" :class="r.enabled ? r.cls : 'btn-outline-secondary'" :disabled="busy || !r.enabled" @click="r.run()"><Icon :name="r.icon" />{{ r.label }}</button>
+                <div class="stage-hint">
+                  <span class="text-secondary small">{{ r.hint }}</span><span v-if="r.done" class="badge bg-green-lt ms-2">Done</span>
+                  <div v-if="r.turn" class="turnout mt-1">
+                    <div class="d-flex flex-wrap justify-content-between gap-2"><strong>{{ r.turn.voted }} of {{ r.turn.checked_in }} checked in have voted</strong><span class="badge" :class="r.turn.percent >= 70 ? 'bg-green-lt' : r.turn.percent >= 40 ? 'bg-orange-lt' : 'bg-red-lt'">{{ r.turn.percent }}%</span></div>
+                    <div class="progress progress-sm my-1" role="progressbar" :aria-valuenow="r.turn.percent" aria-valuemin="0" aria-valuemax="100" aria-label="Voting turnout"><div class="progress-bar" :class="r.turn.percent >= 70 ? 'bg-green' : r.turn.percent >= 40 ? 'bg-orange' : 'bg-red'" :style="{ width: r.turn.percent + '%' }"></div></div>
+                    <span class="small text-secondary">{{ r.turn.not_voted }} not voted yet</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Actions on the card -->
@@ -279,6 +335,31 @@ const idleText = computed(() => ({
 }[st.slam?.status] || ''));
 
 // ---- buttons on each card ----
+// The three controls for the performance on stage, in the order they are used: open the review (can be while the
+// speaker is still presenting), close the presentation, close the review. Disabled ones show what is already done.
+function stagePanel(n) {
+  const i = n.item;
+  if (!i || i.item_type !== 'performance' || st.paused || i.status === 'skipped' || i.status === 'closed') return null;
+  const performing = isPerforming(i);
+  const open = i.status === 'open';
+  const ended = !!i.performing_ended_at;
+  if (!performing && !open && !(i.status === 'pending' && ended)) return null;
+  const turn = st.turnout && st.turnout.item_id === i.id ? st.turnout : null;
+  return [
+    { key: 'open', label: 'Open review', icon: 'status.live', cls: 'btn-primary', enabled: !open, done: open, run: () => openItem(i),
+      hint: open ? 'Reviewers can vote now' : performing ? 'The speaker is still on stage; you can let reviewers start voting' : 'Let reviewers vote on this talk' },
+    { key: 'end', label: 'Close presentation', icon: 'action.stop', cls: 'btn-warning', enabled: performing, done: !performing, run: () => endPerformance(i),
+      hint: performing ? 'Press when the speaker has finished' : 'The presentation is over' },
+    { key: 'close', label: 'Close review', icon: 'action.stop', cls: 'btn-danger', enabled: open, done: false, turn,
+      run: () => confirmApi('window/close', 'Close this review window now?', 'Reviewers can no longer submit for this performance.', { note: 'closed by admin' }),
+      hint: open ? 'Voting is live; closes by itself at the countdown' : 'Opens with the button above' },
+  ];
+}
+const stagePrimary = (rows) => (rows ? rows.find((r) => r.key === (rows[0].enabled ? 'open' : rows[1].enabled ? 'end' : 'close')) : null);
+
+// A pending break can be started when it is the next thing in the running order and nothing is on stage or in review.
+const canStartBreak = (i) => st.slam.status === 'reviewing' && !anyRunning.value && st.items.find((x) => x.status === 'pending')?.id === i.id;
+
 function itemActions(n) {
   const i = n.item;
   const out = [];
@@ -287,23 +368,21 @@ function itemActions(n) {
     if (i.status === 'open') {
       for (const m of [5, 10]) add(`+${m} min`, '', () => itemApi(i.id, 'extend-break', { minutes: m }, `Break extended by ${m} min.`), 'action.extend');
       add('End break now', 'btn-outline-warning', () => itemApi(i.id, 'end-break', {}, 'Break ended.'));
-    } else if (i.status === 'pending' && gateIsClosed.value) add('Skip…', 'btn-ghost-secondary', () => skip(i), 'action.skip');
+    } else if (i.status === 'pending' && gateIsClosed.value) {
+      if (canStartBreak(i)) add('Start break', 'btn-primary', () => act(`items/${i.id}/break-start`, {}, 'Break started.'), `break.${i.break_type || 'other'}`, undefined, true);
+      add('Skip…', 'btn-ghost-secondary', () => skip(i), 'action.skip');
+    }
 
     return out;
   }
-  if (i.status === 'open') {
-    if (isPerforming(i)) add('End performance', 'btn-primary', () => endPerformance(i), 'action.stop');
-    for (const m of [1, 2, 5]) add(`+${m} min`, '', () => api('window/extend', { minutes: m }, `Extended by ${m} min.`).catch(() => {}), 'action.extend');
-    add('Other…', '', () => customExtend('window/extend', 'Extend or shorten the review window'));
-    add('Close review now', 'btn-outline-danger', () => confirmApi('window/close', 'Close this review window now?', 'Reviewers can no longer submit for this performance.', { note: 'closed by admin' }), 'action.stop', undefined, !isPerforming(i));
-  } else if (isPerforming(i)) {
-    add('Open review now', 'btn-primary', () => openItem(i), 'status.live');
-    add('End performance', '', () => endPerformance(i), 'action.stop');
-  } else if (i.status === 'pending' && i.performing_ended_at) {
-    add('Open review now', 'btn-primary', () => openItem(i), 'status.live');
-    add('Skip…', 'btn-ghost-secondary', () => skip(i), 'action.skip');
+  if (stagePanel(n)) {
+    // Open review / Close presentation / Close review live in the stage panel; here only the extras.
+    if (i.status === 'open') {
+      for (const m of [1, 2, 5]) add(`+${m} min`, '', () => api('window/extend', { minutes: m }, `Extended by ${m} min.`).catch(() => {}), 'action.extend');
+      add('Other…', '', () => customExtend('window/extend', 'Extend or shorten the review window'));
+    } else if (i.status === 'pending') add('Skip…', 'btn-ghost-secondary', () => skip(i), 'action.skip');
   } else if (n.isNext) {
-    add('Start performance', 'btn-primary', () => startPerformance(i), 'action.resume');
+    add('Start presentation', 'btn-primary', () => startPerformance(i), 'action.resume');
     add('Open review now', '', () => openItem(i), 'status.live');
     add('Skip…', 'btn-ghost-secondary', () => skip(i), 'action.skip');
     add('End reviewing early…', 'btn-outline-danger', endReviewing);
@@ -380,12 +459,17 @@ const now = computed(() => {
       title: runItem.presenter_name, subtitle: runItem.topic,
       timers: open ? [{ label: 'review closes in', until: runItem.window_closes_at }] : [],
       facts: open ? [`${runItem.reviews} review(s) so far`, `${checkedIn.value} inside`] : [],
-      primary: firstOf(itemActions(node)), next: nextText,
+      primary: (() => { const r = stagePrimary(stagePanel(node)); return r ? { label: r.label, cls: r.cls, icon: r.icon, run: r.run, primary: true } : firstOf(itemActions(node)); })(), next: nextText,
     };
   }
   if (runBreak) {
     const node = nodes.value.find((n) => n.item?.id === runBreak.id);
     return { ...base, tone: 'live', icon: `break.${runBreak.break_type || 'other'}`, kicker: 'Break', title: runBreak.label, timers: st.current?.ends_at ? [{ label: 'break ends in', until: st.current.ends_at }] : [], primary: firstOf(itemActions(node)), next: nextText };
+  }
+  const firstPending = st.items.find((x) => x.status === 'pending');
+  if (gateIsClosed.value && !anyRunning.value && s.status === 'reviewing' && firstPending?.item_type === 'break') {
+    const node = nodes.value.find((n) => n.item?.id === firstPending.id);
+    return { ...base, tone: 'ready', icon: `break.${firstPending.break_type || 'other'}`, kicker: 'Between performances', title: `Ready for the ${firstPending.label}`, subtitle: nextText ? `Then: ${nextText}` : '', primary: firstOf(itemActions(node)), facts: [`${checkedIn.value} inside`] };
   }
   if (gateIsClosed.value && nextPerf.value) {
     const node = nodes.value.find((n) => n.item?.id === nextPerf.value.id);

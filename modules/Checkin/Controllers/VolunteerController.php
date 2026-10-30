@@ -42,6 +42,9 @@ class VolunteerController extends BaseController
             session()->close();
             $slamId = $this->slamId();
             service('slamPhase')->tick($slamId);
+            if ((session('auth')['type'] ?? '') === 'volunteer') {
+                service('engagement')->volunteerHeartbeat((int) session('auth')['id']);
+            }
             $slam = service('slams')->find($slamId);
 
             return [
@@ -125,5 +128,40 @@ class VolunteerController extends BaseController
         $slam = service('slams')->find($slamId);
 
         return $this->render('Modules\Checkin\Views\monitor', ['title' => 'Check-in monitor — ' . $slam['name'], 'slam' => $slam]);
+    }
+
+    /** Checked-in reviewers who skipped the last N finished reviews in a row, with force check-out (admin/operator and volunteer). */
+    public function notReviewing(?int $slamId = null): string
+    {
+        $slamId ??= $this->slamId();
+        $slam    = service('slams')->find($slamId);
+        $auth    = session('auth');
+        $isVol   = ($auth['type'] ?? '') === 'volunteer';
+
+        return $this->render('Modules\Checkin\Views\not_reviewing', [
+            'title' => 'Not reviewing — ' . $slam['name'], 'slam' => $slam, 'min' => $this->minMissed(), 'isVolunteer' => $isVol,
+            'readOnly' => in_array($slam['status'], ['closed', 'marks_calculated', 'ended'], true),
+        ], $isVol ? 'volunteer' : 'admin');
+    }
+
+    private function minMissed(): int
+    {
+        $m = (int) ($this->request->getGet('min') ?: \Modules\Checkin\Services\EngagementService::DEFAULT_MIN_MISSED);
+
+        return max(1, min(50, $m));
+    }
+
+    /** Force check-out everyone still "not reviewing" (or just the chosen ids). The list is recomputed on the server. */
+    public function idleCheckout(): ResponseInterface
+    {
+        $in = $this->input();
+
+        return $this->api(function () use ($in) {
+            $slamId = $this->slamId();
+            $only   = isset($in['ids']) && is_array($in['ids']) ? array_map('intval', $in['ids']) : null;
+            $min    = max(1, min(50, (int) ($in['min'] ?? \Modules\Checkin\Services\EngagementService::DEFAULT_MIN_MISSED)));
+
+            return service('engagement')->checkoutIdle($slamId, $min, $only, (string) ($in['reason'] ?? ''), $this->actor()) + ['ok' => true];
+        });
     }
 }

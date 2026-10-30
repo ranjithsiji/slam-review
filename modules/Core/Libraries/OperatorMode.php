@@ -24,7 +24,7 @@ final class OperatorMode
     /** Screens (slam_nav keys) per mode, in menu order. A screen in several modes does not switch the mode. */
     public const TABS = [
         self::PREPARE => ['overview', 'edit', 'presenters', 'schedule', 'judgelist', 'reviewers', 'questions', 'weights'],
-        self::RUN     => ['status', 'schedule', 'checkins', 'reviewers'],
+        self::RUN     => ['status', 'schedule', 'checkins', 'idle', 'reviewers'],
         self::AFTER   => ['status', 'judges', 'representatives', 'marks', 'scores', 'leaderboard', 'stats'],
     ];
 
@@ -34,7 +34,7 @@ final class OperatorMode
         'presenters' => ['Presenters', '/presenters', 'nav.presenters'], 'schedule' => ['Schedule', '/schedule', 'nav.schedule'],
         'judgelist' => ['Judges', '/judges', 'person.judge'], 'reviewers' => ['Reviewers & import', '/reviewers', 'person.user'],
         'questions' => ['Questions', '/questions', 'nav.questions'], 'weights' => ['Mark weights', '/mark-config', 'nav.system'],
-        'status' => ['Status & controls', '/status', 'nav.status'], 'checkins' => ['Check-ins', '/checkins', 'nav.checkins'],
+        'status' => ['Status & controls', '/status', 'nav.status'], 'checkins' => ['Check-ins', '/checkins', 'nav.checkins'], 'idle' => ['Not reviewing', '/not-reviewing', 'status.warning'],
         'judges' => ["Judges' marks", '/judge-marks', 'person.judge'], 'representatives' => ['Representatives', '/representatives', 'nav.representatives'],
         'marks' => ['Calculate marks', '/marks', 'nav.marks'], 'scores' => ['Final scores', '/scores', 'nav.marks'], 'leaderboard' => ['Leaderboard', '/leaderboard', 'nav.marks'], 'stats' => ['Statistics', '/stats', 'nav.stats'],
     ];

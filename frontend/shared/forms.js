@@ -34,7 +34,7 @@ export function initForms(root = document) {
       if (ownForm && !ownForm.reportValidity()) return;
       let reason = '';
       if (btn.dataset.confirm !== undefined || btn.dataset.reason !== undefined) {
-        const r = await dialog({ title: btn.dataset.title || btn.textContent.trim(), message: btn.dataset.confirm || '', danger: 'danger' in btn.dataset, reason: btn.dataset.reason !== undefined });
+        const r = await dialog({ title: btn.dataset.title || btn.textContent.trim(), message: btn.dataset.confirm || '', danger: 'danger' in btn.dataset, reason: btn.dataset.reason !== undefined, input: btn.dataset.reasonDefault ? { value: btn.dataset.reasonDefault } : null });
         if (r === null) return;
         reason = r;
       }

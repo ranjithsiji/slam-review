@@ -38,6 +38,7 @@ class Filters extends BaseFilters
         'auth'          => \Modules\Core\Filters\AuthFilter::class,
         'reviewer'      => \Modules\Core\Filters\ReviewerFilter::class,
         'slamscope'     => \Modules\Core\Filters\SlamScopeFilter::class,
+        'trap'          => \Modules\Core\Filters\HoneypotFilter::class,
         'ratelimit'     => \Modules\Core\Filters\RateLimitFilter::class,
         'nostore'       => \Modules\Core\Filters\NoStoreFilter::class,
         'apphead'       => \Modules\Core\Filters\SecurityHeadersFilter::class,

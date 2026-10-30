@@ -6,6 +6,7 @@
 </div>
 <form class="card card-md" method="post" action="<?= site_url($kind . '/login') ?>" autocomplete="on" data-once>
     <?= csrf_field() ?>
+    <?= honeypot_fields() ?>
     <div class="card-body">
         <h2 class="h2 text-center mb-4"><?= $kind === 'admin' ? 'Organiser sign-in' : 'Volunteer sign-in' ?></h2>
         <div class="mb-3">

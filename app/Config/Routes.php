@@ -9,4 +9,5 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get('/', '\Modules\Core\Controllers\Home::index');
+$routes->get('about', '\Modules\Core\Controllers\Home::about');
 $routes->setAutoRoute(false);

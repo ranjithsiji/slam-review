@@ -106,6 +106,11 @@ class Services extends BaseService
         return $getShared ? static::getSharedInstance('badgePdf') : new BadgePdfService();
     }
 
+    public static function engagement(bool $getShared = true): \Modules\Checkin\Services\EngagementService
+    {
+        return $getShared ? static::getSharedInstance('engagement') : new \Modules\Checkin\Services\EngagementService();
+    }
+
     public static function checkins(bool $getShared = true): CheckinService
     {
         return $getShared ? static::getSharedInstance('checkins') : new CheckinService();

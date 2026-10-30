@@ -741,6 +741,7 @@ class SlamPhaseService
                 throw new DomainException('performance_running', 'End the performance that is on stage before starting the next one.', 409);
             }
             $this->endRunningBreak($s);
+            $this->skipBreaksBefore((int) $s['id'], $item, $actor);
             if ($s['status'] === 'checkin_closed') {
                 $s = $this->transition($s, 'reviewing', 'manual_override', $actor, 'First performance started');
             }
@@ -787,6 +788,9 @@ class SlamPhaseService
                 throw new DomainException('performance_running', 'End the performance that is on stage before opening another review.', 409);
             }
             $this->endRunningBreak($s);
+            if ($item['item_type'] === 'performance') {
+                $this->skipBreaksBefore((int) $s['id'], $item, $actor);
+            }
             if ($s['status'] === 'checkin_closed') {
                 $s = $this->transition($s, 'reviewing', 'manual_override', $actor);
             }
@@ -848,6 +852,42 @@ class SlamPhaseService
             service('activityLog')->log($actor, 'schedule.break_extended', ['slam_id' => (int) $s['id'], 'target_type' => 'schedule_item', 'target_id' => $itemId, 'meta' => ['minutes' => $minutes]]);
             $this->bumpScheduleVersion($s);
         });
+    }
+
+    /**
+     * Manual mode: start a tea/lunch break now. Only between performances (reviewing phase), with nothing on
+     * stage, no review open and no other break running. Breaks have no review window.
+     */
+    public function startBreakNow(int $slamId, int $itemId, Actor $actor): array
+    {
+        return $this->override($slamId, $actor, function (array $s) use ($itemId, $actor): void {
+            if ($s['status'] !== 'reviewing') {
+                throw new DomainException('forbidden_transition', 'A break can be started once the first performance has begun and before reviewing is over.', 409);
+            }
+            $item = Db::row("SELECT * FROM schedule_items WHERE id = ? AND slam_id = ? AND item_type = 'break'", [$itemId, $s['id']]);
+            if ($item === null || $item['status'] !== 'pending') {
+                throw new DomainException('item_not_pending', 'Only a pending break can be started.');
+            }
+            if ($this->windows->openWindow((int) $s['id']) !== null) {
+                throw new DomainException('window_open', 'Close the open review window before starting a break.', 409);
+            }
+            if (Db::value('SELECT id FROM schedule_items WHERE slam_id = ? AND performing_started_at IS NOT NULL AND performing_ended_at IS NULL', [$s['id']]) !== null) {
+                throw new DomainException('performance_running', 'End the performance that is on stage before starting a break.', 409);
+            }
+            $this->endRunningBreak($s);
+            $this->skipBreaksBefore((int) $s['id'], $item, $actor);
+            $this->startBreak($s, $item);
+            service('activityLog')->log($actor, 'schedule.break_started', ['slam_id' => (int) $s['id'], 'target_type' => 'schedule_item', 'target_id' => $itemId, 'meta' => ['label' => $item['label']]]);
+        });
+    }
+
+    /** Starting an item that is later in the running order passes over the breaks still pending before it (logged). */
+    private function skipBreaksBefore(int $slamId, array $item, Actor $actor): void
+    {
+        foreach (Db::rows("SELECT id, label FROM schedule_items WHERE slam_id = ? AND item_type = 'break' AND status = 'pending' AND position < ? AND id <> ?", [$slamId, $item['position'], $item['id']]) as $b) {
+            db_connect()->table('schedule_items')->where('id', $b['id'])->update(['status' => 'skipped', 'updated_at' => Clock::db()]);
+            service('activityLog')->log($actor, 'schedule.item_skipped', ['slam_id' => $slamId, 'target_type' => 'schedule_item', 'target_id' => (int) $b['id'], 'reason' => 'Next performance started first', 'meta' => ['label' => $b['label']]]);
+        }
     }
 
     public function endBreak(int $slamId, int $itemId, Actor $actor): array

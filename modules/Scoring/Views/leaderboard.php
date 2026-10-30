@@ -34,7 +34,7 @@ $pending = $judging['timing'] === 'end_of_slam' && $judgeProgress['entered'] < $
                         <div class="small text-secondary ml-text text-truncate"><?= esc($r['topic']) ?></div>
                         <div class="progress progress-sm mt-1" role="img" aria-label="<?= $n($final) ?> out of 10"><div class="progress-bar bg-<?= $medal[$rank] ?? 'primary' ?>" style="width:<?= $final === null ? 0 : max(0, min(100, $final * 10)) ?>%"></div></div>
                     </div>
-                    <div class="text-end"><div class="h2 mb-0"><?= $n($final) ?></div><div class="small text-secondary">/ 10</div></div>
+                    <div class="text-end"><div class="h2 mb-0"><?= $n($final) ?></div><div class="small text-secondary">/ 10 · <span data-percent><?= $final === null ? '—' : $n($final * 10, 1) . '%' ?></span></div></div>
                 </div>
                 <div class="d-flex flex-wrap gap-2 mt-2 ps-md-5">
                     <?php foreach ($b['groups'] as $g => $x): ?>

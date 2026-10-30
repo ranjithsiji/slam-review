@@ -43,6 +43,19 @@ class PublicController extends BaseController
         return view('Modules\PublicSite\Views\show', ['slam' => $slam, 'doc' => $this->svc->document($slam), 'url' => site_url('slams/' . $slug)]);
     }
 
+    /** Live block for the home page: every published slam that is running, with what is on now. */
+    public function liveJson(): ResponseInterface
+    {
+        $doc  = ['slams' => $this->svc->live()];
+        $etag = '"' . substr(md5(json_encode($doc)), 0, 16) . '"';
+        $this->response->setHeader('ETag', $etag)->setHeader('Cache-Control', 'public, max-age=5');
+        if (trim($this->request->getHeaderLine('If-None-Match')) === $etag) {
+            return $this->response->setStatusCode(304);
+        }
+
+        return $this->json($doc);
+    }
+
     public function scheduleJson(string $slug): ResponseInterface
     {
         $slam = $this->published($slug);

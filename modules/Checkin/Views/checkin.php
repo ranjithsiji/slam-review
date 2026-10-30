@@ -8,6 +8,7 @@
 <?php if (! empty($pending)): ?>
 <form class="card card-md" method="post" action="<?= site_url('checkin/confirm') ?>" data-once autocomplete="off">
     <?= csrf_field() ?>
+    <?= honeypot_fields() ?>
     <div class="card-body text-center">
         <?= icon('person.badge', 'icon-xl text-primary mb-2') ?>
         <h2 class="h2 mb-1">Is this you?</h2>
@@ -24,6 +25,7 @@
 <?php else: ?>
 <form class="card card-md" method="post" action="<?= site_url('checkin') ?>" data-once autocomplete="off">
     <?= csrf_field() ?>
+    <?= honeypot_fields() ?>
     <div class="card-body">
         <?php if ($badge): ?>
             <div class="text-center">
@@ -59,6 +61,7 @@
 </form>
 <?php endif ?>
 <p class="text-center small text-secondary mt-3">Check-in works only while the gates are open. Lost your badge or arrived late? Visit the volunteer desk.</p>
+<p class="text-center small mb-1"><a href="<?= site_url('badge') ?>"><?= icon('qr.scan', 'icon-inline me-1') ?>Lost your badge? Get it here with your unique ID</a></p>
 <p class="text-center small mb-1"><a href="<?= site_url('registered') ?>"><?= icon('action.search', 'icon-inline me-1') ?>Not sure you are registered? Check with your mobile number</a></p>
 <p class="text-center small"><a href="<?= site_url('/') ?>" class="text-secondary">← Back to home</a></p>
 <?= $this->endSection() ?>

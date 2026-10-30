@@ -4,6 +4,7 @@
 <div class="text-center mb-3"><a href="<?= site_url('/') ?>"><?= brand_logo('brand-logo-card') ?></a></div>
 <form class="card card-md" method="post" action="<?= site_url('registered') ?>" autocomplete="off">
     <?= csrf_field() ?>
+    <?= honeypot_fields() ?>
     <div class="card-body">
         <h2 class="h2 text-center mb-1">Am I registered?</h2>
         <p class="text-center text-secondary">Enter the mobile number you registered with.</p>

@@ -17,9 +17,9 @@ final class OperatorAccess
     /** Tables an operator may read, and the filter that names their slam. */
     private const TABLES = [
         'performances' => 'slam_id', 'attendees' => 'slam_id', 'import-batches' => 'slam_id', 'import-rows' => 'batch_id',
-        'checkins' => 'slam_id', 'attendee-search' => 'slam_id', 'questions' => 'slam_id', 'marks' => 'slam_id',
+        'checkins' => 'slam_id', 'idle-reviewers' => 'slam_id', 'attendee-search' => 'slam_id', 'questions' => 'slam_id', 'marks' => 'slam_id',
         'mark-stats' => 'slam_id', 'complete-reviewers' => 'slam_id', 'mark-runs' => 'slam_id',
-        'schedule-snapshots' => 'slam_id', 'phase-log' => 'slam_id',
+        'schedule-snapshots' => 'slam_id', 'phase-log' => 'slam_id', 'activity-log' => 'slam_id',
     ];
 
     /**
@@ -62,8 +62,8 @@ final class OperatorAccess
             [$read, '#^admin/mark-runs/(\d+)$#', ['SELECT slam_id FROM mark_runs WHERE id = ?']],
 
             // The check-in desk (late check-in, force check-out, search) for their own slam.
-            [$read, '#^volunteer$#', 'any'],
-            [$all, '#^api/volunteer/(state|checkin)$#', 'any'],
+            [$read, '#^volunteer(/not-reviewing)?$#', 'any'],
+            [$all, '#^api/volunteer/(state|checkin|idle-checkout)$#', 'any'],
             [['GET'], '#^api/attendees/search$#', 'any'],
             [['POST'], '#^api/force-checkout/(\d+)$#', ['SELECT slam_id FROM attendees WHERE id = ?']],
             [['POST'], '#^api/checkin/late-override$#', 'attendee-body'],

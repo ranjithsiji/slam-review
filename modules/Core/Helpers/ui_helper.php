@@ -206,3 +206,36 @@ if (! function_exists('operator_mode')) {
         return $slam === null ? null : \Modules\Core\Libraries\OperatorMode::current($slam);
     }
 }
+
+if (! function_exists('honeypot_fields')) {
+    /** Invisible bot traps for a public form; checked by the 'trap' filter (HoneypotFilter). Put it next to csrf_field(). */
+    function honeypot_fields(): string
+    {
+        return '<div class="hp-wrap" aria-hidden="true"><label>Leave this field empty<input type="text" name="' . \Modules\Core\Filters\HoneypotFilter::FIELD . '" value="" tabindex="-1" autocomplete="off"></label></div>'
+            . '<input type="hidden" name="' . \Modules\Core\Filters\HoneypotFilter::STAMP . '" value="' . esc(\Modules\Core\Filters\HoneypotFilter::stamp()) . '">';
+    }
+}
+
+if (! function_exists('live_headline')) {
+    /**
+     * What is happening now in a live slam, as safe HTML, from the public document (PublicScheduleService).
+     * frontend/entries/public.js has the same wording for the live refresh: keep the two in step.
+     */
+    function live_headline(array $d): string
+    {
+        $at   = static fn (?string $iso) => $iso ? esc(local_time(str_replace(['T', 'Z'], [' ', ''], $iso), 'H:i')) : '';
+        $text = match (true) {
+            ! empty($d['now']) && $d['now']['kind'] === 'break' => 'Now: <strong>' . esc($d['now']['label']) . '</strong>',
+            ! empty($d['now']) => 'Presenting now: <strong>' . esc($d['now']['presenter_name']) . '</strong> — ' . esc($d['now']['topic']),
+            ($d['phase'] ?? '') === 'checkin_open' => 'Gates are open. Check in at the entrance.',
+            ! empty($d['next']) => 'Up next: <strong>' . esc($d['next']['kind'] === 'break' ? $d['next']['label'] : $d['next']['presenter_name']) . '</strong> at ' . $at($d['next']['planned_start_at'] ?? null),
+            in_array($d['phase'] ?? '', ['reviews_complete', 'revision', 'revision_closed'], true) => 'All performances are done. Scores are being finalised.',
+            default => 'Gates are closed. The first performance starts shortly.',
+        };
+        if (! empty($d['paused'])) {
+            $text = '<span class="badge bg-orange-lt me-2">Paused</span>The programme is paused for a short while. ' . $text;
+        }
+
+        return $text;
+    }
+}

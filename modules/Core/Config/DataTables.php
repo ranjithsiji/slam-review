@@ -24,6 +24,7 @@ class DataTables extends BaseConfig
         'admins'             => \Modules\Accounts\DataTables\AdminsTable::class,
         'volunteers'         => \Modules\Accounts\DataTables\VolunteersTable::class,
         'checkins'           => \Modules\Checkin\DataTables\CheckinsTable::class,
+        'idle-reviewers'     => \Modules\Checkin\DataTables\IdleReviewersTable::class,
         'attendee-search'    => \Modules\Checkin\DataTables\AttendeeSearchTable::class,
         'questions'          => \Modules\Reviews\DataTables\QuestionsTable::class,
         'marks'              => \Modules\Scoring\DataTables\MarksTable::class,

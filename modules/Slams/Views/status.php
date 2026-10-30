@@ -26,7 +26,7 @@
     </div>
     <div class="col-12 col-xl-6">
         <div class="card card-accent accent-teal">
-            <div class="card-header"><h3 class="card-title">Live activity</h3><div class="card-actions"><a href="<?= site_url('admin/activity-log?slam_id=' . $slam['id']) ?>" class="btn btn-sm">Full log</a></div></div>
+            <div class="card-header"><h3 class="card-title">Live activity</h3><div class="card-actions"><?php if (operator_slam() === null): ?><a href="<?= site_url('admin/activity-log?slam_id=' . $slam['id']) ?>" class="btn btn-sm">Full log</a><?php endif ?></div></div>
             <div class="card-body">
                 <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([
                     'endpoint' => 'activity-log', 'filters' => ['slam_id' => (int) $slam['id']], 'order' => [[0, 'desc']], 'refresh' => 6000, 'pii' => false,

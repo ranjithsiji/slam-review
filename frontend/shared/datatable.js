@@ -144,7 +144,7 @@ export function initTable(el, cfg) {
     if (!a || !row) return;
     let reason = '';
     if (a.reason || a.confirm) {
-      const r = await dialog({ title: a.label, message: a.confirm ? fill(a.confirm, row).replace(/%20/g, ' ') : '', danger: !!a.danger, reason: !!a.reason, confirmText: a.label });
+      const r = await dialog({ title: a.label, message: a.confirm ? fill(a.confirm, row).replace(/%20/g, ' ') : '', danger: !!a.danger, reason: !!a.reason, input: a.reasonDefault ? { value: a.reasonDefault } : null, confirmText: a.label });
       if (r === null) return;
       reason = r;
     }

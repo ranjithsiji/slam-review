@@ -2,11 +2,13 @@
 import '../theme/index.js';
 import '@tabler/core/dist/js/tabler.esm.js';
 import { initThemeToggle } from '../shared/theme-toggle.js';
+import { initSiteMenu } from '../shared/site-menu.js';
 import { esc, iconHtml } from '../shared/ui.js';
 import { sem } from '../shared/semantic.js';
 import { time } from '../shared/clock.js';
 
 initThemeToggle();
+initSiteMenu();
 const root = document.querySelector('[data-public-schedule]');
 if (root) {
   const url = root.dataset.publicSchedule;
@@ -51,4 +53,47 @@ if (root) {
   };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
   timer = setTimeout(poll, 3000);
+}
+
+// Home page "Happening now": polls the live list (~10 s, paused while the tab is hidden). The wording matches
+// live_headline() in ui_helper.php. When the set of live slams or the current/next talk changes, reload so the schedule
+// list below shows the new statuses; otherwise update the text in place (paused / running late).
+const home = document.querySelector('[data-home-live]');
+if (home) {
+  let etag = null;
+  let timer = null;
+  const sigOf = (list) => list.map((d) => `${d.slug}:${d.now?.id ?? ''}:${d.next?.id ?? ''}:${d.phase}:${d.paused ? 1 : 0}`).join('|');
+  const headline = (d) => {
+    let t;
+    if (d.now && d.now.kind === 'break') t = `Now: <strong>${esc(d.now.label)}</strong>`;
+    else if (d.now) t = `Presenting now: <strong>${esc(d.now.presenter_name)}</strong> — ${esc(d.now.topic)}`;
+    else if (d.phase === 'checkin_open') t = 'Gates are open. Check in at the entrance.';
+    else if (d.next) t = `Up next: <strong>${esc(d.next.kind === 'break' ? d.next.label : d.next.presenter_name)}</strong> at ${esc(time(d.next.planned_start_at))}`;
+    else if (['reviews_complete', 'revision', 'revision_closed'].includes(d.phase)) t = 'All performances are done. Scores are being finalised.';
+    else t = 'Gates are closed. The first performance starts shortly.';
+    if (d.paused) t = `<span class="badge bg-orange-lt me-2">Paused</span>The programme is paused for a short while. ${t}`;
+    return t;
+  };
+  const poll = async () => {
+    clearTimeout(timer);
+    if (!document.hidden) {
+      try {
+        const res = await fetch(home.dataset.homeLive, { headers: etag ? { 'If-None-Match': etag } : {}, credentials: 'same-origin' });
+        if (res.status === 200) {
+          etag = res.headers.get('ETag');
+          const { slams } = await res.json();
+          if (sigOf(slams) !== home.dataset.sig) { window.location.reload(); return; }
+          slams.forEach((d) => {
+            const text = home.querySelector(`[data-live-text="${CSS.escape(d.slug)}"]`);
+            if (text) text.innerHTML = headline(d);
+            const late = home.querySelector(`[data-live-late="${CSS.escape(d.slug)}"]`);
+            if (late) late.innerHTML = d.late_minutes > 0 ? `<span class="badge bg-orange-lt">Running about ${esc(d.late_minutes)} min behind schedule</span>` : '';
+          });
+        }
+      } catch { /* keep the last view */ }
+    }
+    timer = setTimeout(poll, 8000 + Math.random() * 4000);
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+  timer = setTimeout(poll, 4000);
 }

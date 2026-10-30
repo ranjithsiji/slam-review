@@ -1,8 +1,10 @@
 // Public check-in pages: tiny, no framework.
 import '../theme/index.js';
 import { initThemeToggle } from '../shared/theme-toggle.js';
+import { initSiteMenu } from '../shared/site-menu.js';
 
 initThemeToggle();
+initSiteMenu();
 const input = document.querySelector('[data-badge-input]');
 if (input) {
   // Letters first (text keyboard), then digits: switch the keyboard after two letters.

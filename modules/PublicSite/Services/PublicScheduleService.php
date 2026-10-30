@@ -91,6 +91,7 @@ class PublicScheduleService
                     'venue_name' => $slam['venue_name'], 'map_url' => $slam['map_url'],
                 ],
                 'badge'        => $this->badge($slam),
+                'phase'        => $slam['status'],
                 'now'          => $now !== null ? array_intersect_key($now, array_flip(['id', 'kind', 'label', 'presenter_name', 'topic'])) : null,
                 'next'         => $next !== null ? array_intersect_key($next, array_flip(['id', 'kind', 'label', 'presenter_name', 'topic', 'planned_start_at'])) : null,
                 'late_minutes' => in_array($slam['status'], ['checkin_closed', 'reviewing'], true) ? (int) $live['late_minutes'] : 0,
@@ -102,6 +103,28 @@ class PublicScheduleService
 
             return $doc;
         });
+    }
+
+    /**
+     * What is happening now in every published slam that is live: the home page's "Happening now" block
+     * (server-rendered, then refreshed from /api/public/live). Only allow-listed fields of the public document.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function live(): array
+    {
+        $out = [];
+        foreach ($this->listPublished() as $s) {
+            if ($s['badge'] !== 'live') {
+                continue;
+            }
+            service('slamPhase')->tick((int) $s['id']);
+            $d     = $this->document(service('slams')->find((int) $s['id']));
+            $out[] = ['slug' => $d['slam']['slug'], 'name' => $d['slam']['name'], 'venue_name' => $d['slam']['venue_name']]
+                + array_intersect_key($d, array_flip(['badge', 'phase', 'now', 'next', 'late_minutes', 'paused', 'finished']));
+        }
+
+        return $out;
     }
 
     /** iCalendar for one slam (Gates Open → Slam Close). */

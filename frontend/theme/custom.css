@@ -212,3 +212,82 @@ html { scroll-padding-top: 5rem; scroll-padding-bottom: 8rem; }
 /* Final scores: summary rows are the card header; hide the native marker. */
 .score-card > summary::-webkit-details-marker { display: none; }
 .score-card[open] { box-shadow: var(--tblr-box-shadow); }
+
+/* Honeypot: real people never see or reach it (no display:none, which simple bots skip). */
+.hp-wrap { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+
+/* ---- Public site: header, hero, footer (look follows scienceslam.in) ---- */
+:root { --slam-orange: #ff9a00; --slam-orange-dark: #e68a00; --slam-ink: #1b1200; }
+.site-body { min-height: 100vh; }
+.site-header { flex-shrink: 0; height: auto; min-height: 3.5rem; position: relative; z-index: 10; background: var(--tblr-bg-surface); border-bottom: 1px solid var(--tblr-border-color); padding-block: .5rem; }
+.site-brand-name { font-weight: 600; font-size: 1.35rem; color: var(--tblr-body-color); }
+.site-header .nav-link { font-weight: 500; }
+.site-header .nav-link.active { color: var(--slam-orange-dark); }
+[data-bs-theme="dark"] .site-header .nav-link.active { color: var(--slam-orange); }
+.btn-slam { --tblr-btn-bg: var(--slam-orange); --tblr-btn-color: var(--slam-ink); --tblr-btn-border-color: var(--slam-orange);
+  --tblr-btn-hover-bg: var(--slam-orange-dark); --tblr-btn-hover-color: var(--slam-ink); --tblr-btn-hover-border-color: var(--slam-orange-dark);
+  --tblr-btn-active-bg: var(--slam-orange-dark); --tblr-btn-active-color: var(--slam-ink); font-weight: 600; }
+.btn-hero-outline { --tblr-btn-color: #fff; --tblr-btn-border-color: rgba(255,255,255,.7); --tblr-btn-hover-bg: rgba(255,255,255,.14); --tblr-btn-hover-color: #fff; --tblr-btn-hover-border-color: #fff; --tblr-btn-bg: transparent; }
+/* Hero: a dark dot-grid pattern with a soft orange glow (no photo). */
+.site-hero { color: #fff; background-color: #0d0a05;
+  background-image:
+    radial-gradient(ellipse 60% 70% at 50% 0%, rgba(255,154,0,.22), transparent 70%),
+    radial-gradient(rgba(255,154,0,.30) 1.6px, transparent 1.7px),
+    radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.1px);
+  background-size: auto, 32px 32px, 16px 16px; background-position: 0 0, 0 0, 8px 8px; }
+.site-hero-shade { background: transparent; }
+.site-hero-inner { padding-block: 3rem; }
+.site-hero-logo { height: auto; max-height: 200px; width: auto; max-width: 86vw; }
+/* Phones: a shorter hero so the three cards are visible without scrolling. */
+@media (max-width: 767.98px) {
+  .site-hero-inner { padding-block: 1.25rem; }
+  .site-hero-logo { max-height: min(26vh, 200px); max-width: 70vw; }
+  .site-hero-lead { font-size: 1rem; margin-top: .5rem !important; }
+}
+.site-hero-lead { max-width: 40rem; font-size: 1.15rem; color: rgba(255,255,255,.88); }
+.site-hero-small .site-hero-title { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; color: var(--slam-orange); }
+.site-eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .8rem; color: rgba(255,255,255,.7); }
+.site-main { background: var(--tblr-bg-surface-secondary); }
+.home-now { border-width: 0; }
+.home-order .home-order-time { min-width: 3.2rem; font-variant-numeric: tabular-nums; }
+.home-order-now { background: var(--tblr-red-lt); }
+.site-partners { background: #fff; border-top: 1px solid var(--tblr-border-color); }
+[data-bs-theme="dark"] .site-partners { background: #fff; } /* the logos are drawn for a light background */
+.site-partners-img { max-width: min(900px, 100%); height: auto; }
+.site-footer-contact { background: var(--slam-orange); color: var(--slam-ink); }
+.site-footer-contact a { color: var(--slam-ink); text-decoration: underline; }
+.site-footer-title { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 600; margin-bottom: .75rem; }
+.btn-footer-social { --tblr-btn-bg: rgba(255,255,255,.55); --tblr-btn-color: var(--slam-ink); --tblr-btn-border-color: transparent; --tblr-btn-hover-bg: #fff; --tblr-btn-hover-color: var(--slam-ink); text-decoration: none !important; }
+.site-footer-bar { background: #1d1d1b; color: #d6d6d2; }
+.site-footer-bar a { color: var(--slam-orange); }
+/* About */
+.about-steps { padding-left: 1.2rem; } .about-steps li { margin-bottom: .6rem; }
+.about-timeline { border-left: 3px solid var(--slam-orange); margin-left: .5rem; }
+.about-timeline-item { display: flex; align-items: center; gap: 1rem; padding: .85rem 0 .85rem 1.25rem; position: relative; }
+.about-timeline-item::before { content: ""; position: absolute; left: -.62rem; width: 1rem; height: 1rem; border-radius: 50%; background: var(--slam-orange); border: 3px solid var(--tblr-bg-surface-secondary); }
+.about-timeline-date { min-width: 4.5rem; font-weight: 700; font-size: 1.15rem; }
+.about-timeline-item.is-final .about-timeline-date { color: var(--slam-orange-dark); }
+/* Phone menu: pushes the page down (no overlap) and stays readable. */
+@media (max-width: 767.98px) {
+  .site-header .navbar-collapse { padding-block: .5rem 1rem; }
+  .site-header .navbar-nav .nav-link { padding: .75rem .25rem; font-size: 1.05rem; border-bottom: 1px solid var(--tblr-border-color-translucent); }
+  .site-header .navbar-nav .btn-slam { width: 100%; padding-block: .7rem; }
+}
+
+/* Stage controls: Open review / Close presentation / Close review, one under the other. */
+.stage-panel { display: grid; gap: .75rem; background: var(--tblr-bg-surface-secondary); }
+.stage-row { display: grid; gap: .35rem; }
+@media (min-width: 768px) { .stage-row { grid-template-columns: 16rem 1fr; align-items: center; gap: 1rem; } }
+.stage-btn { width: 100%; min-height: 3rem; }
+.turnout-now { padding: .75rem 1rem; border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); background: var(--tblr-bg-surface); }
+
+/* "Live now" tiles on the Status screen. */
+.live-dot { width: .9rem; height: .9rem; border-radius: 50%; background: var(--tblr-secondary); flex: none; }
+.live-dot.on { background: var(--tblr-green); box-shadow: 0 0 0 0 rgba(47,179,68,.6); animation: live-pulse 1.8s infinite; }
+@keyframes live-pulse { 70% { box-shadow: 0 0 0 .6rem rgba(47,179,68,0); } 100% { box-shadow: 0 0 0 0 rgba(47,179,68,0); } }
+@media (prefers-reduced-motion: reduce) { .live-dot.on { animation: none; } }
+
+/* Get my badge */
+.badge-qr { width: min(15rem, 70vw); background: #fff; padding: .6rem; border-radius: .5rem; border: 1px solid var(--tblr-border-color); }
+.badge-qr svg { display: block; width: 100%; height: auto; }
+.badge-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.6rem; font-weight: 700; letter-spacing: .2em; }

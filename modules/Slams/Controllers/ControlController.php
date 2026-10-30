@@ -93,7 +93,7 @@ class ControlController extends BaseController
                 'planned_start_at' => Clock::iso($it['planned_start_at']), 'original_start_at' => Clock::iso($it['original_start_at'] ?? $it['planned_start_at']), 'projected_start_at' => Clock::iso($it['projected_start_at']),
                 'projected_end_at' => Clock::iso($it['projected_end_at']),
                 'performing_started_at' => Clock::iso($it['performing_started_at'] ?? null), 'performing_ended_at' => Clock::iso($it['performing_ended_at'] ?? null),
-                'window_closes_at' => $it['status'] === 'open' ? Clock::iso(ReviewWindowService::effectiveClose(['closes_at' => $it['window_closes_at'], 'extended_minutes_total' => $it['window_ext']], $slam)) : null,
+                'window_closes_at' => $it['status'] === 'open' && $it['item_type'] === 'performance' && $it['window_closes_at'] !== null ? Clock::iso(ReviewWindowService::effectiveClose(['closes_at' => $it['window_closes_at'], 'extended_minutes_total' => $it['window_ext']], $slam)) : null,
                 'actual_open_at' => Clock::iso($it['window_opened_at'] ?? $it['actual_start_at']), 'actual_close_at' => Clock::iso($it['window_closed_at'] ?? ($it['status'] === 'closed' ? $it['ends_at'] : null)),
             ], $proj['items']);
             $names = [];
@@ -133,6 +133,9 @@ class ControlController extends BaseController
                     'default_review_minutes' => (int) $slam['default_review_minutes'], 'edit_window_minutes' => (int) $slam['edit_window_minutes'],
                     'close_grace_minutes' => (int) $slam['close_grace_minutes'], 'changeover_minutes' => (int) $slam['changeover_minutes'],
                 ],
+                'presence'    => service('engagement')->presence($id),
+                'turnout'     => service('engagement')->turnout($id),
+                'idle_count'  => in_array($slam['status'], ['reviewing', 'reviews_complete', 'revision'], true) ? service('engagement')->idleCount($id) : 0,
                 'phase_times' => $phaseTimes,
                 'paused' => $slam['paused_at'] !== null ? ['since' => Clock::iso($slam['paused_at']), 'reason' => $slam['pause_reason']] : null,
                 'pauses' => ['count' => (int) Db::value('SELECT COUNT(*) FROM slam_pauses WHERE slam_id = ? AND resumed_at IS NOT NULL', [$id]), 'seconds' => (int) Db::value('SELECT COALESCE(SUM(seconds), 0) FROM slam_pauses WHERE slam_id = ?', [$id])],
@@ -301,6 +304,15 @@ class ControlController extends BaseController
         return $this->api(function () use ($id, $itemId, $in) {
             $start = $this->utcFromIstInput($in['start'] ?? null) ?? throw new DomainException('validation', 'Choose the new start time.', 422);
             service('slamPhase')->rescheduleItem($id, $itemId, $start, isset($in['duration']) && $in['duration'] !== '' ? (int) $in['duration'] : null, ! empty($in['shift_following']), $this->actor());
+
+            return ['ok' => true];
+        });
+    }
+
+    public function breakStart(int $id, int $itemId): ResponseInterface
+    {
+        return $this->api(function () use ($id, $itemId) {
+            service('slamPhase')->startBreakNow($id, $itemId, $this->actor());
 
             return ['ok' => true];
         });

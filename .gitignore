@@ -129,3 +129,6 @@ node_modules/
 public/assets/
 public/uploads/presenters/*
 !public/uploads/presenters/.gitkeep
+
+# Server deployment files (nginx, DB setup, passwords): never commit
+/exclude/

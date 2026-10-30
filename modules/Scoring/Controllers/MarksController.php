@@ -192,6 +192,9 @@ class MarksController extends BaseController
         return $this->formAction(function () use ($slamId, $judge) {
             $r = service('judgeMarks')->save($slamId, $judge, (array) $this->request->getPost('marks'), $this->actor());
             session()->setFlashdata('saved_counts', $r);
+            if (in_array(service('slams')->find($slamId)['status'], ['closed', 'marks_calculated'], true) && ($r['saved'] + $r['removed']) > 0) {
+                session()->setFlashdata('info', 'Marks recalculated from the weights.');
+            }
 
             return site_url("admin/slams/{$slamId}/judge-marks?judge={$judge}");
         }, "Judge's marks saved.");

@@ -9,6 +9,7 @@ $items = [
     'reviewers'  => ['Reviewers', "admin/slams/{$id}/reviewers", 'person.user'],
     'judgelist'  => ['Judges', "admin/slams/{$id}/judges", 'person.judge'],
     'checkins'   => ['Check-ins', "admin/slams/{$id}/checkins", 'nav.checkins'],
+    'idle'       => ['Not reviewing', "admin/slams/{$id}/not-reviewing", 'status.warning'],
     'questions'  => ['Questions', "admin/slams/{$id}/questions", 'nav.questions'],
     'representatives' => ['Representatives', "admin/slams/{$id}/representatives", 'nav.representatives'],
 ];
