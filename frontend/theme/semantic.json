@@ -1,0 +1,45 @@
+{
+  "_comment": "One central colour/icon/label map used by PHP views, Vue screens and the public page. Colours are Tabler tokens; badges render as bg-{color}-lt with icon + text (never colour alone).",
+  "phase": {
+    "draft":            {"color": "secondary", "icon": "phase.draft", "label": "Setup (draft)"},
+    "scheduled":        {"color": "secondary", "icon": "phase.scheduled", "label": "Setup (ready)"},
+    "open":             {"color": "azure",     "icon": "phase.open", "label": "Slam Open"},
+    "checkin_open":     {"color": "green",     "icon": "phase.checkin_open", "label": "Gates Open"},
+    "checkin_closed":   {"color": "orange",    "icon": "phase.checkin_closed", "label": "Gate Close"},
+    "reviewing":        {"color": "red",       "icon": "phase.reviewing", "label": "Reviewing (live)"},
+    "reviews_complete": {"color": "secondary", "icon": "phase.reviews_complete", "label": "All Review Close"},
+    "revision":         {"color": "purple",    "icon": "phase.revision", "label": "Review Edit"},
+    "revision_closed":  {"color": "secondary", "icon": "phase.revision_closed", "label": "Edit Close"},
+    "closed":           {"color": "dark",      "icon": "phase.closed", "label": "Slam Close"},
+    "marks_calculated": {"color": "green",     "icon": "phase.marks_calculated", "label": "Marks Calculated"},
+    "ended":            {"color": "dark",      "icon": "phase.ended", "label": "Event Ended"}
+  },
+  "checkin": {
+    "checked_in":  {"color": "green",     "icon": "status.ok", "label": "Checked in"},
+    "checked_out": {"color": "secondary", "icon": "action.logout", "label": "Checked out"},
+    "forced_out":  {"color": "red",       "icon": "status.error", "label": "Force checked out"},
+    "never":       {"color": "secondary", "icon": "circle-dashed", "label": "Not checked in"},
+    "not_registered": {"color": "orange", "icon": "status.warning", "label": "Not registered"}
+  },
+  "slot": {
+    "pending": {"color": "secondary", "icon": "status.time", "label": "Pending"},
+    "open":    {"color": "red",       "icon": "status.live", "label": "Presenting now"},
+    "closed":  {"color": "green",     "icon": "status.ok", "label": "Done"},
+    "skipped": {"color": "secondary", "icon": "action.skip", "label": "Skipped"},
+    "break":   {"color": "orange",    "icon": "break.tea", "label": "Break"}
+  },
+  "marks": {
+    "provisional": {"color": "orange", "icon": "status.warning", "label": "Provisional"},
+    "official":    {"color": "green",  "icon": "status.ok", "label": "Official"}
+  },
+  "user_type": {
+    "user":  {"color": "blue",   "icon": "person.user", "label": "User"},
+    "judge": {"color": "purple", "icon": "person.judge", "label": "Judge"}
+  },
+  "public": {
+    "upcoming": {"color": "blue",      "icon": "phase.scheduled", "label": "Upcoming"},
+    "today":    {"color": "azure",     "icon": "status.time", "label": "Today"},
+    "live":     {"color": "red",       "icon": "status.live", "label": "Live"},
+    "finished": {"color": "secondary", "icon": "phase.closed", "label": "Finished"}
+  }
+}

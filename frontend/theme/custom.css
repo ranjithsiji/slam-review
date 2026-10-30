@@ -1,0 +1,105 @@
+/*
+ * Science Slam overrides on top of Tabler. Only CSS variables and our own
+ * component classes: no edits to Tabler itself, so upgrades stay easy.
+ * Mobile-first: base rules target 360 px; min-width queries enhance.
+ */
+:root,
+[data-bs-theme] {
+  --tblr-font-sans-serif: "Inter", "Noto Sans Malayalam", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --slam-touch: 44px;
+}
+
+body { -webkit-text-size-adjust: 100%; }
+
+/* Inputs at 16 px+ so iOS does not zoom on focus. */
+.form-control, .form-select, .dt-input, input, select, textarea { font-size: max(1rem, 16px); }
+
+/* Touch targets. */
+.btn, .form-check-input, .page-link, .dropdown-item, .nav-link { min-height: var(--slam-touch); }
+.btn-icon { min-width: var(--slam-touch); }
+.form-check-input { min-height: auto; width: 1.25rem; height: 1.25rem; }
+.btn-sm { min-height: 36px; }
+
+/* Icons from the sprite. */
+.icon { width: 1.25rem; height: 1.25rem; vertical-align: -0.2em; }
+.icon-inline { width: 1em; height: 1em; vertical-align: -0.125em; }
+.icon-lg { width: 1.75rem; height: 1.75rem; }
+.icon-xl { width: 3rem; height: 3rem; }
+.btn .icon { margin: 0 0.25rem 0 -0.125rem; }
+.btn-icon .icon { margin: 0; }
+
+/* Malayalam text gets a little more line height. */
+[lang="ml"], .ml-text { line-height: 1.7; }
+
+/* Sticky bottom action bar (primary actions on phones). */
+.sticky-actions {
+  position: sticky; bottom: 0; z-index: 1020;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: var(--tblr-bg-surface); border-top: 1px solid var(--tblr-border-color);
+}
+
+/* 1–10 score grid: two rows of five large buttons. Shape + number, never colour scale. */
+.score-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
+.score-grid .btn { min-height: 52px; font-size: 1.25rem; font-weight: 600; padding: 0; }
+.score-grid .btn[aria-pressed="true"],
+.score-grid .btn[aria-pressed="true"]:hover,
+.score-grid .btn[aria-pressed="true"]:focus,
+.score-grid .btn[aria-pressed="true"]:active {
+  --tblr-btn-bg: var(--tblr-primary); --tblr-btn-hover-bg: var(--tblr-primary); --tblr-btn-active-bg: var(--tblr-primary);
+  --tblr-btn-color: #fff; --tblr-btn-hover-color: #fff; --tblr-btn-active-color: #fff;
+  background-color: var(--tblr-primary); color: #fff; border-color: var(--tblr-primary);
+  box-shadow: 0 0 0 3px rgba(var(--tblr-primary-rgb), .25);
+}
+/* No sticky hover tint on touch screens. */
+@media (hover: none) { .score-grid .btn[aria-pressed="false"]:hover { background-color: transparent; color: var(--tblr-primary); } }
+
+/* Countdown. */
+.countdown { font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: 0.02em; }
+.countdown-xl { font-size: 2.25rem; line-height: 1; }
+
+/* Connection state banner. */
+.conn-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 1080; text-align: center; padding: 0.4rem 1rem; font-weight: 600; }
+
+/* Avatars from presenter photos. */
+.avatar-photo { object-fit: cover; }
+.presenter-photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; }
+
+/* Schedule timeline cards. */
+.slot-card { border-left: 4px solid var(--tblr-border-color); }
+.slot-card.slot-open { border-left-color: var(--tblr-red); }
+.slot-card.slot-closed { border-left-color: var(--tblr-green); }
+.slot-card.slot-skipped { opacity: 0.6; }
+.slot-card.slot-skipped .slot-title { text-decoration: line-through; }
+.slot-card.slot-break { border-left-color: var(--tblr-orange); background: rgba(var(--tblr-orange-rgb), 0.06); }
+.slot-card.slot-invalid { box-shadow: 0 0 0 2px var(--tblr-danger); }
+.slot-card.dragging { opacity: 0.5; }
+.slot-card.drop-target { box-shadow: 0 -3px 0 0 var(--tblr-primary); }
+.drag-handle { cursor: grab; touch-action: none; }
+
+/* DataTables integration. */
+div.dt-container .dt-paging .page-link { min-width: var(--slam-touch); text-align: center; }
+div.dt-container .dt-search input { min-height: var(--slam-touch); }
+table.dataTable td { vertical-align: middle; }
+.dt-empty { color: var(--tblr-secondary); }
+
+/* Phase timeline on the control panel. */
+.phase-steps { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.phase-steps .badge { font-weight: 500; }
+.phase-steps .badge.current { outline: 2px solid currentColor; outline-offset: 1px; font-weight: 700; }
+
+/* Readable focus ring everywhere (keyboard users). */
+:focus-visible { outline: 3px solid rgba(var(--tblr-primary-rgb), .6); outline-offset: 2px; }
+
+/* QR display stays black on white in dark mode too. */
+.qr-box { background: #fff; padding: 0.5rem; border-radius: 0.25rem; display: inline-block; }
+.qr-box svg, .qr-box img { width: 100%; height: auto; display: block; }
+
+/* Print: run-sheet and similar pages. */
+@media print {
+  .navbar, .sticky-actions, .no-print, .page-header .btn-list { display: none !important; }
+  body { background: #fff; }
+}
+
+@media (min-width: 768px) {
+  .score-grid .btn { min-height: 56px; }
+}
