@@ -143,7 +143,7 @@ class QuestionService
     public function create(?int $slamId, string $audience, array $in, Actor $actor): int
     {
         if (! in_array($audience, self::AUDIENCES, true)) {
-            throw new DomainException('validation', 'Audience must be user or judge.');
+            throw new DomainException('validation', 'Audience must be "user" (judges) or "judge" (experts).');
         }
         if ($this->isLocked($slamId, $audience)) {
             throw new DomainException('questions_locked', 'Reviews have been submitted; questions can no longer be added.', 409);

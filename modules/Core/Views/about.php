@@ -86,7 +86,7 @@ $rules = [
                 <li><strong>Check in.</strong> Scan the QR code on your badge, or type your badge ID, and confirm it is you. This is open while the gates are open.</li>
                 <li><strong>Review each talk.</strong> While a talk's review window is open, your phone shows two short questions, each marked out of 5. Answer both and submit.</li>
                 <li><strong>Edit at the end.</strong> After the last talk you get a short window to change any of your own marks.</li>
-                <li><strong>Marks are combined fairly.</strong> General audience reviewers, a randomly drawn group of audience representatives and the judges each count with a set weight. Judges look at communication, engagement, depth and audience response.</li>
+                <li><strong>Marks are combined fairly.</strong> Judges from the audience, a randomly drawn group of audience representatives and a panel of experts each count with a set weight. Experts look at communication, engagement, depth and audience response.</li>
             </ol>
             <div class="d-flex flex-wrap gap-2 mt-3">
                 <a class="btn btn-slam" href="<?= site_url('checkin') ?>"><?= icon('qr.scan') ?>Check in</a>

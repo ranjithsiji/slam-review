@@ -11,7 +11,7 @@
       </ul>
     </div>
     <div class="card-body">
-      <div v-if="locked[aud]" class="alert alert-info"><Icon name="status.lock" cls="me-1" />Reviews have been submitted by {{ aud === 'user' ? 'audience users' : 'judges' }}. Only wording fixes are allowed now (logged with old and new text).</div>
+      <div v-if="locked[aud]" class="alert alert-info"><Icon name="status.lock" cls="me-1" />Reviews have been submitted by {{ aud === 'user' ? 'judges' : 'experts' }}. Only wording fixes are allowed now (logged with old and new text).</div>
       <p v-else class="text-secondary small">Each question is scored from 1 to its maximum (audience questions default to 5 marks, so two questions make 10). Each review's marks are added up (times the weights, normally 1) and scaled to 10. {{ isTemplate ? 'These templates are copied into new slams.' : 'Questions lock for an audience at its first submitted review.' }}</p>
 
       <div v-for="(q, i) in list" :key="q.id" class="card mb-2" :class="{ 'opacity-50': !q.is_active }">
@@ -79,7 +79,7 @@ const isTemplate = slamId === null;
 const locked = reactive(props.boot.locked);
 const questions = reactive(props.boot.questions);
 const otherSlams = props.boot.other_slams || [];
-const audiences = [{ key: 'user', label: 'Users', icon: 'person.user' }, { key: 'judge', label: 'Judges', icon: 'person.judge' }];
+const audiences = [{ key: 'user', label: 'Judges', icon: 'person.user' }, { key: 'judge', label: 'Experts', icon: 'person.judge' }];
 const aud = ref('user');
 const editing = ref(null);
 const form = reactive({});

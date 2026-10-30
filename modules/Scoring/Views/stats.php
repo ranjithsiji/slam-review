@@ -17,9 +17,9 @@
                     ['data' => 'audience', 'title' => 'Set', 'priority' => 4],
                     ['data' => 'question', 'title' => 'Question', 'render' => 'ml', 'priority' => 2],
                     ['data' => 'max_score', 'title' => 'Max', 'priority' => 6],
-                    ['data' => 'avg_general', 'title' => 'General /100', 'render' => 'number100', 'priority' => 3],
-                    ['data' => 'avg_representative', 'title' => 'Represent. /100', 'render' => 'number100', 'priority' => 5],
-                    ['data' => 'avg_judge', 'title' => 'Judges /100', 'render' => 'number100', 'priority' => 3],
+                    ['data' => 'avg_general', 'title' => 'Judges /100', 'render' => 'number100', 'priority' => 3],
+                    ['data' => 'avg_representative', 'title' => 'Audience rep. /100', 'render' => 'number100', 'priority' => 5],
+                    ['data' => 'avg_judge', 'title' => 'Experts /100', 'render' => 'number100', 'priority' => 3],
                 ],
             ]), 'attr') ?>'></table>
         </div></div>

@@ -11,8 +11,8 @@ $pending = $judging['timing'] === 'end_of_slam' && $judgeProgress['entered'] < $
 ?>
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     <?= $official ? '<span class="badge bg-green-lt">' . icon('status.ok', 'icon-inline me-1') . 'Official marks</span>' : '<span class="badge bg-orange-lt">' . icon('status.warning', 'icon-inline me-1') . 'Provisional: calculate the marks to make them official</span>' ?>
-    <?php if ($pending): ?><span class="badge bg-orange-lt"><?= icon('person.judge', 'icon-inline me-1') ?>Judges' marks: <?= (int) $judgeProgress['entered'] ?> of <?= (int) $judgeProgress['expected'] ?> entered</span><?php endif ?>
-    <span class="small text-secondary ms-md-2">Weights: General reviewers <?= $n((float) $weights['w_general'], 0) ?>% · Representatives <?= $n((float) $weights['w_representative'], 0) ?>% · Judges <?= $n((float) $weights['w_judge'], 0) ?>%</span>
+    <?php if ($pending): ?><span class="badge bg-orange-lt"><?= icon('person.judge', 'icon-inline me-1') ?>Experts' marks: <?= (int) $judgeProgress['entered'] ?> of <?= (int) $judgeProgress['expected'] ?> entered</span><?php endif ?>
+    <span class="small text-secondary ms-md-2">Weights: Judges <?= $n((float) $weights['w_general'], 0) ?>% · Audience representatives <?= $n((float) $weights['w_representative'], 0) ?>% · Experts <?= $n((float) $weights['w_judge'], 0) ?>%</span>
     <span class="ms-auto d-flex flex-wrap gap-2">
         <?php if ($top !== []): ?>
             <a class="btn btn-sm btn-primary" href="<?= site_url("admin/slams/{$sid}/results.pdf") ?>" target="_blank" rel="noopener"><?= icon('action.export') ?>Print result sheet (A4)</a>

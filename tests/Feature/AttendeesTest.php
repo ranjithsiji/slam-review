@@ -144,4 +144,15 @@ final class AttendeesTest extends SlamTestCase
             }
         }
     }
+
+    public function testTypeColumnUsesExpertAndStillReadsJudgeAsExpert(): void
+    {
+        $s   = $this->makeSlam(1, 0, 0);
+        $csv = "name,mobile,type\nAudience Person,9811111111,\nNew Word Expert,9822222222,expert\nOld File Expert,9833333333,judge\nPlain User,9844444444,user\n";
+        $pre = service('importer')->preview($s['id'], $this->csvFile($csv), 'people.csv', 'skip_existing', $this->admin);
+        service('importer')->commit($pre['batch_id'], $this->admin);
+        $types = array_column(\Modules\Core\Libraries\Db::rows('SELECT name, user_type FROM attendees WHERE slam_id = ? ORDER BY mobile', [$s['id']]), 'user_type', 'name');
+        $this->assertSame(['Audience Person' => 'user', 'New Word Expert' => 'judge', 'Old File Expert' => 'judge', 'Plain User' => 'user'], $types);
+        $this->assertStringContainsString(',expert,', \Modules\Attendees\Services\ImportService::template());
+    }
 }

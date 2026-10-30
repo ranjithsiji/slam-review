@@ -9,7 +9,7 @@ $this->setVar('narrow', false);
 <div class="card card-accent accent-orange mb-3">
     <div class="card-body">
         <h2 class="h3 mb-1"><?= icon('status.warning', 'me-2 text-orange') ?>People who are not reviewing</h2>
-        <p class="mb-2">Checked-in reviewers who skipped the last <strong><?= (int) $min ?></strong> finished reviews in a row. Reviews that closed before someone arrived never count against them, and a review that is still open is not counted. If someone has been inside but is not voting, you can check them out so they stop counting as present; they can be checked in again later from the desk.</p>
+        <p class="mb-2">Checked-in judges who skipped the last <strong><?= (int) $min ?></strong> finished reviews in a row. Reviews that closed before someone arrived never count against them, and a review that is still open is not counted. If someone has been inside but is not voting, you can check them out so they stop counting as present; they can be checked in again later from the desk.</p>
         <form id="idle-filters" class="d-flex flex-wrap align-items-center gap-2">
             <label class="form-label mb-0" for="idle-min">Skipped in a row</label>
             <select id="idle-min" name="min" class="form-select form-select-sm" style="width:auto">

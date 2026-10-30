@@ -227,7 +227,7 @@ class PaperMarksService
             } else {
                 $j = Db::row("SELECT id FROM attendees WHERE badge_id = ? AND slam_id = ? AND user_type = 'judge' AND is_active = 1", [$badge, $slamId]);
                 if ($j === null) {
-                    $errors[] = "Line {$line}: {$badge} is not a judge of this slam.";
+                    $errors[] = "Line {$line}: {$badge} is not an expert of this slam.";
                     continue;
                 }
                 $judges[(int) $j['id']][$item] = str_replace(',', '.', trim((string) ($r[$iMark] ?? '')));

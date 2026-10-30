@@ -5,12 +5,12 @@
 <div class="card mb-3 card-accent accent-orange"><div class="card-body">
     <h3 class="card-title">Mark run #<?= (int) $run['id'] ?> <?= (int) $run['is_current'] ? status_badge('marks', 'official', 'Current') : '' ?> <?= (int) $run['is_final'] ? '<span class="badge bg-dark-lt">Final</span>' : '' ?></h3>
     <div class="text-secondary"><?= esc(local_time($run['calculated_at'])) ?><?= $run['note'] ? ' · ' . esc($run['note']) : '' ?></div>
-    <div class="small mt-2">Weights: general reviewers <?= (float) $weights['w_general'] ?>%, representatives <?= (float) $weights['w_representative'] ?>%, judges <?= (float) $weights['w_judge'] ?>% ·
-        <?= (int) ($c['reviews'] ?? 0) ?> reviews · <?= (int) ($c['representatives'] ?? 0) ?> representatives (from <?= (int) ($c['complete_reviewers'] ?? 0) ?> who reviewed everything)<?= $previous_run_id ? ' · compared with run #' . (int) $previous_run_id : '' ?></div>
+    <div class="small mt-2">Weights: judges <?= (float) $weights['w_general'] ?>%, audience representatives <?= (float) $weights['w_representative'] ?>%, experts <?= (float) $weights['w_judge'] ?>% ·
+        <?= (int) ($c['reviews'] ?? 0) ?> reviews · <?= (int) ($c['representatives'] ?? 0) ?> audience representatives (from <?= (int) ($c['complete_reviewers'] ?? 0) ?> who reviewed everything)<?= $previous_run_id ? ' · compared with run #' . (int) $previous_run_id : '' ?></div>
 </div></div>
 <div class="card"><div class="table-responsive">
     <table class="table table-vcenter card-table">
-        <thead><tr><th>Rank</th><th>Presenter</th><th class="text-end">General</th><th class="text-end">Represent.</th><th class="text-end">Judges</th><th class="text-end">Final</th><th class="text-end">Change</th></tr></thead>
+        <thead><tr><th>Rank</th><th>Presenter</th><th class="text-end">Judges</th><th class="text-end">Audience rep.</th><th class="text-end">Experts</th><th class="text-end">Final</th><th class="text-end">Change</th></tr></thead>
         <tbody>
         <?php foreach ($results as $r): ?>
             <tr>

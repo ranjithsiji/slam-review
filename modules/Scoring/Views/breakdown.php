@@ -27,14 +27,14 @@ $detail = static function (array $r, string $g) use ($questions): string {
     <div class="card-header"><h3 class="card-title"><?= icon('action.calculate', 'me-2') ?>How the final marks are calculated</h3></div>
     <div class="card-body border-bottom">
         <ol class="mb-2 ps-3">
-            <li>Each review gets a mark out of 10 from its answers: <code>10 × Σ(weight × marks) ÷ Σ(weight × maximum)</code>. With weight 1 that is the marks given scaled to 10: the two audience questions of 5 add up to 10, and the judges' criteria (3 + 3 + 3 + 1) add up to 10.</li>
-            <li>The averages and the final mark are shown <strong>out of 100</strong> (the review mark × 10), to two decimal places. For every performance the reviews are averaged in three groups: <strong>general reviewers</strong> (audience users who are not representatives), <strong>audience representatives</strong> and <strong>judges</strong>.</li>
+            <li>Each review gets a mark out of 10 from its answers: <code>10 × Σ(weight × marks) ÷ Σ(weight × maximum)</code>. With weight 1 that is the marks given scaled to 10: the two audience questions of 5 add up to 10, and the experts' criteria (3 + 3 + 3 + 1) add up to 10.</li>
+            <li>The averages and the final mark are shown <strong>out of 100</strong> (the review mark × 10), to two decimal places. For every performance the reviews are averaged in three groups: <strong>judges</strong> (the audience, apart from the audience representatives), <strong>audience representatives</strong> and <strong>experts</strong>.</li>
             <li>Final mark = Σ (group average × group weight) ÷ Σ weights of the groups that have reviews. A group without reviews drops out and its weight is shared among the others in proportion.</li>
         </ol>
         <div class="d-flex flex-wrap gap-2 small">
-            <span class="badge bg-blue-lt">General reviewers <?= $n((float) $weights['w_general'], 0) ?>%</span>
-            <span class="badge bg-purple-lt">Representatives <?= $n((float) $weights['w_representative'], 0) ?>%</span>
-            <span class="badge bg-orange-lt">Judges <?= $n((float) $weights['w_judge'], 0) ?>%</span>
+            <span class="badge bg-blue-lt">Judges <?= $n((float) $weights['w_general'], 0) ?>%</span>
+            <span class="badge bg-purple-lt">Audience representatives <?= $n((float) $weights['w_representative'], 0) ?>%</span>
+            <span class="badge bg-orange-lt">Experts <?= $n((float) $weights['w_judge'], 0) ?>%</span>
         </div>
     </div>
     <div class="list-group list-group-flush">

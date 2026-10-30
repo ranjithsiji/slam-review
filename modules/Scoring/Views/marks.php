@@ -7,12 +7,12 @@
             <?= $official ? status_badge('marks', 'official') : status_badge('marks', 'provisional') ?>
             <?php if ($run): ?><span class="text-secondary ms-2">Run #<?= (int) $run['id'] ?> · <?= esc(local_time($run['calculated_at'], 'd M H:i')) ?><?= (int) $run['is_final'] ? ' · final' : '' ?></span>
             <?php else: ?><span class="text-secondary ms-2">Computed live from the current answers. Official once a marks run exists (after Slam Close).</span><?php endif ?>
-            <div class="small text-secondary mt-1">Weights<?= $run ? ' used by this run' : '' ?>: general reviewers <?= (float) $weights['w_general'] ?>% · representatives <?= (float) $weights['w_representative'] ?>% · judges <?= (float) $weights['w_judge'] ?>%<?= $run && $weights != $currentWeights ? ' <span class="text-orange">(the configured weights have changed since; recalculate to apply)</span>' : '' ?></div>
+            <div class="small text-secondary mt-1">Weights<?= $run ? ' used by this run' : '' ?>: judges <?= (float) $weights['w_general'] ?>% · audience representatives <?= (float) $weights['w_representative'] ?>% · experts <?= (float) $weights['w_judge'] ?>%<?= $run && $weights != $currentWeights ? ' <span class="text-orange">(the configured weights have changed since; recalculate to apply)</span>' : '' ?></div>
             <?php if ($judging['timing'] === 'end_of_slam' && $judgeProgress['entered'] < $judgeProgress['expected']): ?>
-                <div class="small text-orange mt-1"><?= icon('status.warning', 'icon-inline me-1') ?>Judges' marks: <?= (int) $judgeProgress['entered'] ?> of <?= (int) $judgeProgress['expected'] ?> entered. <a href="<?= site_url('admin/slams/' . $slam['id'] . '/judge-marks') ?>">Enter judges' marks</a>, then recalculate.</div>
+                <div class="small text-orange mt-1"><?= icon('status.warning', 'icon-inline me-1') ?>Experts' marks: <?= (int) $judgeProgress['entered'] ?> of <?= (int) $judgeProgress['expected'] ?> entered. <a href="<?= site_url('admin/slams/' . $slam['id'] . '/judge-marks') ?>">Enter experts' marks</a>, then recalculate.</div>
             <?php endif ?>
             <?php if ($representatives === 0 && (float) $currentWeights['w_representative'] > 0): ?>
-                <div class="small text-orange mt-1"><?= icon('status.warning', 'icon-inline me-1') ?>No audience representatives selected yet, so that group drops out. <a href="<?= site_url('admin/slams/' . $slam['id'] . '/representatives') ?>">Draw representatives</a></div>
+                <div class="small text-orange mt-1"><?= icon('status.warning', 'icon-inline me-1') ?>No audience representatives selected yet, so that group drops out. <a href="<?= site_url('admin/slams/' . $slam['id'] . '/representatives') ?>">Draw audience representatives</a></div>
             <?php endif ?>
         </div>
         <div class="btn-list">
@@ -20,7 +20,7 @@
                 <button class="btn btn-primary" data-api-post="<?= site_url('api/slams/' . $slam['id'] . '/marks/calculate') ?>" data-reason data-title="<?= $run ? 'Recalculate marks' : 'Calculate marks' ?>" data-confirm="Creates a new immutable snapshot; older runs stay for audit." data-reload><?= icon('action.refresh') ?><?= $run ? 'Recalculate' : 'Calculate marks' ?></button>
             <?php endif ?>
             <a class="btn" href="#" id="marks-export"><?= icon('action.export') ?>Export</a>
-            <a class="btn" href="<?= site_url('admin/slams/' . $slam['id'] . '/representatives') ?>"><?= icon('nav.representatives') ?>Representatives</a>
+            <a class="btn" href="<?= site_url('admin/slams/' . $slam['id'] . '/representatives') ?>"><?= icon('nav.representatives') ?>Audience representatives</a>
             <a class="btn" href="<?= site_url('admin/slams/' . $slam['id'] . '/mark-config') ?>"><?= icon('nav.settings') ?>Weights</a>
         </div>
     </div>
@@ -43,16 +43,16 @@
                 ['data' => 'rank', 'title' => 'Rank', 'priority' => 1],
                 ['data' => 'presenter_name', 'title' => 'Presenter', 'render' => 'ml', 'priority' => 2],
                 ['data' => 'topic', 'title' => 'Topic', 'render' => 'ml', 'priority' => 7],
-                ['data' => 'avg_general', 'title' => 'General /100', 'render' => 'number100', 'priority' => 4],
-                ['data' => 'avg_representative', 'title' => 'Represent. /100', 'render' => 'number100', 'priority' => 5],
-                ['data' => 'avg_judge', 'title' => 'Judges /100', 'render' => 'number100', 'priority' => 4],
-                ['data' => 'c_general', 'title' => 'General pts', 'render' => 'number2', 'orderable' => false, 'priority' => 9],
+                ['data' => 'avg_general', 'title' => 'Judges /100', 'render' => 'number100', 'priority' => 4],
+                ['data' => 'avg_representative', 'title' => 'Audience rep. /100', 'render' => 'number100', 'priority' => 5],
+                ['data' => 'avg_judge', 'title' => 'Experts /100', 'render' => 'number100', 'priority' => 4],
+                ['data' => 'c_general', 'title' => 'Judges pts', 'render' => 'number2', 'orderable' => false, 'priority' => 9],
                 ['data' => 'c_representative', 'title' => 'Repr. pts', 'render' => 'number2', 'orderable' => false, 'priority' => 9],
-                ['data' => 'c_judge', 'title' => 'Judges pts', 'render' => 'number2', 'orderable' => false, 'priority' => 9],
+                ['data' => 'c_judge', 'title' => 'Experts pts', 'render' => 'number2', 'orderable' => false, 'priority' => 9],
                 ['data' => 'final_mark', 'title' => 'Final /100', 'render' => 'number100', 'priority' => 3],
-                ['data' => 'n_general', 'title' => 'n general', 'priority' => 10],
+                ['data' => 'n_general', 'title' => 'n judges', 'priority' => 10],
                 ['data' => 'n_representative', 'title' => 'n repr.', 'priority' => 10],
-                ['data' => 'n_judge', 'title' => 'n judges', 'priority' => 10],
+                ['data' => 'n_judge', 'title' => 'n experts', 'priority' => 10],
             ],
         ]), 'attr') ?>'></table>
     </div>

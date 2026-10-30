@@ -169,7 +169,7 @@ class MarksController extends BaseController
             }
 
             return site_url("admin/slams/{$slamId}/mark-config");
-        }, "Judges' marking saved.");
+        }, "Experts' marking saved.");
     }
 
     /** End-of-slam judging: enter each judge's consolidated mark per performance. */
@@ -180,7 +180,7 @@ class MarksController extends BaseController
         $judge = (int) ($this->request->getGet('judge') ?? ($grid['judges'][0]['id'] ?? 0));
 
         return $this->render('Modules\Scoring\Views\judge_marks', [
-            'title' => "Judges' marks — " . $slam['name'], 'slam' => $slam, 'judge' => $judge,
+            'title' => "Experts' marks — " . $slam['name'], 'slam' => $slam, 'judge' => $judge,
             'locked' => service('judgeMarks')->lockedReason($slam), 'run' => service('markRuns')->currentRun($slamId),
         ] + $grid);
     }
@@ -197,7 +197,7 @@ class MarksController extends BaseController
             }
 
             return site_url("admin/slams/{$slamId}/judge-marks?judge={$judge}");
-        }, "Judge's marks saved.");
+        }, "Expert's marks saved.");
     }
 
     /** Audience representatives: the random draw, the selected panel and the full pool. */
@@ -222,7 +222,7 @@ class MarksController extends BaseController
         return $this->api(function () use ($slamId, $in) {
             $r = service('representatives')->draw($slamId, (int) ($in['count'] ?? 0), $this->actor());
 
-            return $r + ['message' => sprintf('%d representative(s) drawn from %d people who reviewed every performance.', count($r['selected']), $r['pool'])];
+            return $r + ['message' => sprintf('%d audience representative(s) drawn from %d people who reviewed every performance.', count($r['selected']), $r['pool'])];
         });
     }
 
@@ -231,7 +231,7 @@ class MarksController extends BaseController
         return $this->api(function () use ($slamId, $attendeeId) {
             service('representatives')->add($slamId, $attendeeId, $this->actor());
 
-            return ['message' => 'Added to the representatives.'];
+            return ['message' => 'Added to the audience representatives.'];
         });
     }
 
@@ -242,7 +242,7 @@ class MarksController extends BaseController
         return $this->api(function () use ($slamId, $attendeeId, $in) {
             service('representatives')->remove($slamId, $attendeeId, $this->actor(), isset($in['reason']) ? (string) $in['reason'] : null);
 
-            return ['message' => 'Removed from the representatives.'];
+            return ['message' => 'Removed from the audience representatives.'];
         });
     }
 

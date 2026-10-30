@@ -2,6 +2,10 @@
 
 Guidance for Claude Code when building and maintaining this project.
 
+## 0. Terminology (what the screens say)
+
+User-visible wording (decided by the organisers): the **audience members who score talks are "Judges"** (in code and data: `user_type = 'user'`, "reviewers", the `general` group, `w_general`); the randomly drawn **"Audience representatives"** (the `representative` group); the **expert panel is "Experts"** (in code and data: `user_type = 'judge'`, `judge_*`, `w_judge`, `/judges` routes). Code, database values, URLs and CSV/API field names keep the old internal names; only text people read changed. In the attendee CSV, `type` is `user` (or blank) for a judge from the audience and `expert` for an expert; `judge` is still accepted and means expert (older files).
+
 ## 1. Project summary
 
 A live audience-review system for **Science Slam** events (4 regional slams + 1 final). Audience members and judges check in at the venue by scanning the QR code on their badge, then score each performance (marks out of 10) on their phone while the performance's review window is open. Admins run the event live (slam phases, review windows, extensions), volunteers handle check-in/out and registration lookup, and the system computes weighted marks and statistics.

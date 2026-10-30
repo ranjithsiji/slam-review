@@ -114,7 +114,7 @@ class ReviewService
                     throw new DomainException('no_open_window', 'Reviews are not open right now.', 409);
                 }
                 if ($attendee['user_type'] === 'judge' && service('scoring')->judging($slamId)['timing'] === 'end_of_slam') {
-                    throw new DomainException('judge_marks_offline', "Judges' marks for this slam are entered by the organisers after the slam.", 409);
+                    throw new DomainException('judge_marks_offline', "Experts' marks for this slam are entered by the organisers after the slam.", 409);
                 }
                 // Lock the window row so a concurrent close cannot interleave.
                 $window = Db::row(

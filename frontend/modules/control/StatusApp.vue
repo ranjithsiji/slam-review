@@ -87,7 +87,7 @@
       <div class="col-12 col-md-4">
         <div class="card card-accent accent-blue h-100"><div class="card-body d-flex align-items-center gap-3">
           <span class="live-dot" :class="{ on: st.presence.users.inside > 0 }" aria-hidden="true"></span>
-          <div class="flex-fill"><div class="text-secondary small text-uppercase fw-bold">Reviewers live now</div>
+          <div class="flex-fill"><div class="text-secondary small text-uppercase fw-bold">Judges live now</div>
             <div class="h1 m-0">{{ st.presence.users.inside }}<span class="fs-4 text-secondary fw-normal"> of {{ st.presence.users.total }} registered</span></div>
             <div class="small text-secondary">{{ st.presence.users.phone }} with their phone linked</div></div>
         </div></div>
@@ -95,7 +95,7 @@
       <div class="col-12 col-md-4">
         <div class="card card-accent accent-purple h-100"><div class="card-body d-flex align-items-center gap-3">
           <span class="live-dot" :class="{ on: st.presence.judges.inside > 0 }" aria-hidden="true"></span>
-          <div class="flex-fill"><div class="text-secondary small text-uppercase fw-bold">Judges live now</div>
+          <div class="flex-fill"><div class="text-secondary small text-uppercase fw-bold">Experts live now</div>
             <div class="h1 m-0">{{ st.presence.judges.inside }}<span class="fs-4 text-secondary fw-normal"> of {{ st.presence.judges.total }}</span></div>
             <div class="small text-secondary">{{ st.presence.judges.phone }} with their phone linked</div></div>
         </div></div>
@@ -156,7 +156,7 @@
                   <div class="d-flex align-items-center gap-3 mb-2">
                     <div class="h1 m-0">{{ checkedIn }}</div>
                     <div class="flex-fill">
-                      <div class="small text-secondary">of {{ st.counts.registered }} registered are inside ({{ st.counts.users_in }} users, {{ st.counts.judges_in }} judges)</div>
+                      <div class="small text-secondary">of {{ st.counts.registered }} registered are inside ({{ st.counts.users_in }} judges, {{ st.counts.judges_in }} experts)</div>
                       <div class="progress progress-sm mt-1"><div class="progress-bar bg-green" :style="{ width: pct(checkedIn, st.counts.registered) + '%' }"></div></div>
                     </div>
                   </div>
@@ -165,7 +165,7 @@
                 </div>
                 <div v-else-if="n.key === 'checkin_closed'" class="text-secondary">{{ checkedIn }} inside. Start the first performance when the presenter is ready. Late arrivals: volunteers or admins use Late check-in.</div>
                 <div v-else-if="n.key === 'revision' && st.revision" class="d-flex align-items-center gap-3">
-                  <div class="flex-fill text-secondary">{{ st.counts.revised }} reviewer(s) have edited their scores so far.</div>
+                  <div class="flex-fill text-secondary">{{ st.counts.revised }} judge(s) have edited their scores so far.</div>
                   <div class="text-end"><Countdown :until="st.revision.closes_at" size="xl" /><div class="small text-secondary">closes {{ time(st.revision.closes_at) }}</div></div>
                 </div>
                 <div v-else class="text-secondary">{{ idleText }}</div>
@@ -257,9 +257,9 @@ const BEFORE = [
 ];
 const AFTER = [
   { key: 'reviews_complete', title: 'All reviews closed', phases: ['reviews_complete'], icon: 'phase.reviews_complete', plan: null, hint: 'Every performance has been reviewed or skipped.' },
-  { key: 'revision', title: 'Review edit', phases: ['revision'], icon: 'phase.revision', plan: null, hint: 'Reviewers can change the scores they gave.' },
+  { key: 'revision', title: 'Review edit', phases: ['revision'], icon: 'phase.revision', plan: null, hint: 'Judges can change the scores they gave.' },
   { key: 'revision_closed', title: 'Edit close', phases: ['revision_closed'], icon: 'phase.revision_closed', plan: null, hint: 'Scores are locked permanently.' },
-  { key: 'closed', title: 'Slam close', phases: ['closed'], icon: 'phase.closed', plan: 'closes_at', planLabel: 'hard stop', hint: 'Everyone is checked out; reviewers see a thank-you.' },
+  { key: 'closed', title: 'Slam close', phases: ['closed'], icon: 'phase.closed', plan: 'closes_at', planLabel: 'hard stop', hint: 'Everyone is checked out; judges see a thank-you.' },
   { key: 'marks_calculated', title: 'Marks calculated', phases: ['marks_calculated'], icon: 'phase.marks_calculated', plan: null, hint: 'The official marks snapshot is made.' },
   { key: 'ended', title: 'Event ends', phases: ['ended'], icon: 'phase.ended', plan: 'event_ends_at', hint: 'Everything becomes read-only.' },
 ];
@@ -364,11 +364,11 @@ function stagePanel(n) {
   const turn = st.turnout && st.turnout.item_id === i.id ? st.turnout : null;
   return [
     { key: 'open', label: 'Open review', icon: 'status.live', cls: 'btn-primary', enabled: !open, done: open, run: () => openItem(i),
-      hint: open ? 'Reviewers can vote now' : performing ? 'The speaker is still on stage; you can let reviewers start voting' : 'Let reviewers vote on this talk' },
+      hint: open ? 'Judges can vote now' : performing ? 'The speaker is still on stage; you can let judges start voting' : 'Let judges vote on this talk' },
     { key: 'end', label: 'Close presentation', icon: 'action.stop', cls: 'btn-warning', enabled: performing, done: !performing, run: () => endPerformance(i),
       hint: performing ? 'Press when the speaker has finished' : 'The presentation is over' },
     { key: 'close', label: 'Close review', icon: 'action.stop', cls: 'btn-danger', enabled: open, done: false, turn,
-      run: () => confirmApi('window/close', 'Close this review window now?', 'Reviewers can no longer submit for this performance.', { note: 'closed by admin' }),
+      run: () => confirmApi('window/close', 'Close this review window now?', 'Judges can no longer submit for this performance.', { note: 'closed by admin' }),
       hint: open ? 'Voting is live; closes by itself at the countdown' : 'Opens with the button above' },
   ];
 }
@@ -433,7 +433,7 @@ function stepActions(n) {
       add('Close & lock scores', 'btn-outline-danger', () => confirmApi('revision/close', 'Close the edit window now?', 'Scores will be locked permanently.'), 'phase.revision_closed');
       break;
     case 'revision_closed':
-      add('Close slam', 'btn-primary', () => confirmApi('close', 'Close the slam now?', 'Everyone still checked in is checked out; reviewer screens end with a thank-you. Marks are calculated next.'), 'phase.closed');
+      add('Close slam', 'btn-primary', () => confirmApi('close', 'Close the slam now?', 'Everyone still checked in is checked out; judge screens end with a thank-you. Marks are calculated next.'), 'phase.closed');
       break;
     case 'closed': add('Calculate marks', 'btn-primary', calcMarks, 'action.calculate'); break;
     case 'marks_calculated':
@@ -462,7 +462,7 @@ const now = computed(() => {
   })();
   if (st.paused) {
     return {
-      ...base, tone: 'paused', icon: 'action.hold', kicker: 'Paused', title: 'The slam is paused', subtitle: st.paused.reason ? `Reason: ${st.paused.reason}` : 'All timers are stopped and reviewers cannot submit.',
+      ...base, tone: 'paused', icon: 'action.hold', kicker: 'Paused', title: 'The slam is paused', subtitle: st.paused.reason ? `Reason: ${st.paused.reason}` : 'All timers are stopped and judges cannot submit.',
       primary: { label: 'Resume', cls: 'btn-success', icon: 'action.resume', run: resume, primary: true },
       facts: ['On resume the paused time is added to the running timer and the schedule moves later by it.'],
     };

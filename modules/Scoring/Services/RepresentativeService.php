@@ -46,7 +46,7 @@ class RepresentativeService
     private function guard(array $slam, Actor $actor): void
     {
         if (! $actor->isAdmin()) {
-            throw new DomainException('forbidden', 'Only an admin can change the representatives.', 403);
+            throw new DomainException('forbidden', 'Only an admin can change the audience representatives.', 403);
         }
         if (($reason = $this->lockedReason($slam)) !== null) {
             throw new DomainException('forbidden_transition', $reason, 409);
@@ -63,7 +63,7 @@ class RepresentativeService
     public function draw(int $slamId, int $count, Actor $actor, ?int $seed = null): array
     {
         if ($count < 1 || $count > 1000) {
-            throw new DomainException('validation', 'Choose between 1 and 1000 representatives.', 422, ['count' => 'Between 1 and 1000.']);
+            throw new DomainException('validation', 'Choose between 1 and 1000 audience representatives.', 422, ['count' => 'Between 1 and 1000.']);
         }
         $seed ??= random_int(1, 2_000_000_000);
 
@@ -100,10 +100,10 @@ class RepresentativeService
             $slam = Db::lockSlam($slamId);
             $this->guard($slam, $actor);
             if (! in_array($attendeeId, service('scoring')->completeReviewerIds($slamId), true)) {
-                throw new DomainException('not_eligible', 'Only audience users who reviewed every performance can be representatives.', 422);
+                throw new DomainException('not_eligible', 'Only judges who reviewed every performance can be audience representatives.', 422);
             }
             if (in_array($attendeeId, $this->ids($slamId), true)) {
-                throw new DomainException('already_selected', 'This person is already a representative.', 409);
+                throw new DomainException('already_selected', 'This person is already an audience representative.', 409);
             }
             $db->table('audience_representatives')->insert([
                 'slam_id' => $slamId, 'attendee_id' => $attendeeId, 'source' => 'manual', 'added_by' => $actor->id, 'created_at' => Clock::db(),
@@ -119,7 +119,7 @@ class RepresentativeService
             $this->guard($slam, $actor);
             $db->table('audience_representatives')->where('slam_id', $slamId)->where('attendee_id', $attendeeId)->delete();
             if ($db->affectedRows() === 0) {
-                throw new DomainException('not_found', 'This person is not a representative.', 404);
+                throw new DomainException('not_found', 'This person is not an audience representative.', 404);
             }
             service('activityLog')->log($actor, 'representatives.removed', [
                 'slam_id' => $slamId, 'target_type' => 'attendee', 'target_id' => $attendeeId, 'reason' => $reason !== null && trim($reason) !== '' ? mb_substr(trim($reason), 0, 255) : null,

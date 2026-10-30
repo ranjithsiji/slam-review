@@ -63,8 +63,8 @@ class ResultsPdfService
             . '<div class="band"><h1>Kerala Science Slam 2026: Final</h1><div class="sub">' . $h($slam['name']) . ' · ' . $h($date) . ' · ' . $h($slam['venue_name']) . ($slam['city'] ? ', ' . $h($slam['city']) : '') . '</div></div>'
             . '<h2>Final result</h2>' . $podium
             . '<h3>Complete ranking (marks out of 100)</h3>'
-            . '<table class="r"><tr><th class="c">#</th><th>PRESENTER AND TALK</th><th class="n">GENERAL</th><th class="n">REP.</th><th class="n">JUDGES</th><th class="n">FINAL</th></tr>' . $rows . '</table>'
-            . '<table class="sign"><tr><td>Coordinator</td><td>Chief judge</td><td>Organiser</td></tr></table>'
+            . '<table class="r"><tr><th class="c">#</th><th>PRESENTER AND TALK</th><th class="n">JUDGES</th><th class="n">AUD. REP.</th><th class="n">EXPERTS</th><th class="n">FINAL</th></tr>' . $rows . '</table>'
+            . '<table class="sign"><tr><td>Coordinator</td><td>Chief of experts</td><td>Organiser</td></tr></table>'
             . '<div class="foot">Printed ' . $h(Clock::local(Clock::db(), 'd M Y, H:i')) . ' · Marks out of 100.</div>';
         $pdf = PdfFactory::make(['margin_left' => 12, 'margin_right' => 12, 'margin_top' => 12, 'margin_bottom' => 12]);
         $pdf->SetTitle('Final result — ' . $slam['name']);
@@ -102,7 +102,7 @@ class ResultsPdfService
             . '<h2>Result: top ' . $n . ' presenters</h2>'
             . '<div class="lead">' . $h($kind) . ' · names in alphabetical order' . ($withMarks ? ', with marks out of 100' : '') . '</div>'
             . '<table class="r"><tr><th>PRESENTER</th><th>TALK</th>' . ($withMarks ? '<th style="text-align:right">MARKS /100</th>' : '') . '</tr>' . $rows . '</table>'
-            . '<table class="sign"><tr><td>Coordinator</td><td>Chief judge</td><td>Organiser</td></tr></table>'
+            . '<table class="sign"><tr><td>Coordinator</td><td>Chief of experts</td><td>Organiser</td></tr></table>'
             . '<div class="foot">Printed ' . $h(Clock::local(Clock::db(), 'd M Y, H:i')) . ' · Science Slam results</div>';
 
         $pdf = PdfFactory::make(['margin_left' => 12, 'margin_right' => 12, 'margin_top' => 12, 'margin_bottom' => 12]);

@@ -21,7 +21,7 @@ class ParticipantsController extends BaseController
         $asked = $this->request->getGet('slam');
         $id    = service('slams')->currentId(is_numeric($asked) ? (int) $asked : null);
         if ($id === null) {
-            return redirect()->to(site_url('admin/slams'))->with('info', 'Create a slam first; reviewers, judges and representatives belong to a slam.');
+            return redirect()->to(site_url('admin/slams'))->with('info', 'Create a slam first; judges, experts and audience representatives belong to a slam.');
         }
 
         return redirect()->to(site_url("admin/slams/{$id}/{$kind}"));
@@ -34,7 +34,7 @@ class ParticipantsController extends BaseController
         $reps   = service('representatives');
 
         return $this->render('Modules\Attendees\Views\reviewers', [
-            'title' => 'Reviewers — ' . $slam['name'], 'slam' => $slam,
+            'title' => 'Judges — ' . $slam['name'], 'slam' => $slam,
             'counts' => [
                 'users'          => (int) Db::value("SELECT COUNT(*) FROM attendees WHERE slam_id = ? AND user_type = 'user' AND is_active = 1", [$slamId]),
                 'checked_in'     => (int) Db::value("SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ? AND a.user_type = 'user' AND c.checked_out_at IS NULL", [$slamId]),
@@ -53,7 +53,7 @@ class ParticipantsController extends BaseController
         $scores = service('scoring');
 
         return $this->render('Modules\Attendees\Views\judges', [
-            'title' => 'Judges — ' . $slam['name'], 'slam' => $slam,
+            'title' => 'Experts — ' . $slam['name'], 'slam' => $slam,
             'counts' => [
                 'judges'     => (int) Db::value("SELECT COUNT(*) FROM attendees WHERE slam_id = ? AND user_type = 'judge' AND is_active = 1", [$slamId]),
                 'checked_in' => (int) Db::value("SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ? AND a.user_type = 'judge' AND c.checked_out_at IS NULL", [$slamId]),

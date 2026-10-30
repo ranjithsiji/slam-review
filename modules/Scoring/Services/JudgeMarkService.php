@@ -25,12 +25,12 @@ class JudgeMarkService
     public function lockedReason(array $slam): ?string
     {
         if (service('scoring')->judging((int) $slam['id'])['timing'] !== 'end_of_slam') {
-            return 'Judges mark live on their phones for this slam (Mark configuration).';
+            return 'Experts mark live on their phones for this slam (Mark configuration).';
         }
 
         return match (true) {
-            $slam['status'] === 'ended' => 'The event has ended; judges\' marks are final.',
-            ! in_array($slam['status'], self::ENTRY_PHASES, true) => 'Judges\' marks can be entered once every performance has been reviewed (All Review Close).',
+            $slam['status'] === 'ended' => 'The event has ended; experts\' marks are final.',
+            ! in_array($slam['status'], self::ENTRY_PHASES, true) => 'Experts\' marks can be entered once every performance has been reviewed (All Review Close).',
             default => null,
         };
     }
@@ -71,7 +71,7 @@ class JudgeMarkService
     public function save(int $slamId, int $judgeId, array $marks, Actor $actor): array
     {
         if (! $actor->isAdmin()) {
-            throw new DomainException('forbidden', 'Only an admin can enter judges\' marks.', 403);
+            throw new DomainException('forbidden', 'Only an admin can enter experts\' marks.', 403);
         }
 
         $result = Db::tx(function ($db) use ($slamId, $judgeId, $marks, $actor): array {
@@ -80,7 +80,7 @@ class JudgeMarkService
                 throw new DomainException('forbidden_transition', $why, 409);
             }
             $judge = Db::row("SELECT * FROM attendees WHERE id = ? AND slam_id = ? AND user_type = 'judge'", [$judgeId, $slamId])
-                ?? throw new DomainException('not_found', 'Judge not found in this slam.', 404);
+                ?? throw new DomainException('not_found', 'Expert not found in this slam.', 404);
             $items  = array_flip(service('scoring')->openedItemIds($slamId));
             $total  = (int) service('questions')->totalQuestion($slamId)['id'];
             $errors = [];

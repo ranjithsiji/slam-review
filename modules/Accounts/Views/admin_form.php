@@ -45,7 +45,7 @@
                     <option value="<?= $s['id'] ?>" <?= $sel ? 'selected' : '' ?>><?= esc($s['name']) ?></option>
                 <?php endforeach ?>
             </select>
-            <div class="form-hint">An operator prepares the slam (presenters, judges, participants, schedule, times, weights) and runs it on the day (controls, check-ins, marks, scores). They cannot see other slams, settings or other users.</div>
+            <div class="form-hint">An operator prepares the slam (presenters, experts, participants, schedule, times, weights) and runs it on the day (controls, check-ins, marks, scores). They cannot see other slams, settings or other users.</div>
             <?= field_error($errors, 'slam_id') ?>
         </div>
         <?php if (! $row): ?>

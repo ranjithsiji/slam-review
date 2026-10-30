@@ -252,7 +252,7 @@ class LiveStateService
             $status === 'reviewing' && ! empty($live['presenting']) => ['On stage: ' . ($live['presenting']['presenter_name'] ?? 'performance') . ' (review not open yet)', null],
             $status === 'reviewing' && ($cur['kind'] ?? null) === 'break' => [($cur['label'] ?? 'Break') . ' in progress', $cur['ends_at'] ?? null],
             $status === 'reviewing' => ['Between performances' . (($n = $live['next']['presenter_name'] ?? null) ? ': next is ' . $n : ''), null],
-            $status === 'revision' => ['Reviewers are editing their scores', $live['revision']['closes_at'] ?? null],
+            $status === 'revision' => ['Judges are editing their scores', $live['revision']['closes_at'] ?? null],
             $status === 'checkin_open' => ["Gates are open: {$inside} checked in", $slam['checkin_closes_at'] ? Clock::iso($slam['checkin_closes_at']) : null],
             $status === 'checkin_closed' => ["Gates closed, {$inside} inside" . (($n = $live['next']['presenter_name'] ?? null) ? ". First up: {$n}" : ''), null],
             $status === 'open' => ['Slam is open; waiting to open the gates', null],

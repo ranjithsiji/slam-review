@@ -163,7 +163,7 @@ class SlamService
         if ((int) Db::value("SELECT COUNT(*) FROM schedule_items WHERE slam_id = ? AND item_type = 'performance' AND status <> 'skipped'", [$slamId]) === 0) {
             $missing[] = 'The schedule has no performances.';
         }
-        foreach (['user' => 'audience users', 'judge' => 'judges'] as $aud => $label) {
+        foreach (['user' => 'judges', 'judge' => 'experts'] as $aud => $label) {
             if ((int) Db::value('SELECT COUNT(*) FROM review_questions WHERE slam_id = ? AND audience = ? AND is_active = 1', [$slamId, $aud]) === 0) {
                 $missing[] = "No active review questions for {$label}.";
             }

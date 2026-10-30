@@ -55,7 +55,7 @@ class BadgePdfService
                     $svg   = $qr->svg($qr->badgeUrl($a['badge_id']));
                     $html .= '<td class="b"><div class="slam">' . esc($slam['name']) . '</div>'
                         . '<div class="name">' . esc($a['name']) . '</div>'
-                        . '<div class="type">' . ($a['user_type'] === 'judge' ? 'JUDGE' : 'USER') . '</div>'
+                        . '<div class="type">' . ($a['user_type'] === 'judge' ? 'EXPERT' : 'JUDGE') . '</div>'
                         . '<img src="data:image/svg+xml;base64,' . base64_encode($svg) . '" style="width:' . $qrSize . 'mm;height:' . $qrSize . 'mm" />'
                         . '<div class="id">' . esc($a['badge_id']) . '</div>'
                         . '<div class="url">' . esc($short) . '/checkin</div></td>';

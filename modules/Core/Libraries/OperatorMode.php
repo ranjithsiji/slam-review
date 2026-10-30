@@ -32,10 +32,10 @@ final class OperatorMode
     public const LINKS = [
         'overview' => ['Overview', '', 'nav.slams'], 'edit' => ['Times & details', '/edit', 'nav.schedule'],
         'presenters' => ['Presenters', '/presenters', 'nav.presenters'], 'schedule' => ['Schedule', '/schedule', 'nav.schedule'],
-        'judgelist' => ['Judges', '/judges', 'person.judge'], 'reviewers' => ['Reviewers & import', '/reviewers', 'person.user'],
+        'judgelist' => ['Experts', '/judges', 'person.judge'], 'reviewers' => ['Judges & import', '/reviewers', 'person.user'],
         'questions' => ['Questions', '/questions', 'nav.questions'], 'ads' => ['Break ads', '/ads', 'about.talk'], 'weights' => ['Mark weights', '/mark-config', 'nav.system'],
         'status' => ['Status & controls', '/status', 'nav.status'], 'checkins' => ['Check-ins', '/checkins', 'nav.checkins'], 'idle' => ['Not reviewing', '/not-reviewing', 'status.warning'],
-        'judges' => ["Judges' marks", '/judge-marks', 'person.judge'], 'paper' => ['Paper marks', '/paper-marks', 'action.edit'], 'representatives' => ['Representatives', '/representatives', 'nav.representatives'],
+        'judges' => ["Experts' marks", '/judge-marks', 'person.judge'], 'paper' => ['Paper marks', '/paper-marks', 'action.edit'], 'representatives' => ['Audience representatives', '/representatives', 'nav.representatives'],
         'marks' => ['Calculate marks', '/marks', 'nav.marks'], 'scores' => ['Final scores', '/scores', 'nav.marks'], 'leaderboard' => ['Leaderboard', '/leaderboard', 'nav.marks'], 'stats' => ['Statistics', '/stats', 'nav.stats'],
     ];
 

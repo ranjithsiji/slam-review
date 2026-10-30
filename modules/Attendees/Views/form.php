@@ -18,12 +18,12 @@
         <div class="mb-3">
             <label class="form-label">Role</label>
             <div class="btn-group w-100" role="group">
-                <?php foreach (['user' => 'Reviewer', 'judge' => 'Judge'] as $k => $l): ?>
+                <?php foreach (['user' => 'Judge', 'judge' => 'Expert'] as $k => $l): ?>
                     <input type="radio" class="btn-check" name="user_type" id="t-<?= $k ?>" value="<?= $k ?>" <?= old('user_type', $a['user_type']) === $k ? 'checked' : '' ?>>
                     <label for="t-<?= $k ?>" class="btn"><?= icon($k === 'judge' ? 'person.judge' : 'person.user') ?><?= $l ?></label>
                 <?php endforeach ?>
             </div>
-            <div class="form-hint">Everyone in the audience is a reviewer. Only judges are different: they have their own question set and screen.</div>
+            <div class="form-hint">Everyone in the audience is a judge. Only experts are different: they have their own question set and screen.</div>
         </div>
         <?php else: ?>
         <input type="hidden" name="user_type" value="<?= esc($defaultType ?? 'user', 'attr') ?>">

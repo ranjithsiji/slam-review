@@ -5,7 +5,7 @@
 <form class="card card-accent accent-blue" method="post" action="<?= site_url('admin/attendees/import/preview') ?>" enctype="multipart/form-data" data-once>
     <?= csrf_field() ?>
     <input type="hidden" name="slam_id" value="<?= (int) $slam['id'] ?>">
-    <div class="card-header"><h3 class="card-title">Import reviewers and judges (step 1 of 2: check the file)</h3></div>
+    <div class="card-header"><h3 class="card-title">Import judges and experts (step 1 of 2: check the file)</h3></div>
     <div class="card-body">
         <p>Upload a CSV with a header row. Nothing is saved until you confirm on the next screen. Importing never checks anyone in.</p>
         <div class="table-responsive mb-3">
@@ -15,7 +15,7 @@
                     <tr><td><code>name</code></td><td>yes</td><td>2–120 characters; Malayalam is fine</td></tr>
                     <tr><td><code>mobile</code></td><td>yes</td><td>10 digits (+91, spaces, dashes and a leading 0 are removed)</td></tr>
                     <tr><td><code>email</code></td><td>no</td><td>valid email</td></tr>
-                    <tr><td><code>type</code></td><td>no</td><td><code>user</code> or <code>judge</code> (blank = user)</td></tr>
+                    <tr><td><code>type</code></td><td>no</td><td><code>user</code> (a judge from the audience; also when blank) or <code>expert</code> (older files may say <code>judge</code>, which also means expert)</td></tr>
                     <tr><td><code>badge_id</code></td><td>no</td><td>blank = generated; else 2 letters (no I, O, Q, S, Z) + 5 digits</td></tr>
                 </tbody>
             </table>

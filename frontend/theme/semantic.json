@@ -33,8 +33,8 @@
     "official":    {"color": "green",  "icon": "status.ok", "label": "Official"}
   },
   "user_type": {
-    "user":  {"color": "blue",   "icon": "person.user", "label": "User"},
-    "judge": {"color": "purple", "icon": "person.judge", "label": "Judge"}
+    "user":  {"color": "blue",   "icon": "person.user", "label": "Judge"},
+    "judge": {"color": "purple", "icon": "person.judge", "label": "Expert"}
   },
   "public": {
     "upcoming": {"color": "blue",      "icon": "phase.scheduled", "label": "Upcoming"},

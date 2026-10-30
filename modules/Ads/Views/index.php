@@ -10,7 +10,7 @@
             <?php if ($e): ?><input type="hidden" name="id" value="<?= (int) $e['id'] ?>"><?php endif ?>
             <div class="card-header"><h3 class="card-title"><?= icon('action.add', 'me-2') ?><?= $e ? 'Edit ad' : 'New ad' ?></h3></div>
             <div class="card-body">
-                <p class="small text-secondary">Ads are shown to the audience (reviewers' phones and the public page) <strong>only while a tea or lunch break is running</strong>, rotating through the active ones.</p>
+                <p class="small text-secondary">Ads are shown to the audience (judges' phones and the public page) <strong>only while a tea or lunch break is running</strong>, rotating through the active ones.</p>
                 <div class="mb-3">
                     <label class="form-label">Type</label>
                     <div class="btn-group w-100" role="group">

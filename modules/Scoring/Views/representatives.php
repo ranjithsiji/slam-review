@@ -16,9 +16,9 @@ $cols = [
 <div class="row row-cards mb-3">
     <div class="col-12 col-lg-7">
         <div class="card h-100 card-accent accent-pink">
-            <div class="card-header"><h3 class="card-title"><?= icon('action.shuffle', 'me-2') ?>Draw representatives</h3></div>
+            <div class="card-header"><h3 class="card-title"><?= icon('action.shuffle', 'me-2') ?>Draw audience representatives</h3></div>
             <div class="card-body">
-                <p class="text-secondary">Representatives are drawn at random from the audience users who reviewed <strong>every</strong> performance. They form their own scoring group with its own weight; their reviews no longer count in the general reviewers' average. After the draw you can add or remove people below.</p>
+                <p class="text-secondary">Audience representatives are drawn at random from the judges who reviewed <strong>every</strong> performance. They form their own scoring group with its own weight; their reviews no longer count in the judges' average. After the draw you can add or remove people below.</p>
                 <?php if ($locked !== null): ?>
                     <div class="alert alert-info mb-3"><?= icon('status.lock', 'me-1') ?><?= esc($locked) ?></div>
                 <?php endif ?>
@@ -29,7 +29,7 @@ $cols = [
                     </div>
                     <div class="col-6 col-sm-8">
                         <button type="button" class="btn btn-primary w-100" data-api-post="<?= site_url("api/slams/{$sid}/representatives/draw") ?>" data-form="#draw-form"
-                            data-title="Draw representatives" data-confirm="<?= $selected > 0 ? 'This replaces the current list of ' . (int) $selected . ' representative(s), including people you added by hand.' : 'People are picked at random from everyone who reviewed every performance.' ?>"
+                            data-title="Draw representatives" data-confirm="<?= $selected > 0 ? 'This replaces the current list of ' . (int) $selected . ' audience representative(s), including people you added by hand.' : 'People are picked at random from everyone who reviewed every performance.' ?>"
                             data-reload <?= $locked || $pool === 0 ? 'disabled' : '' ?>><?= icon('action.shuffle') ?><?= $selected > 0 ? 'Draw again' : 'Draw at random' ?></button>
                     </div>
                 </form>
@@ -43,23 +43,23 @@ $cols = [
         <div class="card h-100 card-accent-left accent-pink"><div class="card-body">
             <div class="row g-3 text-center">
                 <div class="col-6"><div class="h1 mb-0"><?= (int) $pool ?></div><div class="text-secondary small">reviewed every performance</div></div>
-                <div class="col-6"><div class="h1 mb-0"><?= (int) $selected ?></div><div class="text-secondary small">representatives</div></div>
+                <div class="col-6"><div class="h1 mb-0"><?= (int) $selected ?></div><div class="text-secondary small">audience representatives</div></div>
             </div>
-            <?php if ($selected > 0 && $selected < $count): ?><div class="alert alert-warning mt-3 mb-0"><?= icon('status.warning', 'me-1') ?>Fewer representatives than requested (<?= (int) $count ?>).</div><?php endif ?>
+            <?php if ($selected > 0 && $selected < $count): ?><div class="alert alert-warning mt-3 mb-0"><?= icon('status.warning', 'me-1') ?>Fewer audience representatives than requested (<?= (int) $count ?>).</div><?php endif ?>
             <p class="small text-secondary mt-3 mb-0">Changes take effect in the next marks calculation; existing mark runs never change. <a href="<?= site_url("admin/slams/{$sid}/mark-config") ?>">Group weights</a></p>
         </div></div>
     </div>
 </div>
 
 <div class="card mb-3 card-accent accent-pink">
-    <div class="card-header"><h3 class="card-title"><?= icon('nav.representatives', 'me-2') ?>Selected representatives</h3><div class="card-actions"><a class="btn btn-sm" href="#" id="reps-export"><?= icon('action.export') ?>Export CSV</a></div></div>
+    <div class="card-header"><h3 class="card-title"><?= icon('nav.representatives', 'me-2') ?>Selected audience representatives</h3><div class="card-actions"><a class="btn btn-sm" href="#" id="reps-export"><?= icon('action.export') ?>Export CSV</a></div></div>
     <div class="card-body">
         <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([
             'endpoint' => 'complete-reviewers', 'filters' => ['slam_id' => $sid, 'panel' => 'selected'], 'exportLink' => '#reps-export', 'order' => [[1, 'asc']],
-            'empty' => 'No representatives yet.',
+            'empty' => 'No audience representatives yet.',
             'columns' => [...$cols, ['data' => 'rep_source', 'title' => 'How', 'orderable' => false, 'priority' => 3]],
             'actions' => $locked ? [] : [[
-                'label' => 'Remove from representatives', 'icon' => 'action.delete', 'danger' => true, 'reason' => true,
+                'label' => 'Remove from audience representatives', 'icon' => 'action.delete', 'danger' => true, 'reason' => true,
                 'post' => "/api/slams/{$sid}/representatives/{id}/remove", 'success' => 'Removed.', 'reloadPage' => true,
             ]],
         ]), 'attr') ?>'></table>
@@ -69,13 +69,13 @@ $cols = [
 <div class="card card-accent accent-orange">
     <div class="card-header"><h3 class="card-title">Everyone who reviewed every performance</h3><div class="card-actions"><a class="btn btn-sm" href="#" id="pool-export"><?= icon('action.export') ?>Export CSV</a></div></div>
     <div class="card-body">
-        <p class="small text-secondary">Audience users only (judges are their own group). Performances that were skipped do not count. This list is also usable for prizes or a raffle.</p>
+        <p class="small text-secondary">Judges only (experts are their own group). Performances that were skipped do not count. This list is also usable for prizes or a raffle.</p>
         <table class="table table-vcenter w-100" data-dt='<?= esc(json_encode([
             'endpoint' => 'complete-reviewers', 'filters' => ['slam_id' => $sid, 'panel' => 'all'], 'exportLink' => '#pool-export', 'order' => [[1, 'asc']],
             'empty' => 'Nobody has reviewed every performance yet.',
-            'columns' => [...$cols, ['data' => 'is_representative', 'title' => 'Representative', 'render' => 'bool', 'priority' => 3]],
+            'columns' => [...$cols, ['data' => 'is_representative', 'title' => 'Audience representative', 'render' => 'bool', 'priority' => 3]],
             'actions' => $locked ? [] : [[
-                'label' => 'Add to representatives', 'icon' => 'action.add', 'when' => '!is_representative',
+                'label' => 'Add to audience representatives', 'icon' => 'action.add', 'when' => '!is_representative',
                 'post' => "/api/slams/{$sid}/representatives/{id}/add", 'success' => 'Added.', 'reloadPage' => true,
             ]],
         ]), 'attr') ?>'></table>

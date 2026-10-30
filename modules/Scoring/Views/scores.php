@@ -23,7 +23,7 @@ $ranked = count(array_filter($rows, static fn ($r) => $r['rank'] !== null));
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     <?= $official ? '<span class="badge bg-green-lt">' . icon('status.ok', 'icon-inline me-1') . 'Official marks</span>' : '<span class="badge bg-orange-lt">' . icon('status.warning', 'icon-inline me-1') . 'Provisional: not final until the marks are calculated</span>' ?>
     <span class="small text-secondary">
-        Weights: General reviewers <?= $n((float) $weights['w_general'], 0) ?>% · Representatives <?= $n((float) $weights['w_representative'], 0) ?>% · Judges <?= $n((float) $weights['w_judge'], 0) ?>%.
+        Weights: Judges <?= $n((float) $weights['w_general'], 0) ?>% · Audience representatives <?= $n((float) $weights['w_representative'], 0) ?>% · Experts <?= $n((float) $weights['w_judge'], 0) ?>%.
         Open a presenter to see the three groups' votes.
     </span>
     <a class="btn btn-sm ms-auto" href="<?= site_url('admin/slams/' . (int) $slam['id'] . '/marks') ?>"><?= icon('nav.marks') ?>Full calculation</a>

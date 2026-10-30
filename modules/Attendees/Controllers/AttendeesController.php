@@ -34,7 +34,7 @@ class AttendeesController extends BaseController
         $type = $this->request->getGet('type');
 
         return $this->render('Modules\Attendees\Views\form', [
-            'title' => $type === 'judge' ? 'Add judge' : 'Add reviewer', 'slam' => service('slams')->find($slamId), 'a' => null,
+            'title' => $type === 'judge' ? 'Add expert' : 'Add judge', 'slam' => service('slams')->find($slamId), 'a' => null,
             'defaultType' => $type === 'judge' ? 'judge' : 'user', 'back' => (string) ($this->request->getGet('back') ?? ($type === 'judge' ? 'judges' : 'reviewers')),
         ]);
     }
@@ -81,7 +81,7 @@ class AttendeesController extends BaseController
 
     public function importForm(int $slamId): string
     {
-        return $this->render('Modules\Attendees\Views\import', ['title' => 'Import reviewers and judges', 'slam' => service('slams')->find($slamId)]);
+        return $this->render('Modules\Attendees\Views\import', ['title' => 'Import judges and experts', 'slam' => service('slams')->find($slamId)]);
     }
 
     public function template(): ResponseInterface

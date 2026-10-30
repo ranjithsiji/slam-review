@@ -15,7 +15,7 @@ $entered  = array_sum(array_map('count', $marks));
 ?>
 <div class="card mb-3">
     <div class="card-body">
-        <p class="mb-2">For this slam, judges mark on paper and you enter each judge's <strong>consolidated mark out of 10</strong> per performance here (one decimal allowed, e.g. 7.5; no 0). Leave a box empty for no mark; clearing a saved mark removes it.</p>
+        <p class="mb-2">For this slam, experts mark on paper and you enter each expert's <strong>consolidated mark out of 10</strong> per performance here (one decimal allowed, e.g. 7.5; no 0). Leave a box empty for no mark; clearing a saved mark removes it.</p>
         <div class="d-flex flex-wrap gap-3 align-items-center">
             <span class="badge <?= $entered === $expected && $expected > 0 ? 'bg-green-lt' : 'bg-orange-lt' ?>"><?= (int) $entered ?> of <?= (int) $expected ?> marks entered</span>
             <?php if ($run): ?><span class="small text-secondary"><?= icon('status.info', 'icon-inline me-1') ?>Marks were last calculated <?= esc(local_time($run['calculated_at'], 'd M H:i')) ?>. After entering marks, <a href="<?= site_url("admin/slams/{$sid}/marks") ?>">recalculate</a>.</span><?php endif ?>
@@ -25,14 +25,14 @@ $entered  = array_sum(array_map('count', $marks));
 </div>
 
 <?php if ($judges === []): ?>
-    <div class="empty"><p class="empty-title">No judges in this slam</p><p class="empty-subtitle text-secondary">Add attendees with type "judge" on the Attendees page.</p></div>
+    <div class="empty"><p class="empty-title">No experts in this slam</p><p class="empty-subtitle text-secondary">Add them on the Experts page (or import a CSV with type "expert").</p></div>
 <?php elseif ($items === []): ?>
     <div class="empty"><p class="empty-title">No performances have run yet</p><p class="empty-subtitle text-secondary">Marks can be entered for performances whose review window was opened.</p></div>
 <?php else: ?>
 <div class="row row-cards">
     <div class="col-12 col-lg-5">
         <form method="get" class="mb-3">
-            <label class="form-label" for="judge">Judge</label>
+            <label class="form-label" for="judge">Expert</label>
             <select id="judge" name="judge" class="form-select" data-autosubmit>
                 <?php foreach ($judges as $j): $n = count($marks[(int) $j['id']] ?? []); ?>
                     <option value="<?= (int) $j['id'] ?>" <?= (int) $j['id'] === $judge ? 'selected' : '' ?>><?= esc($j['name']) ?> (<?= $n ?>/<?= count($items) ?>)</option>
@@ -69,7 +69,7 @@ $entered  = array_sum(array_map('count', $marks));
     </div>
     <div class="col-12 col-lg-7">
         <div class="card card-accent accent-orange">
-            <div class="card-header"><h3 class="card-title">All judges' marks</h3></div>
+            <div class="card-header"><h3 class="card-title">All experts' marks</h3></div>
             <div class="table-responsive">
                 <table class="table table-vcenter card-table table-sm">
                     <thead><tr><th>Performance</th><?php foreach ($judges as $j): ?><th class="text-end"><a href="?judge=<?= (int) $j['id'] ?>" class="ml-text"><?= esc($j['name']) ?></a></th><?php endforeach ?><th class="text-end">Average</th></tr></thead>

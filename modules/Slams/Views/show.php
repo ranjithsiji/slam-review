@@ -12,7 +12,7 @@
 <!-- Row 1: the numbers, equal-width cards across the full width. -->
 <div class="row row-cards mb-3">
     <?php foreach ([
-        ['Users', $counts['users'], 'person.user', 'blue'], ['Judges', $counts['judges'], 'person.judge', 'purple'],
+        ['Judges', $counts['users'], 'person.user', 'blue'], ['Experts', $counts['judges'], 'person.judge', 'purple'],
         ['Checked in', $counts['checked_in'], 'nav.checkins', 'green'], ['Performances', $counts['performances'], 'nav.presenters', 'orange'],
         ['Reviews', $counts['reviews'], 'nav.questions', 'azure'],
     ] as [$label, $n, $ic, $colour]): ?>

@@ -24,7 +24,7 @@ $this->setVar('narrow', true); $this->setVar('entry', 'frontend/entries/checkin.
         <div class="text-secondary small text-uppercase fw-bold mb-1"><?= esc($badge['slam_name']) ?></div>
         <div class="small text-secondary mb-3"><?= esc(local_time($badge['opens_at'], 'D, d M Y')) ?> · <?= esc($badge['venue_name']) ?></div>
         <h2 class="h2 ml-text mb-1"><?= esc($badge['name']) ?></h2>
-        <span class="badge <?= $badge['user_type'] === 'judge' ? 'bg-purple-lt' : 'bg-blue-lt' ?> mb-3"><?= $badge['user_type'] === 'judge' ? 'JUDGE' : 'AUDIENCE' ?></span>
+        <span class="badge <?= $badge['user_type'] === 'judge' ? 'bg-purple-lt' : 'bg-blue-lt' ?> mb-3"><?= $badge['user_type'] === 'judge' ? 'EXPERT' : 'JUDGE' ?></span>
         <div class="badge-qr mx-auto" role="img" aria-label="QR code for <?= esc($badge['badge_id'], 'attr') ?>"><?= $qrSvg ?></div>
         <div class="badge-id mt-2"><?= esc($badge['badge_id']) ?></div>
         <p class="small text-secondary mt-2 mb-0">Show this QR code at the entrance, or scan it with your phone camera to check in when the gates open.</p>

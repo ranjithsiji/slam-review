@@ -38,7 +38,7 @@
     <div class="card-header"><h3 class="card-title"><Icon name="status.live" cls="me-1" />Phones waiting for you ({{ st.waiting.length }})</h3></div>
     <div class="list-group list-group-flush">
       <div v-for="w in st.waiting" :key="w.id" class="list-group-item d-flex flex-wrap align-items-center gap-2">
-        <div class="me-auto min-w-0"><div class="fw-bold ml-text">{{ w.name }}</div><div class="small text-secondary">{{ w.badge_id }} · {{ w.mobile }}<span v-if="w.user_type === 'judge'"> · Judge</span></div></div>
+        <div class="me-auto min-w-0"><div class="fw-bold ml-text">{{ w.name }}</div><div class="small text-secondary">{{ w.badge_id }} · {{ w.mobile }}<span v-if="w.user_type === 'judge'"> · Expert</span></div></div>
         <span class="badge bg-orange-lt fs-4" title="The code on their phone">{{ w.code }}</span>
         <button type="button" class="btn btn-primary" :disabled="busy || !lateOpen" @click="approve(w)"><Icon name="status.ok" />Allow</button>
       </div>
@@ -164,7 +164,7 @@ async function doCheckin(body) {
   busy.value = true;
   try {
     const res = await post('/api/volunteer/checkin', { ...body, slam_id: boot.slam_id });
-    const who = `${res.attendee.badge_id} · ${res.attendee.user_type === 'judge' ? 'Judge' : 'User'}`;
+    const who = `${res.attendee.badge_id} · ${res.attendee.user_type === 'judge' ? 'Expert' : 'Judge'}`;
     const ph = res.phone || {};
     result.value = {
       ok: true, title: res.attendee.name,

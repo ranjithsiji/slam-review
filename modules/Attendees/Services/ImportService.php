@@ -22,7 +22,7 @@ class ImportService
 
     public static function template(): string
     {
-        return "name,mobile,email,type,badge_id\nAnu Thomas,9876543210,anu@example.com,user,\nഡോ. രാജൻ,+91 94470 12345,,judge,\n";
+        return "name,mobile,email,type,badge_id\nAnu Thomas,9876543210,anu@example.com,user,\nഡോ. രാജൻ,+91 94470 12345,,expert,\n";
     }
 
     /**
@@ -99,9 +99,10 @@ class ImportService
             $errs[] = 'invalid email';
         }
         $type = strtolower(trim($c['type'] ?? ''));
-        $type = $type === '' ? 'user' : $type;
+        // "expert" is the word used now; "judge" is still read as an expert (older files); blank or "user" = a judge from the audience.
+        $type = match ($type) { '' , 'user', 'audience' => 'user', 'expert', 'judge' => 'judge', default => $type };
         if (! in_array($type, ['user', 'judge'], true)) {
-            $errs[] = 'type must be user or judge';
+            $errs[] = 'type must be user (audience judge) or expert';
         }
         $badge = BadgeIdService::normalise($c['badge_id'] ?? '');
         if ($badge !== '' && ! BadgeIdService::isValidFormat($badge)) {

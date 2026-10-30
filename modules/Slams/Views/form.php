@@ -57,7 +57,7 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
                         <div class="col-6 mb-3"><label class="form-label" for="longitude">Longitude</label><input id="longitude" name="longitude" class="form-control<?= is_invalid($errors, 'longitude') ?>" inputmode="decimal" value="<?= esc($v('longitude')) ?>"></div>
                     </div>
                     <div class="mb-3"><label class="form-label" for="map_url">Map link</label><input id="map_url" name="map_url" type="url" class="form-control<?= is_invalid($errors, 'map_url') ?>" placeholder="https://maps.google.com/…" value="<?= esc($v('map_url')) ?>"><?= field_error($errors, 'map_url') ?></div>
-                    <h4 class="mt-4">Organiser contact <span class="text-secondary small fw-normal">(shown to reviewers, not public)</span></h4>
+                    <h4 class="mt-4">Organiser contact <span class="text-secondary small fw-normal">(shown to judges, not public)</span></h4>
                     <div class="row">
                         <div class="col-12 col-md-4 mb-3"><label class="form-label" for="contact_name">Name</label><input id="contact_name" name="contact_name" class="form-control" value="<?= esc($v('contact_name')) ?>"></div>
                         <div class="col-6 col-md-4 mb-3"><label class="form-label" for="contact_phone">Phone</label><input id="contact_phone" name="contact_phone" type="tel" class="form-control" value="<?= esc($v('contact_phone')) ?>"></div>

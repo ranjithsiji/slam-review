@@ -27,12 +27,12 @@
     </div>
     <div class="col-12 col-xl-6">
         <div class="card card-accent accent-purple mb-3">
-            <div class="card-header"><h3 class="card-title"><?= icon('person.judge', 'me-2') ?>Judges' paper marks</h3></div>
+            <div class="card-header"><h3 class="card-title"><?= icon('person.judge', 'me-2') ?>Experts' paper marks</h3></div>
             <div class="card-body">
                 <?php if ($judging['timing'] === 'end_of_slam'): ?>
-                    <p>Judges' marks are written on paper for this slam. Enter each judge's mark for every talk on the <a href="<?= site_url("admin/slams/{$sid}/judge-marks") ?>">Judges' marks</a> screen (a mark from 0.1 to 10, one decimal), or import them below.</p>
+                    <p>Experts' marks are written on paper for this slam. Enter each expert's mark for every talk on the <a href="<?= site_url("admin/slams/{$sid}/judge-marks") ?>">Experts' marks</a> screen (a mark from 0.1 to 10, one decimal), or import them below.</p>
                 <?php else: ?>
-                    <p class="text-secondary mb-0">Judges mark live on their phones in this slam, so their marks are not entered by hand (change this in Mark configuration if they used paper).</p>
+                    <p class="text-secondary mb-0">Experts mark live on their phones in this slam, so their marks are not entered by hand (change this in Mark configuration if they used paper).</p>
                 <?php endif ?>
             </div>
         </div>
@@ -44,16 +44,16 @@
                     <label class="form-label" for="kind">The file contains</label>
                     <select id="kind" name="kind" class="form-select" <?= $open ? '' : 'disabled' ?>>
                         <option value="audience">Audience ballots</option>
-                        <option value="judge" <?= $judging['timing'] === 'end_of_slam' ? '' : 'disabled' ?>>Judges' marks</option>
+                        <option value="judge" <?= $judging['timing'] === 'end_of_slam' ? '' : 'disabled' ?>>Experts' marks</option>
                     </select>
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="file">CSV file (UTF-8, up to 2 MB)</label>
                     <input id="file" name="file" type="file" accept=".csv,text/csv" class="form-control" required <?= $open ? '' : 'disabled' ?>>
                 </div>
-                <p class="small text-secondary mb-1">Audience: <code>badge_id, presenter, q1, q2</code>. Judges: <code>badge_id, presenter, mark</code>. The presenter column is the presenter's name (or a <code>performance_id</code> column). The whole file is checked first: if any line is wrong, nothing is imported.</p>
+                <p class="small text-secondary mb-1">Audience: <code>badge_id, presenter, q1, q2</code>. Experts: <code>badge_id, presenter, mark</code>. The presenter column is the presenter's name (or a <code>performance_id</code> column). The whole file is checked first: if any line is wrong, nothing is imported.</p>
                 <a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/paper-marks/template/audience.csv") ?>"><?= icon('action.export') ?>Audience template</a>
-                <a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/paper-marks/template/judge.csv") ?>"><?= icon('action.export') ?>Judges template</a>
+                <a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/paper-marks/template/judge.csv") ?>"><?= icon('action.export') ?>Experts template</a>
             </div>
             <div class="card-footer text-end"><button class="btn btn-success" type="submit" <?= $open ? '' : 'disabled' ?>>Import</button></div>
         </form>

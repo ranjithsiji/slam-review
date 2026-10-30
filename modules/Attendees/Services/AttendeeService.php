@@ -58,7 +58,7 @@ class AttendeeService
         }
         $type = (string) ($input['user_type'] ?? 'user');
         if (! in_array($type, ['user', 'judge'], true)) {
-            $errors['user_type'] = 'Type must be user or judge.';
+            $errors['user_type'] = 'Choose judge (audience) or expert.';
         }
         if ($errors !== []) {
             throw new DomainException('validation', 'Please correct the highlighted fields.', 422, $errors);

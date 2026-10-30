@@ -31,7 +31,7 @@
                 <div class="mb-3">
                     <label class="form-label" for="filter">Who</label>
                     <select id="filter" name="filter" class="form-select">
-                        <option value="all">All active attendees</option><option value="user">Users only</option><option value="judge">Judges only</option>
+                        <option value="all">All active attendees</option><option value="user">Judges only</option><option value="judge">Experts only</option>
                         <option value="not_printed">Not printed yet</option><option value="batch">One import batch</option><option value="selected">Hand-picked (from the search)</option>
                     </select>
                 </div>

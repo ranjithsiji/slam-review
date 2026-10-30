@@ -23,7 +23,7 @@
     </div>
 
     <div v-if="dirty" class="alert alert-warning d-flex align-items-center gap-2 py-2">
-      <Icon name="status.warning" /><span class="me-auto">Unsaved changes (draft v{{ baseVersion }}). Reviewers and the public see only saved versions.</span>
+      <Icon name="status.warning" /><span class="me-auto">Unsaved changes (draft v{{ baseVersion }}). Judges and the public see only saved versions.</span>
       <button type="button" class="btn btn-sm" @click="discard">Discard</button>
     </div>
 

@@ -28,9 +28,9 @@ if (root) {
     new Chart(root.querySelector('[data-chart="groups"]'), {
       type: 'bar',
       data: { labels: names, datasets: [
-        { label: 'General', data: d.results.map((r) => r.avg_general * 10), backgroundColor: blue },
-        { label: 'Representatives', data: d.results.map((r) => r.avg_representative * 10), backgroundColor: orange },
-        { label: 'Judges', data: d.results.map((r) => r.avg_judge * 10), backgroundColor: purple },
+        { label: 'Judges', data: d.results.map((r) => r.avg_general * 10), backgroundColor: blue },
+        { label: 'Audience representatives', data: d.results.map((r) => r.avg_representative * 10), backgroundColor: orange },
+        { label: 'Experts', data: d.results.map((r) => r.avg_judge * 10), backgroundColor: purple },
         { label: 'Final', data: d.results.map((r) => r.final_mark * 10), backgroundColor: green },
       ] },
       options: { ...opts, scales: { y: { min: 0, max: 100 } } },
@@ -38,9 +38,9 @@ if (root) {
     new Chart(root.querySelector('[data-chart="dist"]'), {
       type: 'bar',
       data: { labels: Object.keys(d.distribution), datasets: [
-        { label: 'General', data: Object.values(d.distribution).map((x) => x.general), backgroundColor: blue },
-        { label: 'Representatives', data: Object.values(d.distribution).map((x) => x.representative), backgroundColor: orange },
-        { label: 'Judges', data: Object.values(d.distribution).map((x) => x.judge), backgroundColor: purple },
+        { label: 'Judges', data: Object.values(d.distribution).map((x) => x.general), backgroundColor: blue },
+        { label: 'Audience representatives', data: Object.values(d.distribution).map((x) => x.representative), backgroundColor: orange },
+        { label: 'Experts', data: Object.values(d.distribution).map((x) => x.judge), backgroundColor: purple },
       ] },
       options: opts,
     });
@@ -56,8 +56,8 @@ if (root) {
       <dl class="row mb-0">
         <dt class="col-7">Reviews</dt><dd class="col-5">${esc(d.counts.reviews)}</dd>
         <dt class="col-7">Users who checked in</dt><dd class="col-5">${esc(inUsers)}</dd>
-        <dt class="col-7">Audience users who reviewed</dt><dd class="col-5">${esc(audience)}${inUsers ? ` (${Math.round((100 * audience) / inUsers)}%)` : ''}</dd>
-        <dt class="col-7">Judges who checked in / reviewed</dt><dd class="col-5">${esc(inJudges)} / ${esc(d.counts.judges_reviewing)}</dd>
+        <dt class="col-7">Judges who reviewed</dt><dd class="col-5">${esc(audience)}${inUsers ? ` (${Math.round((100 * audience) / inUsers)}%)` : ''}</dd>
+        <dt class="col-7">Experts who checked in / reviewed</dt><dd class="col-5">${esc(inJudges)} / ${esc(d.counts.judges_reviewing)}</dd>
         <dt class="col-7">Reviewed every performance</dt><dd class="col-5">${esc(d.counts.complete_reviewers)}</dd>
         <dt class="col-7">Audience representatives</dt><dd class="col-5">${esc(d.counts.representatives)}</dd>
         <dt class="col-7">Performances opened</dt><dd class="col-5">${esc(d.counts.opened_performances)}</dd>

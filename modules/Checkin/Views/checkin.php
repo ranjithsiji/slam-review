@@ -16,7 +16,7 @@
         <dl class="row text-start mx-auto mb-3" style="max-width:20rem">
             <dt class="col-5 text-secondary fw-normal">Name</dt><dd class="col-7 fw-bold fs-3 ml-text mb-2"><?= esc($pending['name']) ?></dd>
             <dt class="col-5 text-secondary fw-normal">Mobile</dt><dd class="col-7 fw-bold fs-3 mb-2" style="letter-spacing:.05em"><?= esc($pending['mobile']) ?></dd>
-            <dt class="col-5 text-secondary fw-normal">Badge ID</dt><dd class="col-7 mb-0"><code><?= esc($pending['badge_id']) ?></code><?= $pending['user_type'] === 'judge' ? ' · Judge' : '' ?></dd>
+            <dt class="col-5 text-secondary fw-normal">Badge ID</dt><dd class="col-7 mb-0"><code><?= esc($pending['badge_id']) ?></code><?= $pending['user_type'] === 'judge' ? ' · Expert' : '' ?></dd>
         </dl>
         <?php if (! empty($pending['late'])): ?>
             <div class="alert alert-warning text-start"><strong>The gates are closed.</strong> A volunteer at the desk will check you in. After you confirm, keep your phone on the next screen and show your badge at the desk.</div>

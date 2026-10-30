@@ -6,7 +6,7 @@
       <img :src="logo.dark" alt="Kerala Science Slam" class="brand-logo brand-logo-dark me-2" style="height:2.25rem">
       <div class="me-auto min-w-0">
         <div class="fw-bold text-truncate">{{ s.slam?.name || 'Science Slam' }}</div>
-        <div class="small text-secondary text-truncate">{{ me.name }} · <code>{{ me.badge_id }}</code> · {{ me.user_type === 'judge' ? 'Judge' : 'Reviewer' }}</div>
+        <div class="small text-secondary text-truncate">{{ me.name }} · <code>{{ me.badge_id }}</code> · {{ me.user_type === 'judge' ? 'Expert' : 'Judge' }}</div>
       </div>
       <StatusBadge v-if="s.phase" group="phase" :value="s.phase" extra="me-2 d-none d-sm-inline-flex" />
       <button type="button" class="btn btn-ghost-secondary btn-icon" :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'" @click="toggleTheme">
@@ -43,8 +43,8 @@
         <div v-if="s.judge_offline" class="card">
           <div class="card-body text-center py-4">
             <Icon name="person.judge" cls="icon-xl text-purple mb-2" />
-            <div class="h2">Judges' marks are collected after the slam</div>
-            <div class="text-secondary">For this slam the organisers enter each judge's mark at the end. Keep your score sheet; nothing to submit here.</div>
+            <div class="h2">Experts' marks are collected after the slam</div>
+            <div class="text-secondary">For this slam the organisers enter each expert's mark at the end. Keep your score sheet; nothing to submit here.</div>
           </div>
         </div>
         <div v-else-if="s.already_reviewed" class="card overflow-hidden">

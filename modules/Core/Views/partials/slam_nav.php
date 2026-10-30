@@ -6,17 +6,17 @@ $items = [
     'status'     => ['Status', "admin/slams/{$id}/status", 'nav.status'],
     'schedule'   => ['Schedule', "admin/slams/{$id}/schedule", 'nav.schedule'],
     'presenters' => ['Presenters', "admin/slams/{$id}/presenters", 'nav.presenters'],
-    'reviewers'  => ['Reviewers', "admin/slams/{$id}/reviewers", 'person.user'],
-    'judgelist'  => ['Judges', "admin/slams/{$id}/judges", 'person.judge'],
+    'reviewers'  => ['Judges', "admin/slams/{$id}/reviewers", 'person.user'],
+    'judgelist'  => ['Experts', "admin/slams/{$id}/judges", 'person.judge'],
     'checkins'   => ['Check-ins', "admin/slams/{$id}/checkins", 'nav.checkins'],
     'idle'       => ['Not reviewing', "admin/slams/{$id}/not-reviewing", 'status.warning'],
     'ads'        => ['Break ads', "admin/slams/{$id}/ads", 'about.talk'],
     'questions'  => ['Questions', "admin/slams/{$id}/questions", 'nav.questions'],
-    'representatives' => ['Representatives', "admin/slams/{$id}/representatives", 'nav.representatives'],
+    'representatives' => ['Audience representatives', "admin/slams/{$id}/representatives", 'nav.representatives'],
 ];
 // Entering judges' marks after the slam is a tab only for slams judged that way.
 if (service('scoring')->judging($id)['timing'] === 'end_of_slam') {
-    $items['judges'] = ["Judges' marks", "admin/slams/{$id}/judge-marks", 'person.judge'];
+    $items['judges'] = ["Experts' marks", "admin/slams/{$id}/judge-marks", 'person.judge'];
 }
 {
     $items['paper'] = ['Paper marks', "admin/slams/{$id}/paper-marks", 'action.edit'];

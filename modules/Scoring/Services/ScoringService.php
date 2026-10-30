@@ -24,9 +24,9 @@ class ScoringService
 {
     /** Group key => [weight key, label]. Order is the display order. */
     public const GROUPS = [
-        'general'        => ['w_general', 'General reviewers'],
+        'general'        => ['w_general', 'Judges'],
         'representative' => ['w_representative', 'Audience representatives'],
-        'judge'          => ['w_judge', 'Judges'],
+        'judge'          => ['w_judge', 'Experts'],
     ];
 
     /** @return array{w_general: float, w_representative: float, w_judge: float} */
@@ -103,10 +103,10 @@ class ScoringService
     public function judgingLockedReason(array $slam): ?string
     {
         if (! in_array($slam['status'], self::JUDGING_EDITABLE_PHASES, true)) {
-            return 'Judges\' marking is fixed once reviewing starts.';
+            return 'Experts\' marking is fixed once reviewing starts.';
         }
         if (Db::value("SELECT r.id FROM reviews r JOIN attendees a ON a.id = r.attendee_id WHERE a.slam_id = ? AND a.user_type = 'judge' LIMIT 1", [$slam['id']]) !== null) {
-            return 'Judges have already submitted marks.';
+            return 'Experts have already submitted marks.';
         }
 
         return null;
@@ -122,12 +122,12 @@ class ScoringService
     public function updateJudging(array $slamIds, array $in, Actor $actor): array
     {
         if (! $actor->isAdmin()) {
-            throw new DomainException('forbidden', 'Only an admin can change judges\' marking.', 403);
+            throw new DomainException('forbidden', 'Only an admin can change experts\' marking.', 403);
         }
         $timing = (string) ($in['judge_timing'] ?? '');
         $mode   = (string) ($in['judge_mode'] ?? 'detailed');
         if (! in_array($timing, self::JUDGE_TIMINGS, true) || ! in_array($mode, self::JUDGE_MODES, true)) {
-            throw new DomainException('validation', 'Choose when judges mark and how.', 422, ['judge_timing' => 'Choose an option.']);
+            throw new DomainException('validation', 'Choose when experts mark and how.', 422, ['judge_timing' => 'Choose an option.']);
         }
         $out = ['updated' => [], 'skipped' => []];
         foreach (array_unique(array_map('intval', $slamIds)) as $slamId) {
@@ -154,7 +154,7 @@ class ScoringService
         return $out;
     }
 
-    /** Schedule items that count for "complete reviewer": performances that were opened (not skipped). */
+    /** Schedule items that count for "complete judge": performances that were opened (not skipped). */
     public function openedItemIds(int $slamId): array
     {
         return array_map('intval', array_column(Db::rows(

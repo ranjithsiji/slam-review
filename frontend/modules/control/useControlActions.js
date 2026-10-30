@@ -105,7 +105,7 @@ export function useControlActions({ slamId, st, modal, poll }) {
   // ---- pause, and changing times while the slam runs ----
   const pause = () => modal.value.show({
     title: 'Pause the slam',
-    message: 'All timers stop and reviewers cannot submit. When you resume, the lapsed time is added to the running timer and the rest of the schedule moves later by it.',
+    message: 'All timers stop and judges cannot submit. When you resume, the lapsed time is added to the running timer and the rest of the schedule moves later by it.',
     fields: [{ name: 'reason', label: 'Reason (optional)', placeholder: 'e.g. power cut' }], confirmText: 'Pause',
     run: (v) => api('timing/pause', { reason: v.reason }, 'Paused. Timers are stopped.'),
   });
