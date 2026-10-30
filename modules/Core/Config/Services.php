@@ -8,6 +8,7 @@ use CodeIgniter\Config\BaseService;
 use Modules\Accounts\Services\AuthService;
 use Modules\Accounts\Services\ThrottleService;
 use Modules\ActivityLog\Services\ActivityLogService;
+use Modules\Attendees\Services\AttendeeService;
 use Modules\Attendees\Services\BadgeIdService;
 use Modules\Attendees\Services\BadgePdfService;
 use Modules\Attendees\Services\ImportService;
@@ -80,6 +81,11 @@ class Services extends BaseService
     public static function badgeIds(bool $getShared = true): BadgeIdService
     {
         return $getShared ? static::getSharedInstance('badgeIds') : new BadgeIdService();
+    }
+
+    public static function attendees(bool $getShared = true): AttendeeService
+    {
+        return $getShared ? static::getSharedInstance('attendees') : new AttendeeService();
     }
 
     public static function importer(bool $getShared = true): ImportService

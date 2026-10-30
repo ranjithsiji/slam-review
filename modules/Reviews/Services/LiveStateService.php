@@ -1,0 +1,173 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\Reviews\Services;
+
+use Modules\Core\Config\Slam as SlamConfig;
+use Modules\Core\Libraries\Clock;
+use Modules\Core\Libraries\Db;
+use Modules\Slams\Services\ReviewWindowService;
+use Modules\Slams\Services\SlamPhaseService;
+
+/**
+ * The live-state document phones poll. One shared document per slam (phase,
+ * times, open window and deadline, current performance or break, next item,
+ * running order, question sets) is cached and purged on every phase, schedule
+ * or window change; the per-reviewer part is only a few flags.
+ */
+class LiveStateService
+{
+    public const SHARED_TTL = 2;
+
+    /** @return array<string, mixed> */
+    public function shared(int $slamId): array
+    {
+        return service('publicCache')->remember('live', $slamId, self::SHARED_TTL, fn () => $this->buildShared($slamId));
+    }
+
+    /** @return array<string, mixed> */
+    public function buildShared(int $slamId): array
+    {
+        $slam   = service('slams')->find($slamId);
+        $phase  = service('slamPhase');
+        $proj   = $phase->projection($slam);
+        $byId   = [];
+        $order  = [];
+        $presenters = $this->presenterDetails($slamId);
+        foreach ($proj['items'] as $it) {
+            if ($it['status'] === 'skipped' || ($it['item_type'] === 'performance' && (int) $it['perf_active'] === 0)) {
+                continue;
+            }
+            $p    = $it['performance_id'] !== null ? ($presenters[(int) $it['performance_id']] ?? null) : null;
+            $row  = [
+                'id'                 => (int) $it['id'],
+                'kind'               => $it['item_type'],
+                'break_type'         => $it['break_type'],
+                'label'              => $it['label'],
+                'presenter_name'     => $p['name'] ?? null,
+                'designation'        => $p['designation'] ?? null,
+                'topic'              => $p['topic'] ?? null,
+                'thumb'              => $p['thumb'] ?? null,
+                'planned_start_at'   => Clock::iso($it['planned_start_at']),
+                'projected_start_at' => Clock::iso($it['projected_start_at']),
+                'duration_minutes'   => (int) $it['duration_minutes'],
+                'status'             => $it['status'],
+            ];
+            $byId[(int) $it['id']] = $row;
+            $order[] = $row;
+        }
+
+        $current = null;
+        $window  = $phase->windows()->openWindow($slamId);
+        if ($window !== null && ReviewWindowService::isRunning($window, $slam)) {
+            $p       = $presenters[(int) $window['performance_id']] ?? [];
+            $current = [
+                'kind'             => 'performance',
+                'schedule_item_id' => (int) $window['schedule_item_id'],
+                'window_id'        => (int) $window['id'],
+                'opened_at'        => Clock::iso($window['opened_at']),
+                'closes_at'        => Clock::iso(ReviewWindowService::effectiveClose($window, $slam)),
+            ] + $p;
+        } elseif (($b = $phase->runningBreak($slamId)) !== null) {
+            $current = ['kind' => 'break', 'schedule_item_id' => (int) $b['id'], 'break_type' => $b['break_type'], 'label' => $b['label'], 'ends_at' => Clock::iso($b['ends_at'])];
+        }
+
+        $next = null;
+        foreach ($order as $row) {
+            if ($row['status'] === 'pending') {
+                $next = $row;
+                break;
+            }
+        }
+
+        $revision = null;
+        if ($slam['status'] === 'revision' && ($rw = $phase->windows()->openRevisionWindow($slamId)) !== null) {
+            $revision = ['closes_at' => Clock::iso(ReviewWindowService::effectiveClose($rw, $slam))];
+        }
+
+        $doc = [
+            'slam' => [
+                'id' => (int) $slam['id'], 'name' => $slam['name'], 'type' => $slam['type'], 'venue_name' => $slam['venue_name'],
+                'address' => trim(implode(', ', array_filter([$slam['address_line'], $slam['city'], $slam['district']]))),
+                'map_url' => $slam['map_url'], 'contact_name' => $slam['contact_name'], 'contact_phone' => $slam['contact_phone'],
+                'contact_email' => $slam['contact_email'],
+                'opens_at' => Clock::iso($slam['opens_at']), 'checkin_opens_at' => Clock::iso($slam['checkin_opens_at']),
+                'checkin_closes_at' => Clock::iso($slam['checkin_closes_at']), 'closes_at' => Clock::iso($slam['closes_at']),
+            ],
+            'phase'         => $slam['status'],
+            'phase_label'   => SlamPhaseService::LABELS[$slam['status']] ?? $slam['status'],
+            'current'       => $current,
+            'next'          => $next,
+            'running_order' => $order,
+            'late_minutes'  => $proj['late_minutes'],
+            'revision'      => $revision,
+            'questions'     => [
+                'user'  => QuestionService::forClient(service('questions')->active($slamId, 'user')),
+                'judge' => QuestionService::forClient(service('questions')->active($slamId, 'judge')),
+            ],
+            'poll_seconds'  => config(SlamConfig::class)->pollSeconds,
+        ];
+        $doc['version'] = substr(md5(json_encode($doc)), 0, 16);
+
+        return $doc;
+    }
+
+    /** @return array<int, array<string, mixed>> performance_id => presenter/topic details */
+    private function presenterDetails(int $slamId): array
+    {
+        $out = [];
+        foreach (Db::rows(
+            'SELECT p.id, p.topic, p.abstract, pr.name, pr.designation_or_institution, pr.profile, pr.photo_path, pr.photo_thumb_path, pr.photo_alt
+             FROM performances p JOIN presenters pr ON pr.id = p.presenter_id WHERE p.slam_id = ?',
+            [$slamId],
+        ) as $r) {
+            $out[(int) $r['id']] = [
+                'presenter_name' => $r['name'], 'name' => $r['name'], 'designation' => $r['designation_or_institution'], 'topic' => $r['topic'],
+                'abstract' => $r['abstract'], 'profile' => $r['profile'],
+                'photo' => $r['photo_path'] !== null ? '/' . $r['photo_path'] : null,
+                'thumb' => $r['photo_thumb_path'] !== null ? '/' . $r['photo_thumb_path'] : null,
+                'photo_alt' => $r['photo_alt'] ?: $r['name'],
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Reviewer view: shared doc with only this reviewer's question set, plus flags.
+     *
+     * @param array{id:int, slam_id:int, badge_id:string, name:string, user_type:string} $attendee
+     * @return array{body: array<string, mixed>, etag: string}
+     */
+    public function forReviewer(array $attendee): array
+    {
+        $shared = $this->shared((int) $attendee['slam_id']);
+        $cur    = $shared['current'];
+        $itemId = ($cur['kind'] ?? null) === 'performance' ? (int) $cur['schedule_item_id'] : null;
+        $mine   = null;
+        if ($itemId !== null) {
+            $r = Db::row('SELECT id FROM reviews WHERE attendee_id = ? AND schedule_item_id = ?', [$attendee['id'], $itemId]);
+            if ($r !== null) {
+                $mine = ['review_id' => (int) $r['id'], 'answers' => array_map(
+                    static fn ($a) => ['question_id' => (int) $a['question_id'], 'score' => (int) $a['score']],
+                    Db::rows('SELECT question_id, score FROM review_answers WHERE review_id = ?', [$r['id']]),
+                )];
+            }
+        }
+        $reviewed = (int) Db::value('SELECT COUNT(*) FROM reviews WHERE attendee_id = ?', [$attendee['id']]);
+
+        $body              = $shared;
+        $body['questions'] = $shared['questions'][$attendee['user_type']] ?? [];
+        $body['me']        = [
+            'name' => $attendee['name'], 'badge_id' => $attendee['badge_id'], 'user_type' => $attendee['user_type'],
+            'checked_in' => true, 'reviewed_count' => $reviewed,
+        ];
+        $body['already_reviewed'] = $mine !== null;
+        $body['my_review']        = $mine;
+        $etag = '"' . $shared['version'] . '-' . md5(json_encode([$body['me'], $mine])) . '"';
+        $body['server_now'] = Clock::iso(Clock::db());
+
+        return ['body' => $body, 'etag' => $etag];
+    }
+}
