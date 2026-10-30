@@ -29,7 +29,7 @@ class AdminsController extends BaseController
 
         return $this->render('Modules\Accounts\Views\admin_form', [
             'title' => $row ? 'Edit administrator' : 'New administrator', 'row' => $row, 'slams' => service('slams')->all(), 'preselect' => (int) $this->request->getGet('slam'), 'asOperator' => $this->request->getGet('role') === 'operator', 'isSelf' => $row && (int) $row['id'] === $this->actor()->id,
-            'breadcrumbs' => [['Administrators', site_url('admin/users')], [$row ? $row['name'] : 'New administrator', null]],
+            'breadcrumbs' => [['Administrators', 'admin/users'], [$row ? $row['name'] : 'New administrator', null]],
         ]);
     }
 

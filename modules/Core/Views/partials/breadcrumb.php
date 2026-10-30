@@ -12,7 +12,7 @@ $last   = count($crumbs) - 1;
             <?php if ($i === $last || $url === null): ?>
                 <li class="breadcrumb-item active" aria-current="page"><span class="ml-text"><?= esc($label) ?></span></li>
             <?php else: ?>
-                <li class="breadcrumb-item"><a href="<?= site_url($url) ?>"><?= $i === 0 ? icon('nav.home', 'icon-inline me-1') : '' ?><?= esc($label) ?></a></li>
+                <li class="breadcrumb-item"><a href="<?= preg_match('#^https?://#', $url) ? esc($url, 'attr') : site_url($url) ?>"><?= $i === 0 ? icon('nav.home', 'icon-inline me-1') : '' ?><?= esc($label) ?></a></li>
             <?php endif ?>
         <?php endforeach ?>
     </ol>

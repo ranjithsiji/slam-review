@@ -24,7 +24,7 @@ class VolunteersController extends BaseController
 
         return $this->render('Modules\Accounts\Views\volunteer_form', [
             'title' => $vol ? 'Edit volunteer' : 'New volunteer', 'vol' => $vol,
-            'breadcrumbs' => [['Volunteers', site_url('admin/volunteers')], [$vol ? $vol['name'] : 'New volunteer', null]], 'slams' => service('slams')->all(),
+            'breadcrumbs' => [['Volunteers', 'admin/volunteers'], [$vol ? $vol['name'] : 'New volunteer', null]], 'slams' => service('slams')->all(),
             'preselect' => (int) $this->request->getGet('slam'),
         ]);
     }
