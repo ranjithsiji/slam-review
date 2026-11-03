@@ -22,7 +22,6 @@ class Home extends BaseController
             if ($s['badge'] === 'live') {
                 service('slamPhase')->tick((int) $s['id']);
             }
-            $s['doc'] = $svc->document(service('slams')->find((int) $s['id']));
             $coming[] = $s;
         }
 

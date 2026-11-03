@@ -2,7 +2,6 @@
 /** @var list<array> $coming  @var list<array> $past  @var list<array> $live */
 $this->setVar('title', 'Kerala Science Slam');
 $sig = static fn (array $l) => implode('|', array_map(static fn ($d) => $d['slug'] . ':' . ($d['now']['id'] ?? '') . ':' . ($d['next']['id'] ?? '') . ':' . $d['phase'] . ':' . (int) $d['paused'] . ':' . count($d['ads'] ?? []) . ':' . ($d['talk']['title'] ?? ''), $l));
-$slotTime = static fn (string $iso) => esc(local_time(str_replace(['T', 'Z'], [' ', ''], $iso), 'H:i'));
 ?>
 <?= $this->extend('Modules\Core\Views\layouts\public') ?>
 
@@ -103,62 +102,87 @@ $slotTime = static fn (string $iso) => esc(local_time(str_replace(['T', 'Z'], ['
     </section>
 <?php endforeach ?>
 
-<section aria-labelledby="schedule-h" class="mb-4">
-    <h2 class="h2 mb-3" id="schedule-h">Schedule</h2>
-    <?php if ($coming === []): ?>
-        <div class="empty"><p class="empty-title">The schedule will appear here once it is published.</p><p class="empty-subtitle text-secondary">Check back closer to the event.</p></div>
-    <?php endif ?>
-    <div class="row row-cards">
-        <?php foreach ($coming as $s): $d = $s['doc']; ?>
-            <div class="col-12 col-lg-<?= count($coming) > 1 ? '6' : '12' ?>">
-                <article class="card card-accent accent-blue h-100">
-                    <div class="card-header d-block">
-                        <div class="d-flex flex-wrap align-items-start gap-2">
-                            <div class="me-auto">
-                                <h3 class="card-title h3 mb-1"><?= esc($s['name']) ?></h3>
-                                <div class="text-secondary"><?= icon('nav.slams', 'icon-inline me-1') ?><?= esc(local_time($s['opens_at'], 'l, d F Y')) ?><?= $s['checkin_opens_at'] ? ' · doors open ' . esc(local_time($s['checkin_opens_at'], 'H:i')) : '' ?></div>
-                                <div class="text-secondary"><?= icon('place.venue', 'icon-inline me-1') ?><?= esc($s['venue_name']) ?><?= $s['city'] ? ', ' . esc($s['city']) : '' ?></div>
-                            </div>
-                            <?= status_badge('public', $s['badge']) ?>
-                        </div>
-                    </div>
-                    <?php if ($d['slots'] === []): ?>
-                        <div class="card-body text-secondary">The running order will be announced soon.</div>
-                    <?php else: ?>
-                        <ol class="list-group list-group-flush home-order">
-                            <?php foreach ($d['slots'] as $slot): $isBreak = $slot['kind'] === 'break'; $now = in_array($slot['status'], ['presenting', 'break_now'], true); ?>
-                                <li class="list-group-item d-flex align-items-center gap-3<?= $now ? ' home-order-now' : '' ?><?= $slot['status'] === 'done' ? ' text-secondary' : '' ?>">
-                                    <span class="home-order-time fw-bold"><?= $slotTime((string) $slot['planned_start_at']) ?></span>
-                                    <?php if ($isBreak): ?>
-                                        <?= icon('break.' . ($slot['break_type'] ?? 'other'), 'icon-lg text-orange') ?>
-                                        <span class="fw-bold ml-text"><?= esc($slot['label']) ?></span>
-                                    <?php else: ?>
-                                        <?php if ($slot['thumb']): ?><img class="avatar avatar-sm avatar-photo" src="<?= esc($slot['thumb']) ?>" alt="" loading="lazy" width="32" height="32"><?php else: ?><span class="avatar avatar-sm"><?= icon('person.user') ?></span><?php endif ?>
-                                        <span class="min-w-0"><span class="fw-bold ml-text d-block text-truncate"><?= esc($slot['presenter_name']) ?></span><span class="small text-secondary ml-text d-block text-truncate"><?= esc($slot['topic']) ?></span></span>
-                                    <?php endif ?>
-                                    <?php if ($now): ?><span class="badge bg-red-lt ms-auto"><?= $slot['status'] === 'presenting' ? 'Presenting now' : 'On now' ?></span><?php elseif ($slot['status'] === 'done'): ?><span class="badge bg-green-lt ms-auto">Done</span><?php endif ?>
-                                </li>
-                            <?php endforeach ?>
-                        </ol>
-                    <?php endif ?>
-                    <div class="card-footer text-end"><a class="btn btn-sm" href="<?= site_url('slams/' . $s['slug']) ?>">Full details</a></div>
-                </article>
-            </div>
-        <?php endforeach ?>
-    </div>
-
-    <?php if ($past !== []): ?>
-        <h3 class="h4 mt-4">Earlier slams</h3>
+<?php
+// Regional slams shown as cards. Earlier or extra slams not listed here stay in the plain list below.
+$regional = [
+    'ernakulam' => ['date' => 'നവംബർ 7', 'venue' => 'മഹാരാജാസ് കോളേജ് (ഗവ. ഓട്ടോണമസ്), എറണാകുളം', 'place' => 'എറണാകുളം'],
+    'kollam'    => ['date' => 'നവംബർ 14', 'venue' => 'ഫാത്തിമ മാതാ നാഷണൽ കോളേജ് (ഓട്ടോണമസ്), കൊല്ലം', 'place' => 'കൊല്ലം'],
+    'thrissur'  => ['date' => 'നവംബർ 21', 'venue' => 'സെന്റ് മേരീസ് കോളേജ് (ഓട്ടോണമസ്), തൃശ്ശൂർ', 'place' => 'തൃശ്ശൂർ'],
+    'kannur'    => ['date' => 'നവംബർ 28', 'venue' => 'പയ്യന്നൂർ കോളേജ്, കണ്ണൂർ', 'place' => 'കണ്ണൂർ'],
+];
+$all       = [...$coming, ...$past];
+$published = array_column($all, null, 'slug');
+$regional  = array_intersect_key($regional, $published);
+$final     = array_values(array_filter($all, static fn (array $s): bool => $s['type'] === 'final'))[0] ?? null;
+$others    = array_filter($past, static fn (array $s): bool => ! isset($regional[$s['slug']]) && $s['type'] !== 'final');
+?>
+<?php if ($coming === [] && $past === []): ?>
+    <div class="empty"><p class="empty-title">The schedule will appear here once it is published.</p></div>
+<?php endif ?>
+<?php if ($others !== []): ?>
+    <section class="mb-4" aria-labelledby="earlier-h">
+        <h2 class="h4" id="earlier-h">Earlier slams</h2>
         <div class="list-group">
-            <?php foreach ($past as $s): ?>
-                <a class="list-group-item list-group-item-action d-flex justify-content-between" href="<?= site_url('slams/' . $s['slug']) ?>"><span class="ml-text"><?= esc($s['name']) ?></span><span class="text-secondary"><?= esc(local_time($s['opens_at'], 'd M Y')) ?></span></a>
+            <?php foreach ($others as $s): ?>
+                <a class="list-group-item list-group-item-action" href="<?= site_url('slams/' . $s['slug']) ?>"><?= esc($s['name']) ?></a>
             <?php endforeach ?>
         </div>
-    <?php endif ?>
-</section>
+    </section>
+<?php endif ?>
 <?= $this->endSection() ?>
 
 <?= $this->section('beforefooter') ?>
+<?php if ($regional !== []): ?>
+    <section class="home-band home-band-orange" aria-labelledby="regional-h">
+        <div class="container-xl">
+            <h2 class="home-band-title ml-text" id="regional-h"><?= count($regional) ?> റിജിയണൽ സ്ലാമുകൾ</h2>
+            <p class="home-band-lead ml-text">നാലു റീജിയണൽ മത്സരവും അതിൽനിന്നു തെരഞ്ഞെടുക്കപ്പെടുന്നവർ പങ്കെടുക്കുന്ന സംസ്ഥാനതല മത്സരവും</p>
+            <div class="home-regions">
+                <?php foreach ($regional as $slug => $r): ?>
+                    <a class="home-region" href="<?= site_url('slams/' . $slug . '/presenters') ?>">
+                        <img src="<?= base_url('brand/slams/' . $slug . '-cover.webp') ?>" alt="" loading="lazy">
+                        <span class="home-region-text ml-text">
+                            <strong><?= esc($r['date']) ?></strong>
+                            <span><?= esc($r['venue']) ?></span>
+                            <span class="home-region-go" aria-hidden="true">&gt;&gt;&gt;</span>
+                            <span class="visually-hidden">Presenters</span>
+                        </span>
+                    </a>
+                <?php endforeach ?>
+            </div>
+        </div>
+    </section>
+<?php endif ?>
+<section class="home-band home-band-orange" aria-labelledby="final-h">
+    <div class="container-xl">
+        <h2 class="home-band-title ml-text" id="final-h">ഫൈനൽ മത്സരം</h2>
+        <p class="home-band-lead ml-text">ഡിസംബർ 12 ന് നാലു റിജിയണൽ മത്സരങ്ങളിൽ നിന്നുമുള്ള മികച്ച അവതരണങ്ങൾ മാറ്റുരക്കും</p>
+        <div class="home-final">
+            <img src="<?= base_url('brand/slams/final-cover.webp') ?>" alt="" loading="lazy">
+            <div class="home-final-text ml-text">
+                <strong>ഫാറൂഖ് കോളേജ് കോഴിക്കോട്</strong>
+                <a class="home-final-btn" href="<?= $final !== null ? site_url('slams/' . $final['slug']) : 'https://scienceslam.in/final-calicut/' ?>"<?= $final !== null ? '' : ' target="_blank" rel="noopener"' ?>>വിശദവിവരങ്ങൾ</a>
+            </div>
+        </div>
+    </div>
+</section>
+<?php if ($regional !== []): ?>
+    <section class="home-schedule" aria-labelledby="schedule-h">
+        <h2 class="home-schedule-title ml-text" id="schedule-h">സമയക്രമം</h2>
+        <div class="container-xl">
+            <div class="home-schedule-row">
+                <?php foreach ($regional as $slug => $r): ?>
+                    <div class="home-schedule-item">
+                        <img src="<?= base_url('brand/slams/' . $slug . '-logo.webp') ?>" alt="" loading="lazy">
+                        <h3 class="ml-text"><?= esc($r['date']) ?></h3>
+                        <p class="ml-text"><?= esc($r['place']) ?></p>
+                        <a class="btn" href="<?= site_url('slams/' . $slug) ?>">Schedule <span aria-hidden="true">→</span></a>
+                    </div>
+                <?php endforeach ?>
+            </div>
+        </div>
+    </section>
+<?php endif ?>
 <section class="site-partners" aria-label="Organisers and supporters">
     <div class="container-xl py-4 text-center">
         <img src="<?= base_url('brand/logos-final.webp') ?>" alt="Organisers and supporters of Kerala Science Slam" class="site-partners-img" width="1200" height="413" loading="lazy">

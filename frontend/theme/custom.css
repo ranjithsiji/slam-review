@@ -416,3 +416,41 @@ a.slam-tt-body:hover .slam-tt-topic { color: var(--slam-accent-text); }
 .slam-grid-more { margin-top: .6rem; font-size: .85rem; }
 .slam-grid-more summary { color: var(--slam-accent-text); cursor: pointer; font-weight: 600; }
 .slam-grid-more p { margin: .5rem 0 0; }
+
+/* Home page bands: regional slams, the final and the schedule row. */
+.home-band { padding-block: 2.5rem; text-align: center; color: #fff; }
+.home-band-orange { background: #f59536; }
+.home-band-title { color: #fff; font-size: clamp(1.75rem, 5vw, 2.75rem); font-weight: 700; margin: 0 0 .75rem; }
+.home-band-lead { color: #fff; font-size: 1.05rem; margin: 0 auto 2rem; max-width: 56rem; }
+.home-regions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; max-width: 80rem; margin-inline: auto; }
+@media (min-width: 576px) { .home-regions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 992px) { .home-regions { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.home-region { position: relative; display: flex; align-items: center; justify-content: center; min-height: 18rem; border-radius: 6px; overflow: hidden; color: #fff; background: #222; }
+@media (min-width: 992px) { .home-region { min-height: 26rem; } }
+.home-region:hover { color: #fff; text-decoration: none; }
+.home-region img, .home-final img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.home-region::after, .home-final::after { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, .64); transition: background .2s; }
+.home-region:hover::after { background: rgba(0, 0, 0, .5); }
+.home-region-text { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: .15rem; padding: 1rem 1.5rem; max-width: 15rem; line-height: 1.7; font-weight: 500; }
+.home-region-text strong { font-size: 1.05rem; font-weight: 700; }
+.home-region-go { margin-top: .5rem; padding: .45rem 1.3rem; border: 1px solid #f59536; border-radius: 2rem; font-size: .85rem; font-weight: 700; }
+.home-final { position: relative; display: flex; align-items: center; justify-content: center; min-height: 20rem; max-width: 80rem; margin-inline: auto; overflow: hidden; background: #222; border-radius: 6px; }
+.home-final::after { background: rgba(0, 0, 0, .5); }
+.home-final-text { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 1.5rem; padding: 1.5rem; }
+.home-final-text strong { font-size: clamp(1.25rem, 3vw, 1.75rem); font-weight: 700; }
+.home-final-btn { min-height: var(--slam-touch); padding: .6rem 1.75rem; border: 2px solid #fff; border-radius: 6px; color: #fff; font-weight: 600; }
+.home-final-btn:hover { background: #fff; color: #111; text-decoration: none; }
+.home-schedule { background: #fff8e1; color: #1a2233; }
+.home-schedule-title { margin: 0; padding: 1.25rem 1rem; background: #ebdcc2; color: #1a2233; font-size: clamp(1.5rem, 4vw, 2.25rem); font-weight: 600; text-align: center; }
+.home-schedule-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem 1.5rem; max-width: 80rem; margin-inline: auto; padding-block: 2.5rem; }
+@media (min-width: 992px) { .home-schedule-row { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.home-schedule-item img { display: block; width: auto; height: 5.5rem; margin-bottom: .75rem; }
+.home-schedule-item h3 { color: inherit; font-size: 1.3rem; font-weight: 600; margin: 0 0 .35rem; }
+.home-schedule-item p { color: #4a4f5c; margin: 0 0 .5rem; }
+.home-schedule-item .btn { border: 2px solid #1a2233; background: transparent; color: #1a2233; }
+.home-schedule-item .btn:hover { background: #1a2233; color: #fff; }
+[data-bs-theme="dark"] .home-schedule { background: #2a2518; color: #f1ead6; }
+[data-bs-theme="dark"] .home-schedule-title { background: #3a3320; color: #f1ead6; }
+[data-bs-theme="dark"] .home-schedule-item p { color: #c9c2ae; }
+[data-bs-theme="dark"] .home-schedule-item .btn { border-color: #f1ead6; color: #f1ead6; }
+[data-bs-theme="dark"] .home-schedule-item .btn:hover { background: #f1ead6; color: #1a2233; }
