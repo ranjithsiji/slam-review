@@ -95,4 +95,13 @@ class SlamsController extends BaseController
             return site_url('admin/slams/' . $id);
         }, $on ? 'The public schedule is now published.' : 'The public schedule is now hidden.');
     }
+
+    public function delete(int $id): RedirectResponse
+    {
+        return $this->formAction(function () use ($id) {
+            service('slams')->delete($id, $this->actor());
+
+            return site_url('admin/slams');
+        }, 'The slam was deleted.');
+    }
 }

@@ -40,7 +40,23 @@ class PublicController extends BaseController
         service('slamPhase')->tick((int) $slam['id']);
         $slam = service('slams')->find((int) $slam['id']);
 
-        return view('Modules\PublicSite\Views\show', ['slam' => $slam, 'doc' => $this->svc->document($slam), 'url' => site_url('slams/' . $slug)]);
+        $doc = $this->svc->document($slam);
+
+        return view('Modules\PublicSite\Views\show', ['slam' => $slam, 'doc' => $doc, 'programme' => $this->svc->programme($doc['slots'], $doc['extras'] ?? []), 'url' => site_url('slams/' . $slug)]);
+    }
+
+    /** Presenter cards for one published slam. */
+    public function presenters(string $slug): string
+    {
+        $slam = $this->published($slug);
+        service('slamPhase')->tick((int) $slam['id']);
+        $slam = service('slams')->find((int) $slam['id']);
+        $doc  = $this->svc->document($slam);
+
+        return view('Modules\PublicSite\Views\presenters', [
+            'slam' => $slam,
+            'talks' => array_values(array_filter($doc['slots'], static fn (array $s): bool => $s['kind'] !== 'break')),
+        ]);
     }
 
     /** Live block for the home page: every published slam that is running, with what is on now. */

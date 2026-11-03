@@ -15,6 +15,7 @@ if (root) {
   let etag = null;
   let timer = null;
   const badgeFor = (status) => {
+    if (status === 'upcoming') return '';
     const s = sem('slot', status === 'presenting' ? 'open' : status === 'done' ? 'closed' : status === 'break_now' ? 'open' : 'pending');
     const label = { presenting: 'Presenting now', break_now: 'On now', done: 'Done', upcoming: 'Upcoming' }[status] || status;
     return `<span class="badge bg-${s.color}-lt">${iconHtml(s.icon, 'icon-inline me-1')}${esc(label)}</span>`;
@@ -35,11 +36,12 @@ if (root) {
     const ids = doc.slots.map((s) => String(s.id));
     const current = [...list.querySelectorAll('[data-slot]')].map((el) => el.dataset.slot);
     if (ids.join() !== current.join()) { window.location.reload(); return; }
+    // A new start time changes end times and session ranges, which the server renders.
+    if (doc.slots.some((s) => list.querySelector(`[data-slot="${s.id}"]`).dataset.start !== s.planned_start_at)) { window.location.reload(); return; }
     doc.slots.forEach((s) => {
       const el = list.querySelector(`[data-slot="${s.id}"]`);
       el.querySelector('[data-status]').innerHTML = badgeFor(s.status);
-      el.querySelector('[data-time]').textContent = time(s.planned_start_at);
-      el.classList.toggle('border-danger', s.status === 'presenting');
+      el.classList.toggle('is-live', s.status === 'presenting' || s.status === 'break_now');
     });
   };
   const poll = async () => {

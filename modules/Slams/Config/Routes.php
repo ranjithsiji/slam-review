@@ -11,6 +11,7 @@ $routes->group('', ['namespace' => 'Modules\Slams\Controllers'], static function
         $routes->get('slams/(:num)/edit', 'SlamsController::form/$1');
         $routes->post('slams/(:num)', 'SlamsController::save/$1');
         $routes->post('slams/(:num)/publish', 'SlamsController::publish/$1');
+        $routes->post('slams/(:num)/delete', 'SlamsController::delete/$1');
         $routes->get('slams/(:num)/control', 'ControlController::page/$1');
         $routes->get('slams/(:num)/status', 'ControlController::statusPage/$1');
     });

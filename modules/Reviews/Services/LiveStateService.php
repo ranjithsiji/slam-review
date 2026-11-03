@@ -49,6 +49,7 @@ class LiveStateService
                 'designation'        => $p['designation'] ?? null,
                 'topic'              => $p['topic'] ?? null,
                 'thumb'              => $p['thumb'] ?? null,
+                'photo'              => $p['photo'] ?? null,
                 'planned_start_at'   => Clock::iso($it['planned_start_at']),
                 'projected_start_at' => Clock::iso($it['projected_start_at']),
                 'duration_minutes'   => (int) $it['duration_minutes'],

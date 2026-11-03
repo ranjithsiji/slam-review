@@ -149,6 +149,49 @@ class SlamService
     }
 
     /**
+     * Permanently delete a slam that has not begun, with everything that belongs only to it. Refuses once a slam has
+     * opened or holds any check-in, review or mark. The activity log is append-only and keeps its history.
+     */
+    public function delete(int $id, Actor $actor): void
+    {
+        $photos = [];
+        Db::tx(function ($db) use ($id, $actor, &$photos): void {
+            $slam = Db::lockSlam($id);
+            if (! in_array($slam['status'], ['draft', 'scheduled'], true)) {
+                throw new DomainException('not_deletable', 'Only a slam that has not opened yet can be deleted.', 409);
+            }
+            $inUse = Db::value('SELECT (SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ?)
+                + (SELECT COUNT(*) FROM reviews r JOIN attendees a ON a.id = r.attendee_id WHERE a.slam_id = ?)
+                + (SELECT COUNT(*) FROM mark_runs WHERE slam_id = ?)', [$id, $id, $id]);
+            if ((int) $inUse > 0) {
+                throw new DomainException('not_deletable', 'This slam already has check-ins, reviews or marks, so it cannot be deleted.', 409);
+            }
+            $presenters = array_map('intval', array_column(Db::rows('SELECT presenter_id FROM performances WHERE slam_id = ?', [$id]), 'presenter_id'));
+            foreach (['audience_representatives', 'late_checkin_requests', 'schedule_snapshots', 'slam_pauses', 'slam_phase_log', 'schedule_items', 'performances', 'attendees',
+                'import_batches', 'review_questions', 'score_config', 'ads', 'volunteers', 'admins', 'revision_windows', 'programme_extras'] as $table) {
+                $db->table($table)->where('slam_id', $id)->delete();
+            }
+            foreach ($presenters as $pid) {
+                if ((int) Db::value('SELECT COUNT(*) FROM performances WHERE presenter_id = ?', [$pid]) === 0) {
+                    $row = Db::row('SELECT photo_path, photo_thumb_path FROM presenters WHERE id = ?', [$pid]);
+                    if ($row !== null) {
+                        $photos[] = $row;
+                    }
+                    $db->table('presenters')->where('id', $pid)->delete();
+                }
+            }
+            $db->table('slams')->where('id', $id)->delete();
+            service('activityLog')->log($actor, 'slam.deleted', [
+                'slam_id' => $id, 'target_type' => 'slam', 'target_id' => $id, 'old' => ['name' => $slam['name'], 'slug' => $slam['slug'], 'status' => $slam['status']],
+            ]);
+            service('publicCache')->purge($id);
+        });
+        foreach ($photos as $row) {
+            service('photos')->delete($row['photo_path'], $row['photo_thumb_path']);
+        }
+    }
+
+    /**
      * Readiness for Slam Open: performances, schedule items, questions for both
      * audiences and attendees. Returns the list of what is missing (empty = ready).
      *
