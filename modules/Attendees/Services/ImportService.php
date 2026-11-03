@@ -18,11 +18,11 @@ use Throwable;
  */
 class ImportService
 {
-    public const COLUMNS = ['name', 'mobile', 'email', 'type', 'badge_id'];
+    public const COLUMNS = ['name', 'mobile', 'email', 'type', 'category', 'badge_id'];
 
     public static function template(): string
     {
-        return "name,mobile,email,type,badge_id\nAnu Thomas,9876543210,anu@example.com,user,\nഡോ. രാജൻ,+91 94470 12345,,expert,\n";
+        return "name,mobile,email,type,category,badge_id\nAnu Thomas,9876543210,anu@example.com,user,researcher,\nഡോ. രാജൻ,+91 94470 12345,,expert,,\n";
     }
 
     /**
@@ -90,9 +90,16 @@ class ImportService
         if (mb_strlen($name) < 2 || mb_strlen($name) > 120) {
             $errs[] = 'name must be 2–120 characters';
         }
-        $mobile = AttendeeService::normaliseMobile($c['mobile'] ?? '');
-        if ($mobile === null) {
-            $errs[] = 'mobile must be a valid 10-digit Indian number';
+        // Blank = no usable number; anything else must be a real number.
+        $rawMobile = trim($c['mobile'] ?? '');
+        $mobile    = $rawMobile === '' ? null : AttendeeService::normaliseMobile($rawMobile);
+        if ($rawMobile !== '' && $mobile === null) {
+            $errs[] = 'mobile must be a valid 10-digit Indian number or blank';
+        }
+        $rawCategory = trim($c['category'] ?? '');
+        $category    = $rawCategory === '' ? null : AttendeeService::normaliseCategory($rawCategory);
+        if ($rawCategory !== '' && $category === null) {
+            $errs[] = 'category must be public, college_student, researcher or school_student';
         }
         $email = strtolower(trim($c['email'] ?? ''));
         if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -108,7 +115,7 @@ class ImportService
         if ($badge !== '' && ! BadgeIdService::isValidFormat($badge)) {
             $errs[] = 'badge_id must be 2 letters (no I, O, Q, S, Z) + 5 digits';
         }
-        $vals = ['name' => $name, 'mobile' => $mobile ?? ($c['mobile'] ?? ''), 'email' => $email === '' ? null : $email, 'user_type' => $type, 'badge_id' => $badge === '' ? null : $badge];
+        $vals = ['name' => $name, 'mobile' => $mobile ?? ($rawMobile === '' ? null : $rawMobile), 'email' => $email === '' ? null : $email, 'user_type' => $type, 'category' => $category, 'badge_id' => $badge === '' ? null : $badge];
 
         return [$errs === [] ? 'new' : 'invalid', $vals, $errs === [] ? null : implode('; ', $errs)];
     }
@@ -139,28 +146,31 @@ class ImportService
         $sha     = hash('sha256', $content);
         $parsed  = $this->parse($content, $cfg->importMaxRows);
 
-        $existingMobiles = [];
-        foreach (Db::rows('SELECT mobile FROM attendees WHERE slam_id = ?', [$slamId]) as $r) {
-            $existingMobiles[$r['mobile']] = true;
+        // One mobile number is one person; someone without a number is told apart by name.
+        $personKey = static fn (?string $mobile, string $name): string => $mobile ?? 'name:' . mb_strtolower($name);
+        $existing  = [];
+        foreach (Db::rows('SELECT mobile, name FROM attendees WHERE slam_id = ?', [$slamId]) as $r) {
+            $existing[$personKey($r['mobile'], $r['name'])] = true;
         }
-        $seenMobiles = [];
+        $seenPeople = [];
         $seenBadges  = [];
         $out         = [];
         $counts      = ['new' => 0, 'duplicate' => 0, 'invalid' => 0];
         foreach ($parsed['rows'] as $r) {
             [$status, $v, $err] = $this->validateRow($r['cells']);
             if ($status === 'new') {
-                if (isset($seenMobiles[$v['mobile']])) {
+                $key = $personKey($v['mobile'], $v['name']);
+                if (isset($seenPeople[$key])) {
                     $status = 'invalid';
-                    $err    = 'duplicate mobile in this file (first at line ' . $seenMobiles[$v['mobile']] . ')';
+                    $err    = 'duplicate mobile in this file (first at line ' . $seenPeople[$key] . ')';
                 } elseif ($v['badge_id'] !== null && (isset($seenBadges[$v['badge_id']]) || service('badgeIds')->exists($v['badge_id']))) {
                     $status = 'invalid';
                     $err    = 'badge_id is already in use';
-                } elseif (isset($existingMobiles[$v['mobile']])) {
+                } elseif (isset($existing[$key])) {
                     $status = 'duplicate';
-                    $err    = $mode === 'skip_existing' ? 'already registered (will be skipped)' : 'already registered (name, email and type will be updated)';
+                    $err    = $mode === 'skip_existing' ? 'already registered (will be skipped)' : 'already registered (name, email, type and category will be updated)';
                 }
-                $seenMobiles[$v['mobile']] ??= $r['line'];
+                $seenPeople[$key] ??= $r['line'];
                 if ($v['badge_id'] !== null) {
                     $seenBadges[$v['badge_id']] = true;
                 }
@@ -182,8 +192,8 @@ class ImportService
             foreach (array_chunk($out, 500) as $chunk) {
                 $db->table('import_batch_rows')->insertBatch(array_map(static fn ($r) => [
                     'batch_id' => $batchId, 'line_no' => $r['line_no'], 'status' => $r['status'],
-                    'name' => mb_substr((string) $r['name'], 0, 255), 'mobile' => mb_substr((string) $r['mobile'], 0, 40),
-                    'email' => $r['email'] !== null ? mb_substr($r['email'], 0, 255) : null, 'user_type' => $r['user_type'],
+                    'name' => mb_substr((string) $r['name'], 0, 255), 'mobile' => $r['mobile'] !== null ? mb_substr((string) $r['mobile'], 0, 40) : null,
+                    'email' => $r['email'] !== null ? mb_substr($r['email'], 0, 255) : null, 'user_type' => $r['user_type'], 'category' => $r['category'],
                     'badge_id' => $r['badge_id'], 'error' => $r['error'] !== null ? mb_substr($r['error'], 0, 500) : null, 'created_at' => $now,
                 ], $chunk));
             }
@@ -225,18 +235,20 @@ class ImportService
                 $reserved = [];
                 $now      = Clock::db();
                 foreach ($rows as $r) {
-                    $existing = Db::row('SELECT * FROM attendees WHERE slam_id = ? AND mobile = ?', [$slamId, $r['mobile']]);
+                    $existing = $r['mobile'] !== null
+                        ? Db::row('SELECT * FROM attendees WHERE slam_id = ? AND mobile = ?', [$slamId, $r['mobile']])
+                        : Db::row('SELECT * FROM attendees WHERE slam_id = ? AND mobile IS NULL AND name = ?', [$slamId, $r['name']]);
                     if ($existing !== null) {
                         if ($batch['mode'] === 'skip_existing') {
                             $counts['skipped']++;
                             continue;
                         }
-                        // update_existing: name, email, type only; never badge_id, check-ins or reviews.
+                        // update_existing: name, email, type, category only; never badge_id, check-ins or reviews.
                         if (Db::value('SELECT id FROM checkins WHERE attendee_id = ? AND checked_out_at IS NULL', [$existing['id']]) !== null) {
                             $counts['warned_checked_in']++;
                         }
                         $db->table('attendees')->where('id', $existing['id'])->update([
-                            'name' => $r['name'], 'email' => $r['email'], 'user_type' => $r['user_type'], 'updated_at' => $now,
+                            'name' => $r['name'], 'email' => $r['email'], 'user_type' => $r['user_type'], 'category' => $r['category'], 'updated_at' => $now,
                         ]);
                         $counts['updated']++;
                         continue;
@@ -251,7 +263,7 @@ class ImportService
                     $reserved[$badge] = true;
                     $db->table('attendees')->insert([
                         'slam_id' => $slamId, 'badge_id' => $badge, 'name' => $r['name'], 'mobile' => $r['mobile'],
-                        'email' => $r['email'], 'user_type' => $r['user_type'], 'is_active' => 1,
+                        'email' => $r['email'], 'user_type' => $r['user_type'], 'category' => $r['category'], 'is_active' => 1,
                         'import_batch_id' => $batch['id'], 'created_at' => $now, 'updated_at' => $now,
                     ]);
                     $counts['created']++;
@@ -297,10 +309,10 @@ class ImportService
     {
         $fh = fopen('php://temp', 'r+');
         fwrite($fh, "\xEF\xBB\xBF");
-        fputcsv($fh, ['line', 'name', 'mobile', 'email', 'type', 'badge_id', 'error'], ',', '"', '');
+        fputcsv($fh, ['line', 'name', 'mobile', 'email', 'type', 'category', 'badge_id', 'error'], ',', '"', '');
         foreach (Db::rows("SELECT * FROM import_batch_rows WHERE batch_id = ? AND status <> 'new' ORDER BY line_no", [$batchId]) as $r) {
             fputcsv($fh, array_map([AttendeeService::class, 'csvSafe'], [
-                (string) $r['line_no'], $r['name'], $r['mobile'], $r['email'], $r['user_type'], $r['badge_id'], $r['error'],
+                (string) $r['line_no'], $r['name'], $r['mobile'], $r['email'], $r['user_type'], $r['category'], $r['badge_id'], $r['error'],
             ]), ',', '"', '');
         }
         rewind($fh);

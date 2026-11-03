@@ -210,7 +210,7 @@ class MarksController extends BaseController
             'title' => 'Audience representatives — ' . $slam['name'], 'slam' => $slam,
             'count' => $reps->count($slamId), 'selected' => count($reps->ids($slamId)),
             'pool' => count(service('scoring')->completeReviewerIds($slamId)),
-            'locked' => $reps->lockedReason($slam),
+            'locked' => $reps->lockedReason($slam), 'mix' => $reps->categoryMix($slamId),
             'lastDraw' => Db::row("SELECT occurred_at, actor_label, meta FROM activity_log WHERE slam_id = ? AND action = 'representatives.drawn' ORDER BY id DESC LIMIT 1", [$slamId]),
         ]);
     }

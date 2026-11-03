@@ -70,6 +70,7 @@
                 ['data' => 'id', 'title' => '#', 'priority' => 50],
                 ['data' => 'name', 'title' => 'Name', 'render' => 'ml', 'priority' => 1],
                 ['data' => 'badge_id', 'title' => 'ID', 'priority' => 2],
+                ['data' => 'category', 'title' => 'Category', 'priority' => 5],
                 ['data' => 'checked_in', 'title' => 'Check-in', 'render' => 'checkedin', 'priority' => 3],
                 ['data' => 'reviews', 'title' => 'Reviews', 'priority' => 4],
                 ['data' => 'complete', 'title' => 'Reviewed all', 'render' => 'bool', 'priority' => 6],

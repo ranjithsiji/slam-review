@@ -8,6 +8,7 @@ $cols = [
     ['data' => 'id', 'title' => '#', 'priority' => 50],
     ['data' => 'name', 'title' => 'Name', 'render' => 'ml', 'priority' => 1],
     ['data' => 'badge_id', 'title' => 'ID', 'priority' => 2],
+    ['data' => 'category', 'title' => 'Category', 'priority' => 3],
     ['data' => 'mobile', 'title' => 'Mobile', 'orderable' => false, 'priority' => 4],
     ['data' => 'email', 'title' => 'Email', 'orderable' => false, 'priority' => 6],
     ['data' => 'reviews', 'title' => 'Reviews', 'priority' => 5],
@@ -18,7 +19,7 @@ $cols = [
         <div class="card h-100 card-accent accent-pink">
             <div class="card-header"><h3 class="card-title"><?= icon('action.shuffle', 'me-2') ?>Draw audience representatives</h3></div>
             <div class="card-body">
-                <p class="text-secondary">Audience representatives are drawn at random from the judges who reviewed <strong>every</strong> performance. They form their own scoring group with its own weight; their reviews no longer count in the judges' average. After the draw you can add or remove people below.</p>
+                <p class="text-secondary">Audience representatives are drawn at random from the judges who reviewed <strong>every</strong> performance, in the same category mix as the judges who checked in: if 20% of those checked in are researchers, 20% of the representatives are researchers. They form their own scoring group with its own weight; their reviews no longer count in the judges' average. After the draw you can add or remove people below.</p>
                 <?php if ($locked !== null): ?>
                     <div class="alert alert-info mb-3"><?= icon('status.lock', 'me-1') ?><?= esc($locked) ?></div>
                 <?php endif ?>
@@ -29,7 +30,7 @@ $cols = [
                     </div>
                     <div class="col-6 col-sm-8">
                         <button type="button" class="btn btn-primary w-100" data-api-post="<?= site_url("api/slams/{$sid}/representatives/draw") ?>" data-form="#draw-form"
-                            data-title="Draw representatives" data-confirm="<?= $selected > 0 ? 'This replaces the current list of ' . (int) $selected . ' audience representative(s), including people you added by hand.' : 'People are picked at random from everyone who reviewed every performance.' ?>"
+                            data-title="Draw representatives" data-confirm="<?= $selected > 0 ? 'This replaces the current list of ' . (int) $selected . ' audience representative(s), including people you added by hand.' : 'People are picked at random from everyone who reviewed every performance, in the same category mix as those checked in.' ?>"
                             data-reload <?= $locked || $pool === 0 ? 'disabled' : '' ?>><?= icon('action.shuffle') ?><?= $selected > 0 ? 'Draw again' : 'Draw at random' ?></button>
                     </div>
                 </form>
@@ -44,6 +45,16 @@ $cols = [
             <div class="row g-3 text-center">
                 <div class="col-6"><div class="h1 mb-0"><?= (int) $pool ?></div><div class="text-secondary small">reviewed every performance</div></div>
                 <div class="col-6"><div class="h1 mb-0"><?= (int) $selected ?></div><div class="text-secondary small">audience representatives</div></div>
+            </div>
+            <div class="table-responsive mt-3">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Category</th><th class="text-end">Checked in</th><th class="text-end">Reviewed all</th><th class="text-end">Selected</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($mix as $m): ?>
+                            <tr><td><?= esc($m['label']) ?></td><td class="text-end"><?= (int) $m['checked_in'] ?> (<?= esc((string) $m['percent']) ?>%)</td><td class="text-end"><?= (int) $m['pool'] ?></td><td class="text-end"><?= (int) $m['selected'] ?></td></tr>
+                        <?php endforeach ?>
+                    </tbody>
+                </table>
             </div>
             <?php if ($selected > 0 && $selected < $count): ?><div class="alert alert-warning mt-3 mb-0"><?= icon('status.warning', 'me-1') ?>Fewer audience representatives than requested (<?= (int) $count ?>).</div><?php endif ?>
             <p class="small text-secondary mt-3 mb-0">Changes take effect in the next marks calculation; existing mark runs never change. <a href="<?= site_url("admin/slams/{$sid}/mark-config") ?>">Group weights</a></p>

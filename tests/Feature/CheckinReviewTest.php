@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use CodeIgniter\Test\FeatureTestTrait;
 use Modules\Core\Libraries\Clock;
 use Modules\Core\Libraries\Db;
 use Modules\Core\Libraries\DomainException;
@@ -11,6 +12,8 @@ use Tests\Support\SlamTestCase;
 
 final class CheckinReviewTest extends SlamTestCase
 {
+    use FeatureTestTrait;
+
     private function expectReason(string $reason, callable $fn): void
     {
         try {
@@ -85,6 +88,23 @@ final class CheckinReviewTest extends SlamTestCase
         // Unknown IDs get the generic error and count towards the lockout.
         $this->expectReason('invalid_id', fn () => service('checkins')->selfLookup('ZZ00000', '5.5.5.5'));
         $this->assertSame('98••••3210', \Modules\Checkin\Services\CheckinService::maskMobile('9876543210'));
+    }
+
+    public function testQrLandingShowsTheNameButNotTheMobile(): void
+    {
+        $s    = $this->makeSlam(1, 1, 0);
+        $a    = $s['users'][0];
+        $page = (string) $this->get('in/' . $a['badge_id'])->response()->getBody();
+        $this->assertStringContainsString(esc($a['name']), $page);
+        $this->assertStringContainsString($a['badge_id'], $page);
+        $this->assertStringNotContainsString($a['mobile'], $page);
+        $this->assertStringContainsString('Ready to check in?', (string) $this->get('in/AA00001')->response()->getBody());
+        // Unknown or malformed IDs and deactivated badges name nobody.
+        $this->assertNull(service('checkins')->badgeHolderName('AA00001'));
+        $this->assertNull(service('checkins')->badgeHolderName('bad'));
+        db_connect()->table('attendees')->where('id', $a['id'])->update(['is_active' => 0]);
+        $this->assertNull(service('checkins')->badgeHolderName($a['badge_id']));
+        $this->assertSame(0, (int) Db::value('SELECT COUNT(*) FROM checkins'), 'showing the name must not check anyone in');
     }
 
     public function testRegistrationLookupByMobileIsMinimal(): void

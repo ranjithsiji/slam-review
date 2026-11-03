@@ -15,8 +15,9 @@ use Modules\Core\Libraries\DomainException;
  *   1. POST /checkin (badge ID from the QR landing page or typed): throttled like
  *      a login; shows the attendee's name and masked mobile to verify.
  *   2. POST /checkin/confirm: checks them in.
- * GET pages never reveal anyone's details or check anyone in (link previews, QR
- * apps and prefetching are harmless).
+ * GET pages never check anyone in (link previews, QR apps and prefetching are
+ * harmless). The QR landing page shows the holder's name, which is printed on the
+ * badge next to the ID; nothing else, and an unknown ID gets the same page.
  */
 class PublicCheckinController extends BaseController
 {
@@ -29,12 +30,12 @@ class PublicCheckinController extends BaseController
         return view('Modules\Checkin\Views\checkin', ['badge' => null, 'pending' => null]);
     }
 
-    /** /in/{ID}: same generic page for any ID; shows "Check in as …" with the ID prefilled. */
+    /** /in/{ID}: shows the holder's name and the ID, ready to continue. */
     public function landing(string $raw): string
     {
         $id = BadgeIdService::fromScan($raw) ?? '';
 
-        return view('Modules\Checkin\Views\checkin', ['badge' => $id, 'pending' => null]);
+        return view('Modules\Checkin\Views\checkin', ['badge' => $id, 'badgeName' => service('checkins')->badgeHolderName($id), 'pending' => null]);
     }
 
     /** Pending verification lives in the session for a few minutes only. */

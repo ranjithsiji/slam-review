@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Attendees\DataTables;
 
+use Modules\Attendees\Services\AttendeeService;
 use Modules\Core\DataTables\TableDefinition;
 
 class AttendeesTable extends TableDefinition
@@ -33,6 +34,7 @@ class AttendeesTable extends TableDefinition
             'name'              => ['sql' => 'a.name', 'search' => true, 'order' => true],
             'badge_id'          => ['sql' => 'a.badge_id', 'search' => true, 'order' => true],
             'user_type'         => ['sql' => 'a.user_type', 'order' => true],
+            'category'          => ['sql' => AttendeeService::categorySql('a.category'), 'order' => true],
             'mobile'            => ['sql' => 'a.mobile', 'search' => true],
             'email'             => ['sql' => 'a.email', 'search' => true],
             'checked_in'        => ['sql' => '(c.id IS NOT NULL)', 'order' => true],

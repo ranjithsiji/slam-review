@@ -40,6 +40,23 @@ final class ScoringTest extends SlamTestCase
         $this->assertNull(ScoringService::reviewMark([9 => 5], $five));
     }
 
+    public function testRepresentativeSeatsFollowTheCheckedInCategoryMix(): void
+    {
+        $alloc = [\Modules\Scoring\Services\RepresentativeService::class, 'allocate'];
+        // 20% researchers checked in means 2 of 10 seats.
+        $this->assertSame(['public' => 6, 'researcher' => 2, 'school_student' => 2], $alloc(['public' => 60, 'researcher' => 20, 'school_student' => 20], ['public' => 30, 'researcher' => 10, 'school_student' => 10], 10));
+        // The share comes from who checked in, not from who finished reviewing.
+        $this->assertSame(['public' => 5, 'researcher' => 5], $alloc(['public' => 50, 'researcher' => 50], ['public' => 40, 'researcher' => 8], 10));
+        // A small category still gets a seat.
+        $this->assertSame(['public' => 9, 'school_student' => 1], $alloc(['public' => 99, 'school_student' => 1], ['public' => 50, 'school_student' => 3], 10));
+        // Too few eligible in a category: its seats pass to the others, and the total holds.
+        $this->assertSame(['public' => 8, 'researcher' => 2], $alloc(['public' => 50, 'researcher' => 50], ['public' => 40, 'researcher' => 2], 10));
+        // More seats than people: everyone.
+        $this->assertSame(['public' => 2, 'researcher' => 1], $alloc(['public' => 1, 'researcher' => 1], ['public' => 2, 'researcher' => 1], 10));
+        // Nothing but uncategorised people behaves like a plain random draw.
+        $this->assertSame(['' => 4], $alloc(['' => 9], ['' => 9], 4));
+    }
+
     public function testRankTiesShareRankAndOrderByJudgesThenRepresentativesThenGeneral(): void
     {
         $r = ScoringService::rank([

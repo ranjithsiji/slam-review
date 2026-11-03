@@ -27,6 +27,7 @@ class ImportRowsTable extends TableDefinition
             'mobile'    => ['sql' => 'r.mobile', 'search' => true],
             'email'     => ['sql' => 'r.email', 'search' => true],
             'user_type' => ['sql' => 'r.user_type'],
+            'category'  => ['sql' => \Modules\Attendees\Services\AttendeeService::categorySql('r.category')],
             'badge_id'  => ['sql' => 'r.badge_id'],
             'error'     => ['sql' => 'r.error', 'search' => true],
         ];

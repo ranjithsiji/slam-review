@@ -36,7 +36,11 @@
             <div class="text-center">
                 <?= icon('person.badge', 'icon-xl text-primary mb-2') ?>
                 <h2 class="h2 mb-1">Ready to check in?</h2>
-                <p class="text-secondary">Your badge ID</p>
+                <?php if (! empty($badgeName)): ?>
+                    <p class="text-secondary mb-0">Name</p>
+                    <div class="h1 fw-bold ml-text mb-3"><?= esc($badgeName) ?></div>
+                <?php endif ?>
+                <p class="text-secondary mb-0">Your badge ID</p>
                 <div class="display-6 fw-bold mb-3" style="letter-spacing:.15em"><?= esc($badge) ?></div>
                 <input type="hidden" name="badge_id" value="<?= esc($badge) ?>">
                 <button class="btn btn-primary btn-lg w-100" type="submit"><?= icon('nav.checkins') ?>Continue to check in</button>

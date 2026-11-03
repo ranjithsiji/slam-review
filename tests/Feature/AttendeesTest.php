@@ -84,13 +84,41 @@ final class AttendeesTest extends SlamTestCase
     {
         $s     = $this->makeSlam(1, 1, 0);
         $u     = $s['users'][0];
-        $csv   = "name,mobile,type,badge_id\nRenamed Person,{$u['mobile']},judge,KR11111\n";
+        $csv   = "name,mobile,type,category,badge_id\nRenamed Person,{$u['mobile']},judge,researcher,KR11111\n";
         $pre   = service('importer')->preview($s['id'], $this->csvFile($csv), 'x.csv', 'update_existing', $this->admin);
         service('importer')->commit($pre['batch_id'], $this->admin);
         $row = Db::row('SELECT * FROM attendees WHERE id = ?', [$u['id']]);
         $this->assertSame('Renamed Person', $row['name']);
+        $this->assertSame('researcher', $row['category']);
         $this->assertSame('judge', $row['user_type']);
         $this->assertSame($u['badge_id'], $row['badge_id']);
+    }
+
+    public function testOneMobileIsOnePersonAndAPersonMayHaveNoMobile(): void
+    {
+        $s   = $this->makeSlam(1, 1, 0);
+        $csv = "name,mobile,category\nParent One,9447011111,പൊതുജനങ്ങൾ\nChild One,9447011111,സ്കൂൾ വിദ്യാർത്ഥി\nNo Number,,College student\nOther Person,9447033333,സ്കൂൾ വിദ്യാർത്ഥി\nBad Cat,9447022222,astronaut\n";
+        $pre = service('importer')->preview($s['id'], $this->csvFile($csv), 'f.csv', 'skip_existing', $this->admin);
+        $this->assertSame(['new' => 3, 'duplicate' => 0, 'invalid' => 2], $pre['counts']);
+        $this->assertSame(3, service('importer')->commit($pre['batch_id'], $this->admin)['created']);
+        $this->assertSame('school_student', Db::value('SELECT category FROM attendees WHERE name = ?', ['Other Person']));
+        $this->assertNull(Db::value('SELECT mobile FROM attendees WHERE name = ?', ['No Number']));
+        $this->assertSame(0, (int) Db::value('SELECT COUNT(*) FROM attendees WHERE name = ?', ['Child One']));
+        // Importing the same people again adds nobody, including the person without a number.
+        $again = service('importer')->preview($s['id'], $this->csvFile($csv . "\n"), 'g.csv', 'skip_existing', $this->admin);
+        $this->assertSame(3, $again['counts']['duplicate']);
+    }
+
+    public function testImportCommandWritesBadgeList(): void
+    {
+        $s    = $this->makeSlam(1, 1, 0);
+        $slug = Db::value('SELECT slug FROM slams WHERE id = ?', [$s['id']]);
+        $out  = tempnam(sys_get_temp_dir(), 'badges');
+        command("slam:import-attendees {$slug} {$this->csvFile("name,mobile,category\nCli Person,9447044444,researcher\n")} {$out}");
+        $list = (string) file_get_contents($out);
+        unlink($out);
+        $this->assertStringContainsString('"Cli Person",9447044444,,researcher,', $list);
+        $this->assertStringContainsString('/in/', $list);
     }
 
     public function testRowLimitRejected(): void

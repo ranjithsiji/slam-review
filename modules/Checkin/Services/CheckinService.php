@@ -60,6 +60,17 @@ class CheckinService
         return $rows;
     }
 
+    /** The name on an active badge, or null. Reads only: no check-in and no failed-attempt count. */
+    public function badgeHolderName(string $badgeId): ?string
+    {
+        if (! BadgeIdService::isValidFormat($badgeId)) {
+            return null;
+        }
+        $name = Db::value('SELECT name FROM attendees WHERE badge_id = ? AND is_active = 1', [$badgeId]);
+
+        return $name === null ? null : (string) $name;
+    }
+
     /**
      * Step 1 of self check-in: validate the badge (throttled like a login) and
      * return what the attendee sees to verify it is them. Checks nothing in.

@@ -40,6 +40,7 @@
                 ['data' => 'mobile', 'title' => 'Mobile', 'orderable' => false, 'priority' => 5],
                 ['data' => 'email', 'title' => 'Email', 'orderable' => false, 'priority' => 7],
                 ['data' => 'user_type', 'title' => 'Type', 'orderable' => false, 'priority' => 6],
+                ['data' => 'category', 'title' => 'Category', 'orderable' => false, 'priority' => 7],
                 ['data' => 'badge_id', 'title' => 'ID', 'orderable' => false, 'priority' => 8],
                 ['data' => 'error', 'title' => 'Message', 'orderable' => false, 'priority' => 4],
             ],

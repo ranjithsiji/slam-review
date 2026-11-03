@@ -4,7 +4,7 @@
 $routes->group('', ['namespace' => 'Modules\Checkin\Controllers'], static function ($routes): void {
     // Public check-in (no login). The ID in the URL is a credential: no-store, no-referrer.
     $routes->get('checkin', 'PublicCheckinController::typeId', ['filter' => 'nostore']);
-    $routes->get('in/(:segment)', 'PublicCheckinController::landing/$1', ['filter' => 'nostore']);
+    $routes->get('in/(:segment)', 'PublicCheckinController::landing/$1', ['filter' => ['ratelimit:checkin', 'nostore']]);
     // Step 1 shows the attendee's name and masked mobile; step 2 (confirm) checks them in.
     $routes->post('checkin', 'PublicCheckinController::verify', ['filter' => ['ratelimit:checkin', 'trap', 'nostore']]);
     $routes->get('checkin/confirm', 'PublicCheckinController::confirmPage', ['filter' => 'nostore']);

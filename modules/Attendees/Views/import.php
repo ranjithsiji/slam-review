@@ -13,9 +13,10 @@
                 <thead><tr><th>Column</th><th>Required</th><th>Rules</th></tr></thead>
                 <tbody>
                     <tr><td><code>name</code></td><td>yes</td><td>2–120 characters; Malayalam is fine</td></tr>
-                    <tr><td><code>mobile</code></td><td>yes</td><td>10 digits (+91, spaces, dashes and a leading 0 are removed)</td></tr>
+                    <tr><td><code>mobile</code></td><td>column yes</td><td>10 digits (+91, spaces, dashes and a leading 0 are removed), or blank if the person has no usable number. One number is one person</td></tr>
                     <tr><td><code>email</code></td><td>no</td><td>valid email</td></tr>
                     <tr><td><code>type</code></td><td>no</td><td><code>user</code> (a judge from the audience; also when blank) or <code>expert</code> (older files may say <code>judge</code>, which also means expert)</td></tr>
+                    <tr><td><code>category</code></td><td>no</td><td><code>public</code>, <code>college_student</code>, <code>researcher</code> or <code>school_student</code>; the registration form's Malayalam wording also works. Used to balance the audience representatives</td></tr>
                     <tr><td><code>badge_id</code></td><td>no</td><td>blank = generated; else 2 letters (no I, O, Q, S, Z) + 5 digits</td></tr>
                 </tbody>
             </table>

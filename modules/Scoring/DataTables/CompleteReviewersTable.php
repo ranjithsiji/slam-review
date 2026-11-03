@@ -48,6 +48,7 @@ class CompleteReviewersTable extends TableDefinition
             'badge_id' => ['sql' => 'a.badge_id', 'search' => true, 'order' => true],
             'mobile'   => ['sql' => 'a.mobile', 'search' => true],
             'email'    => ['sql' => 'a.email'],
+            'category' => ['sql' => \Modules\Attendees\Services\AttendeeService::categorySql('a.category'), 'order' => true],
             'reviews'  => ['sql' => '(SELECT COUNT(*) FROM reviews r WHERE r.attendee_id = a.id)', 'order' => true],
             'is_representative' => ['sql' => '(ar.id IS NOT NULL)', 'order' => true],
             'rep_source'        => ['sql' => 'ar.source'],

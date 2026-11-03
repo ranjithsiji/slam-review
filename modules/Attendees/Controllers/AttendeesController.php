@@ -163,12 +163,12 @@ class AttendeesController extends BaseController
             $where  .= ' AND import_batch_id = ?';
             $binds[] = $b;
         }
-        $rows = Db::rows("SELECT id, name, mobile, email, user_type, badge_id FROM attendees WHERE {$where} ORDER BY name", $binds);
+        $rows = Db::rows("SELECT id, name, mobile, email, user_type, category, badge_id FROM attendees WHERE {$where} ORDER BY name", $binds);
         $fh   = fopen('php://temp', 'r+');
         fwrite($fh, "\xEF\xBB\xBF");
-        fputcsv($fh, ['name', 'mobile', 'email', 'type', 'badge_id', 'checkin_url'], ',', '"', '');
+        fputcsv($fh, ['name', 'mobile', 'email', 'type', 'category', 'badge_id', 'checkin_url'], ',', '"', '');
         foreach ($rows as $r) {
-            fputcsv($fh, array_map([AttendeeService::class, 'csvSafe'], [$r['name'], $r['mobile'], (string) $r['email'], $r['user_type'], $r['badge_id'], $qr->badgeUrl($r['badge_id'])]), ',', '"', '');
+            fputcsv($fh, array_map([AttendeeService::class, 'csvSafe'], [$r['name'], $r['mobile'], (string) $r['email'], $r['user_type'], (string) $r['category'], $r['badge_id'], $qr->badgeUrl($r['badge_id'])]), ',', '"', '');
         }
         rewind($fh);
         service('attendees')->markPrinted(array_map(static fn ($r) => (int) $r['id'], $rows));

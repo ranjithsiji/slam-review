@@ -11,8 +11,19 @@
         <p class="text-secondary small">Only pre-registered people can check in. A badge ID (2 letters + 5 digits) is generated automatically.</p>
         <div class="mb-3"><label class="form-label required" for="name">Name</label><input id="name" name="name" class="form-control<?= is_invalid($errors, 'name') ?>" required maxlength="120" value="<?= esc(old('name', $a['name'] ?? '')) ?>"><?= field_error($errors, 'name') ?></div>
         <div class="row">
-            <div class="col-12 col-sm-6 mb-3"><label class="form-label required" for="mobile">Mobile</label><input id="mobile" name="mobile" type="tel" inputmode="tel" class="form-control<?= is_invalid($errors, 'mobile') ?>" required value="<?= esc(old('mobile', $a['mobile'] ?? '')) ?>"><?= field_error($errors, 'mobile') ?></div>
+            <div class="col-12 col-sm-6 mb-3"><label class="form-label" for="mobile">Mobile</label><input id="mobile" name="mobile" type="tel" inputmode="tel" class="form-control<?= is_invalid($errors, 'mobile') ?>" value="<?= esc(old('mobile', $a['mobile'] ?? '')) ?>"><?= field_error($errors, 'mobile') ?></div>
             <div class="col-12 col-sm-6 mb-3"><label class="form-label" for="email">Email</label><input id="email" name="email" type="email" class="form-control<?= is_invalid($errors, 'email') ?>" value="<?= esc(old('email', $a['email'] ?? '')) ?>"><?= field_error($errors, 'email') ?></div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="category">Category</label>
+            <select id="category" name="category" class="form-select<?= is_invalid($errors, 'category') ?>">
+                <option value="">Not set</option>
+                <?php foreach (\Modules\Attendees\Services\AttendeeService::CATEGORIES as $k => $l): ?>
+                    <option value="<?= esc($k, 'attr') ?>" <?= old('category', $a['category'] ?? '') === $k ? 'selected' : '' ?>><?= esc($l) ?></option>
+                <?php endforeach ?>
+            </select>
+            <?= field_error($errors, 'category') ?>
+            <div class="form-hint">The audience representatives are drawn in the same category mix as the people checked in.</div>
         </div>
         <?php if ($a): ?>
         <div class="mb-3">

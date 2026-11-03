@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Scoring\Services;
 
+use Modules\Attendees\Services\AttendeeService;
 use Modules\Core\Libraries\Actor;
 use Modules\Core\Libraries\Clock;
 use Modules\Core\Libraries\Db;
@@ -12,8 +13,9 @@ use Modules\Schedule\Services\ScheduleService;
 
 /**
  * Audience representatives: a panel drawn at random from the audience users who
- * reviewed every opened performance (the complete reviewers). The admin can
- * then add or remove people, but only complete reviewers can be on the panel.
+ * reviewed every opened performance (the complete reviewers), keeping the same
+ * category mix as the judges who checked in. The admin can then add or remove
+ * people, but only complete reviewers can be on the panel.
  * Representatives form their own scoring group; their reviews no longer count
  * in the general reviewers' average.
  */
@@ -55,10 +57,11 @@ class RepresentativeService
 
     /**
      * Replace the whole panel with $count people drawn at random from the
-     * complete reviewers. The draw is a seeded shuffle of the pool sorted by
-     * attendee id, so the logged seed reproduces it exactly.
+     * complete reviewers, category by category (see allocate). Each category is
+     * a seeded shuffle of its pool sorted by attendee id, so the logged seed
+     * reproduces the draw exactly.
      *
-     * @return array{selected: list<int>, pool: int, seed: int}
+     * @return array{selected: list<int>, pool: int, seed: int, categories: array<string, array{checked_in: int, pool: int, selected: int}>}
      */
     public function draw(int $slamId, int $count, Actor $actor, ?int $seed = null): array
     {
@@ -70,9 +73,18 @@ class RepresentativeService
         return Db::tx(function ($db) use ($slamId, $count, $actor, $seed): array {
             $slam = Db::lockSlam($slamId);
             $this->guard($slam, $actor);
-            $pool = service('scoring')->completeReviewerIds($slamId);
-            sort($pool);
-            $selected = array_slice(ScheduleService::seededShuffle($pool, $seed), 0, $count);
+            $pool    = service('scoring')->completeReviewerIds($slamId);
+            $byGroup = $this->poolByCategory($slamId, $pool);
+            $checked = $this->checkedInByCategory($slamId);
+            $quotas  = self::allocate($checked, array_map('count', $byGroup), $count);
+
+            $selected   = [];
+            $categories = [];
+            foreach ($byGroup as $cat => $ids) {
+                $picked   = array_slice(ScheduleService::seededShuffle($ids, $seed), 0, $quotas[$cat]);
+                $selected = [...$selected, ...$picked];
+                $categories[$cat] = ['checked_in' => $checked[$cat] ?? 0, 'pool' => count($ids), 'selected' => count($picked)];
+            }
             sort($selected);
             $old = $this->ids($slamId);
 
@@ -87,11 +99,152 @@ class RepresentativeService
             service('activityLog')->log($actor, 'representatives.drawn', [
                 'slam_id' => $slamId, 'target_type' => 'slam', 'target_id' => $slamId,
                 'old' => ['representatives' => $old], 'new' => ['representatives' => $selected],
-                'meta' => ['requested' => $count, 'pool' => count($pool), 'seed' => $seed],
+                'meta' => ['requested' => $count, 'pool' => count($pool), 'seed' => $seed, 'categories' => $categories],
             ]);
 
-            return ['selected' => $selected, 'pool' => count($pool), 'seed' => $seed];
+            return ['selected' => $selected, 'pool' => count($pool), 'seed' => $seed, 'categories' => $categories];
         });
+    }
+
+    /**
+     * How many representatives each category gets: its share of the people who
+     * checked in, by the largest-remainder method so the seats add up. Every
+     * category with someone in the pool gets at least one seat when there are
+     * enough seats, and no category gets more than its pool; spare seats go to
+     * the category furthest below its share.
+     *
+     * @param array<string, int> $checkedIn people checked in, per category
+     * @param array<string, int> $pool      people eligible, per category
+     * @return array<string, int> seats per category of $pool
+     */
+    public static function allocate(array $checkedIn, array $pool, int $count): array
+    {
+        ksort($pool);
+        $seats = min($count, array_sum($pool));
+        $weights = array_map(static fn (string $c): int => $checkedIn[$c] ?? 0, array_combine(array_keys($pool), array_keys($pool)));
+        if (array_sum($weights) === 0) {
+            $weights = $pool;
+        }
+        $total = max(1, array_sum($weights));
+        $exact = array_map(static fn (int $w): float => $seats * $w / $total, $weights);
+        $quota = array_map(static fn (float $e): int => (int) floor($e + 1e-9), $exact);
+
+        $remainders = [];
+        foreach ($exact as $c => $e) {
+            $remainders[$c] = $e - $quota[$c];
+        }
+        arsort($remainders);
+        foreach (array_slice(array_keys($remainders), 0, $seats - array_sum($quota)) as $c) {
+            $quota[$c]++;
+        }
+
+        $mostBelow = static function (array $quota, callable $canTake) use ($exact): ?string {
+            $best = null;
+            foreach ($quota as $c => $q) {
+                if ($canTake($c) && ($best === null || $exact[$c] - $q > $exact[$best] - $quota[$best])) {
+                    $best = $c;
+                }
+            }
+
+            return $best;
+        };
+        $mostAbove = static function (array $quota, callable $canGive) use ($exact): ?string {
+            $best = null;
+            foreach ($quota as $c => $q) {
+                if ($canGive($c) && ($best === null || $q - $exact[$c] > $quota[$best] - $exact[$best])) {
+                    $best = $c;
+                }
+            }
+
+            return $best;
+        };
+
+        // Nobody beyond the pool: pass the extra seats on.
+        foreach (array_keys($quota) as $c) {
+            while ($quota[$c] > $pool[$c]) {
+                $to = $mostBelow($quota, static fn ($x) => $quota[$x] < $pool[$x]);
+                $quota[$c]--;
+                if ($to !== null) {
+                    $quota[$to]++;
+                }
+            }
+        }
+        // Every category present, if there are enough seats.
+        $present = array_keys(array_filter($pool));
+        if ($seats >= count($present)) {
+            foreach ($present as $c) {
+                if ($quota[$c] === 0) {
+                    $from = $mostAbove($quota, static fn ($x) => $quota[$x] > 1);
+                    if ($from !== null) {
+                        $quota[$from]--;
+                        $quota[$c]++;
+                    }
+                }
+            }
+        }
+
+        return $quota;
+    }
+
+    /**
+     * Pool ids grouped by category, each sorted by id. '' = no category.
+     *
+     * @param list<int> $pool
+     * @return array<string, list<int>>
+     */
+    private function poolByCategory(int $slamId, array $pool): array
+    {
+        $cats = [];
+        foreach (Db::rows('SELECT id, category FROM attendees WHERE slam_id = ?', [$slamId]) as $r) {
+            $cats[(int) $r['id']] = (string) $r['category'];
+        }
+        sort($pool);
+        $groups = [];
+        foreach ($pool as $id) {
+            $groups[$cats[$id] ?? ''][] = $id;
+        }
+        ksort($groups);
+
+        return $groups;
+    }
+
+    /** @return array<string, int> judges who checked in (now or earlier), per category; '' = no category */
+    private function checkedInByCategory(int $slamId): array
+    {
+        $out = [];
+        foreach (Db::rows(
+            "SELECT a.category, COUNT(DISTINCT a.id) n FROM attendees a JOIN checkins c ON c.attendee_id = a.id
+             WHERE a.slam_id = ? AND a.user_type = 'user' GROUP BY a.category",
+            [$slamId],
+        ) as $r) {
+            $out[(string) $r['category']] = (int) $r['n'];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Category mix for the representatives screen.
+     *
+     * @return list<array{label: string, checked_in: int, percent: float, pool: int, selected: int}>
+     */
+    public function categoryMix(int $slamId): array
+    {
+        $checked  = $this->checkedInByCategory($slamId);
+        $pool     = array_map('count', $this->poolByCategory($slamId, service('scoring')->completeReviewerIds($slamId)));
+        $selected = array_map('count', $this->poolByCategory($slamId, $this->ids($slamId)));
+        $total    = max(1, array_sum($checked));
+        $rows     = [];
+        foreach ([...array_keys(AttendeeService::CATEGORIES), ''] as $cat) {
+            if ($cat !== '' || isset($checked['']) || isset($pool[''])) {
+                $rows[] = [
+                    'label' => AttendeeService::categoryLabel($cat === '' ? null : $cat), 'checked_in' => $checked[$cat] ?? 0,
+                    'percent' => round(100 * ($checked[$cat] ?? 0) / $total, 1), 'pool' => $pool[$cat] ?? 0, 'selected' => $selected[$cat] ?? 0,
+                ];
+            }
+        }
+
+        return $rows;
     }
 
     public function add(int $slamId, int $attendeeId, Actor $actor): void

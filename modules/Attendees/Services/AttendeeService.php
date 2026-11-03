@@ -16,6 +16,54 @@ use Modules\Core\Libraries\DomainException;
  */
 class AttendeeService
 {
+    /** Audience categories from the registration form: stored code => label. */
+    public const CATEGORIES = [
+        'public'          => 'General public',
+        'college_student' => 'College student',
+        'researcher'      => 'Researcher',
+        'school_student'  => 'School student',
+    ];
+
+    /** The form's Malayalam wording, accepted in imports. */
+    private const CATEGORY_ML = [
+        'പൊതുജനങ്ങൾ'         => 'public',
+        'കോളേജ് വിദ്യാർത്ഥി' => 'college_student',
+        'ഗവേഷകർ'            => 'researcher',
+        'സ്കൂൾ വിദ്യാർത്ഥി'  => 'school_student',
+    ];
+
+    /** A stored code from a code, English label or Malayalam label; null if it is none of these. */
+    public static function normaliseCategory(string $raw): ?string
+    {
+        $v = mb_strtolower(trim($raw));
+        if (isset(self::CATEGORIES[$v])) {
+            return $v;
+        }
+        foreach (self::CATEGORIES as $code => $label) {
+            if (mb_strtolower($label) === $v) {
+                return $code;
+            }
+        }
+
+        return self::CATEGORY_ML[$v] ?? null;
+    }
+
+    public static function categoryLabel(?string $code): string
+    {
+        return self::CATEGORIES[(string) $code] ?? 'Not set';
+    }
+
+    /** SQL showing a category column as its label, for data tables. */
+    public static function categorySql(string $column): string
+    {
+        $when = '';
+        foreach (self::CATEGORIES as $code => $label) {
+            $when .= " WHEN '{$code}' THEN '{$label}'";
+        }
+
+        return "(CASE {$column}{$when} ELSE '' END)";
+    }
+
     /** Normalise an Indian mobile to 10 digits, or null if invalid. */
     public static function normaliseMobile(string $raw): ?string
     {
@@ -46,11 +94,18 @@ class AttendeeService
         if (mb_strlen($name) < 2 || mb_strlen($name) > 120) {
             $errors['name'] = 'Name must be 2–120 characters.';
         }
-        $mobile = self::normaliseMobile((string) ($input['mobile'] ?? ''));
-        if ($mobile === null) {
-            $errors['mobile'] = 'Mobile must be a valid 10-digit Indian number.';
-        } elseif (Db::value('SELECT id FROM attendees WHERE slam_id = ? AND mobile = ? AND id <> ?', [$slamId, $mobile, $id ?? 0]) !== null) {
+        // Blank is allowed (no usable number). One mobile number is one person in a slam.
+        $rawMobile = trim((string) ($input['mobile'] ?? ''));
+        $mobile    = $rawMobile === '' ? null : self::normaliseMobile($rawMobile);
+        if ($rawMobile !== '' && $mobile === null) {
+            $errors['mobile'] = 'Mobile must be a valid 10-digit Indian number, or left blank.';
+        } elseif ($mobile !== null && Db::value('SELECT id FROM attendees WHERE slam_id = ? AND mobile = ? AND id <> ?', [$slamId, $mobile, $id ?? 0]) !== null) {
             $errors['mobile'] = 'This mobile is already registered for this slam.';
+        }
+        $rawCategory = trim((string) ($input['category'] ?? ''));
+        $category    = $rawCategory === '' ? null : self::normaliseCategory($rawCategory);
+        if ($rawCategory !== '' && $category === null) {
+            $errors['category'] = 'Choose a category from the list.';
         }
         $email = strtolower(trim((string) ($input['email'] ?? '')));
         if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -64,7 +119,7 @@ class AttendeeService
             throw new DomainException('validation', 'Please correct the highlighted fields.', 422, $errors);
         }
 
-        return ['name' => $name, 'mobile' => $mobile, 'email' => $email === '' ? null : $email, 'user_type' => $type];
+        return ['name' => $name, 'mobile' => $mobile, 'email' => $email === '' ? null : $email, 'user_type' => $type, 'category' => $category];
     }
 
     /** @param array<string, mixed> $input */
