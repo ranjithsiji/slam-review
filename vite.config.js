@@ -24,6 +24,7 @@ export default defineConfig({
       input: {
         admin: resolve(__dirname, 'frontend/entries/admin.js'),
         public: resolve(__dirname, 'frontend/entries/public.js'),
+        tv: resolve(__dirname, 'frontend/entries/tv.js'),
         checkin: resolve(__dirname, 'frontend/entries/checkin.js'),
         reviewer: resolve(__dirname, 'frontend/entries/reviewer.js'),
         volunteer: resolve(__dirname, 'frontend/entries/volunteer.js'),

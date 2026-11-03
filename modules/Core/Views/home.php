@@ -68,6 +68,7 @@ $sig = static fn (array $l) => implode('|', array_map(static fn ($d) => $d['slug
                 <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                     <span data-live-late="<?= esc($d['slug'], 'attr') ?>"><?= (int) $d['late_minutes'] > 0 ? '<span class="badge bg-orange-lt">Running about ' . (int) $d['late_minutes'] . ' min behind schedule</span>' : '' ?></span>
                     <a class="btn btn-sm ms-auto" href="<?= site_url('slams/' . $d['slug']) ?>">Full schedule</a>
+                    <a class="btn btn-sm" href="<?= site_url('slams/' . $d['slug'] . '/tv') ?>" target="_blank" rel="noopener">TV screen</a>
                 </div>
             </div>
         </section>

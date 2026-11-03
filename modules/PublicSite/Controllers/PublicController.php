@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\PublicSite\Controllers;
 
 use CodeIgniter\Exceptions\PageNotFoundException;
+use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
 use Modules\Core\Controllers\BaseController;
 use Modules\PublicSite\Services\PublicScheduleService;
@@ -43,6 +44,34 @@ class PublicController extends BaseController
         $doc = $this->svc->document($slam);
 
         return view('Modules\PublicSite\Views\show', ['slam' => $slam, 'doc' => $doc, 'programme' => $this->svc->programme($doc['slots'], $doc['extras'] ?? []), 'url' => site_url('slams/' . $slug)]);
+    }
+
+    /** Full-screen display for a TV at the venue. Rendered in the browser from the public JSON. */
+    public function tv(string $slug): string
+    {
+        return view('Modules\\PublicSite\\Views\\tv', ['slam' => $this->published($slug)]);
+    }
+
+    /** A fixed address for the venue TV: the running slam, else the next one, else the latest. */
+    public function tvCurrent(): RedirectResponse
+    {
+        $slams = $this->svc->listPublished();
+        if ($slams === []) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+        $pick = null;
+        foreach ($slams as $s) {
+            if ($s['badge'] === 'live') {
+                $pick = $s;
+                break;
+            }
+            if ($pick === null && $s['badge'] !== 'finished') {
+                $pick = $s;
+            }
+        }
+        $pick ??= $slams[array_key_last($slams)];
+
+        return redirect()->to(site_url('slams/' . $pick['slug'] . '/tv'));
     }
 
     /** Presenter cards for one published slam. */

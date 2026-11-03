@@ -98,7 +98,7 @@ class PublicScheduleService
                 'finished'     => $finished,
                 'paused'       => $slam['paused_at'] !== null,
                 // The talk on stage and the break ads are public; review deadlines and review state are not.
-                'talk'         => ! empty($live['talk']) ? array_intersect_key($live['talk'], array_flip(['title', 'presenter', 'designation', 'thumb', 'photo_alt', 'summary', 'started_at', 'on_stage'])) : null,
+                'talk'         => ! empty($live['talk']) ? array_intersect_key($live['talk'], array_flip(['title', 'presenter', 'designation', 'thumb', 'photo', 'photo_alt', 'summary', 'started_at', 'on_stage'])) : null,
                 'ads'          => $live['ads'] ?? [],
                 'slots'        => $slots,
                 'extras'       => $this->extras((int) $slam['id']),

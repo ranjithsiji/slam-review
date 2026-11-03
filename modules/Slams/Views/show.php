@@ -63,6 +63,7 @@
                     <button class="btn <?= (int) $slam['schedule_is_public'] ? 'btn-outline-danger' : 'btn-success' ?>" type="submit"><?= (int) $slam['schedule_is_public'] ? 'Unpublish' : 'Publish schedule' ?></button>
                     <?php if ((int) $slam['schedule_is_public']): ?><a class="btn" href="<?= esc($publicUrl) ?>" target="_blank" rel="noopener"><?= icon('action.open') ?>View</a><?php endif ?>
                 </form>
+                <?php if ((int) $slam['schedule_is_public']): ?><a class="btn mt-2" href="<?= site_url('slams/' . $slam['slug'] . '/tv') ?>" target="_blank" rel="noopener">TV screen</a><?php endif ?>
                 <?php if (in_array($slam['status'], ['draft', 'scheduled'], true)): ?>
                     <form method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/delete') ?>" class="mt-2"
                           data-confirm="Permanently delete this slam, with its schedule, attendees, questions and its volunteer and operator accounts? This cannot be undone." data-danger>
