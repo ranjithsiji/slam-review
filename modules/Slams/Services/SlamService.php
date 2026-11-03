@@ -43,6 +43,17 @@ class SlamService
     }
 
     /** @return array<string, mixed>|null */
+    /** Whether a slam that is not a draft and has not ended takes place today (display timezone). */
+    public function isEventDay(): bool
+    {
+        $today = Clock::localToday();
+
+        return Db::value(
+            "SELECT id FROM slams WHERE status NOT IN ('draft','ended') AND opens_at <= ? AND closes_at >= ? LIMIT 1",
+            [Clock::fromLocal($today, '23:59:59'), Clock::fromLocal($today, '00:00:00')],
+        ) !== null;
+    }
+
     public function findBySlug(string $slug): ?array
     {
         return Db::row('SELECT * FROM slams WHERE slug = ?', [$slug]);

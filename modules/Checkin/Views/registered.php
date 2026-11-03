@@ -13,6 +13,14 @@
                class="form-control form-control-lg text-center fw-bold<?= $error ? ' is-invalid' : '' ?>" style="font-size:1.5rem;letter-spacing:.1em"
                placeholder="98470 12345" value="<?= esc($mobile) ?>">
         <?php if ($error): ?><div class="invalid-feedback text-center"><?= esc($error) ?></div><?php endif ?>
+        <div class="mt-3" data-captcha="<?= esc($captcha, 'attr') ?>">
+            <label class="form-label text-center" for="captcha">What is <strong data-captcha-question>…</strong>?</label>
+            <input id="captcha" name="captcha" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" required autocomplete="off"
+                   class="form-control form-control-lg text-center fw-bold<?= $captchaError ? ' is-invalid' : '' ?>" aria-describedby="captcha-hint">
+            <?php if ($captchaError): ?><div class="invalid-feedback text-center"><?= esc($captchaError) ?></div><?php endif ?>
+            <div id="captcha-hint" class="form-hint text-center">This stops automatic checking of numbers.</div>
+            <noscript><div class="alert alert-warning mt-2 mb-0">Please turn on JavaScript to answer this, or visit the volunteer desk.</div></noscript>
+        </div>
         <button class="btn btn-primary btn-lg w-100 mt-3" type="submit"><?= icon('action.search') ?>Check</button>
     </div>
     <?php if (is_array($result)): ?>

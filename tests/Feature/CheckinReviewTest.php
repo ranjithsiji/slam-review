@@ -107,6 +107,108 @@ final class CheckinReviewTest extends SlamTestCase
         $this->assertSame(0, (int) Db::value('SELECT COUNT(*) FROM checkins'), 'showing the name must not check anyone in');
     }
 
+    public function testLookupLimitRisesOnlyOnTheDayOfASlam(): void
+    {
+        $limit = [\Modules\Core\Filters\RateLimitFilter::class, 'lookupCapacity'];
+        $s     = $this->makeSlam(1, 1, 0);
+        $id    = $s['id'];
+        $slam  = Db::row('SELECT opens_at, closes_at FROM slams WHERE id = ?', [$id]);
+        db_connect()->table('slams')->where('id', $id)->update(['status' => 'scheduled']);
+
+        Clock::set($slam['opens_at']);
+        $this->assertSame(60, $limit());
+        // The same local day, before the gates and after the close, still counts.
+        Clock::set(Clock::fromLocal(Clock::localToday(), '00:05:00'));
+        $this->assertSame(60, $limit());
+        Clock::set(Clock::fromLocal(Clock::localToday(), '23:55:00'));
+        $this->assertSame(60, $limit());
+
+        Clock::set(Clock::addMinutes($slam['opens_at'], -3 * 24 * 60));
+        $this->assertSame(10, $limit(), 'days before');
+        Clock::set(Clock::addMinutes($slam['closes_at'], 3 * 24 * 60));
+        $this->assertSame(10, $limit(), 'days after');
+
+        Clock::set($slam['opens_at']);
+        foreach (['draft', 'ended'] as $status) {
+            db_connect()->table('slams')->where('id', $id)->update(['status' => $status]);
+            $this->assertSame(10, $limit(), $status);
+        }
+    }
+
+    public function testRegisteredAttemptsLockOutByTheSlamDate(): void
+    {
+        $s    = $this->makeSlam(1, 1, 0);
+        $slam = Db::row('SELECT opens_at, closes_at FROM slams WHERE id = ?', [$s['id']]);
+        db_connect()->table('slams')->where('id', $s['id'])->update(['status' => 'scheduled']);
+        $t    = service('throttle');
+        $ip   = '7.7.7.7';
+
+        // No slam today: 3 attempts, then locked for the rest of the hour.
+        Clock::set(Clock::addMinutes($slam['closes_at'], 5 * 24 * 60));
+        foreach ([1, 2, 3] as $n) {
+            $this->assertSame(0, $t->lookupLockedFor($ip), "attempt {$n}");
+            $t->recordLookup($ip);
+        }
+        $this->assertGreaterThan(3500, $t->lookupLockedFor($ip));
+        $this->assertSame(0, $t->lookupLockedFor('8.8.8.8'), 'another network is not affected');
+        Clock::advance(3601);
+        $this->assertSame(0, $t->lookupLockedFor($ip));
+
+        // Slam day: 10 attempts in 10 minutes.
+        Clock::set($slam['opens_at']);
+        $ip = '9.9.9.9';
+        foreach (range(1, 10) as $n) {
+            $this->assertSame(0, $t->lookupLockedFor($ip), "attempt {$n}");
+            $t->recordLookup($ip);
+            Clock::advance(30);
+        }
+        $this->assertGreaterThan(0, $t->lookupLockedFor($ip));
+        Clock::advance(301);
+        $this->assertSame(0, $t->lookupLockedFor($ip));
+
+        // A locked network gets the ordinary error page: no lockout wording, and the number is not looked up.
+        Clock::set(Clock::addMinutes($slam['closes_at'], 9 * 24 * 60));
+        foreach ([1, 2, 3] as $n) {
+            $t->recordLookup('0.0.0.0');
+        }
+        $before = (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'attendee.self_lookup'");
+        $r      = $this->withSession(['registered_captcha' => 7])->post('registered', ['mobile' => $s['users'][0]['mobile'], 'captcha' => '7', csrf_token() => csrf_hash(), \Modules\Core\Filters\HoneypotFilter::STAMP => \Modules\Core\Filters\HoneypotFilter::stamp(time() - 30)]);
+        $body   = (string) $r->response()->getBody();
+        $this->assertSame(500, $r->response()->getStatusCode());
+        $this->assertStringContainsString('Whoops', $body);
+        foreach (['too many', 'locked', 'try again in', esc($s['users'][0]['name'])] as $word) {
+            $this->assertStringNotContainsStringIgnoringCase($word, $body);
+        }
+        $this->assertSame($before, (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'attendee.self_lookup'"));
+    }
+
+    public function testSignedInStaffSkipTheAttemptLimitButNotTheSum(): void
+    {
+        $s = $this->makeSlam(1, 1, 0);
+        db_connect()->table('slams')->where('id', $s['id'])->update(['status' => 'scheduled']);
+        $u = $s['users'][0];
+        Clock::set(Clock::addMinutes((string) Db::value('SELECT closes_at FROM slams WHERE id = ?', [$s['id']]), 5 * 24 * 60));
+        foreach ([1, 2, 3] as $n) {
+            service('throttle')->recordLookup('0.0.0.0');
+        }
+        $id   = (int) $this->admin->id;
+        $auth = ['type' => 'admin', 'id' => $id, 'label' => 'Admin', 'role' => 'admin', 'pwd' => (string) Db::value('SELECT password_changed_at FROM admins WHERE id = ?', [$id])];
+        $send = fn (array $session, string $answer) => $this->withSession($session + ['registered_captcha' => 7])->post('registered', ['mobile' => $u['mobile'], 'captcha' => $answer, csrf_token() => csrf_hash(), \Modules\Core\Filters\HoneypotFilter::STAMP => \Modules\Core\Filters\HoneypotFilter::stamp(time() - 30)])->response();
+        $count = static fn (): int => (int) Db::value("SELECT COUNT(*) FROM login_attempts WHERE kind = 'lookup'");
+        $before = $count();
+
+        // Same locked network: staff get the answer and use up no attempts.
+        $ok = $send(['auth' => $auth], '7');
+        $this->assertSame(200, $ok->getStatusCode());
+        $this->assertStringContainsString(esc($u['name']), (string) $ok->getBody());
+        $this->assertSame($before, $count());
+        // They still answer the sum.
+        $this->assertStringContainsString('That answer was not right', (string) $send(['auth' => $auth], '8')->getBody());
+        // Anyone else on that network, and a session whose password has since changed, stay locked.
+        $this->assertSame(500, $send([], '7')->getStatusCode());
+        $this->assertSame(500, $send(['auth' => ['pwd' => 'old'] + $auth], '7')->getStatusCode());
+    }
+
     public function testRegistrationLookupByMobileIsMinimal(): void
     {
         $s = $this->makeSlam(1, 2, 0);
@@ -115,7 +217,21 @@ final class CheckinReviewTest extends SlamTestCase
         $this->assertCount(1, $rows);
         $this->assertSame(['name', 'slam_name', 'opens_at', 'venue_name', 'user_type'], array_keys($rows[0]));
         $this->assertSame($a['name'], $rows[0]['name']);
-        $page = (string) $this->post('registered', ['mobile' => $a['mobile'], csrf_token() => csrf_hash(), \Modules\Core\Filters\HoneypotFilter::STAMP => \Modules\Core\Filters\HoneypotFilter::stamp(time() - 30)])->response()->getBody();
+        $form = static fn (string $answer): array => ['mobile' => $a['mobile'], 'captcha' => $answer, csrf_token() => csrf_hash(), \Modules\Core\Filters\HoneypotFilter::STAMP => \Modules\Core\Filters\HoneypotFilter::stamp(time() - 30)];
+        $lookups = static fn (): int => (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'attendee.self_lookup'");
+
+        // Wrong answer, or no sum asked yet: no result and no lookup.
+        $before = $lookups();
+        foreach ([['registered_captcha' => 7], []] as $session) {
+            $wrong = (string) $this->withSession($session)->post('registered', $form('8'))->response()->getBody();
+            $this->assertStringNotContainsString(esc($a['name']), $wrong);
+            $this->assertStringContainsString('That answer was not right', $wrong);
+            $this->assertStringContainsString('data-captcha=', $wrong);
+        }
+        $this->assertSame($before, $lookups());
+
+        $page = (string) $this->withSession(['registered_captcha' => 7])->post('registered', $form('7'))->response()->getBody();
+        $this->assertSame($before + 1, $lookups());
         $this->assertStringContainsString('Yes, you are registered', $page);
         $this->assertStringContainsString(esc($a['name']), $page);
         $this->assertStringNotContainsString($a['badge_id'], $page);

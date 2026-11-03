@@ -23,6 +23,30 @@ class ThrottleService
         $this->cfg = $cfg ?? config(SlamConfig::class);
     }
 
+    /** "Am I registered?" attempts per IP, [how many, in how many minutes], on the day of a slam and on other days. */
+    public const LOOKUP_EVENT_DAY = [10, 10];
+    public const LOOKUP_OTHER_DAY = [3, 60];
+
+    /** Seconds until this IP may use "Am I registered?" again, or 0. Every attempt counts, right or wrong. */
+    public function lookupLockedFor(string $ip): int
+    {
+        [$max, $minutes] = service('slams')->isEventDay() ? self::LOOKUP_EVENT_DAY : self::LOOKUP_OTHER_DAY;
+        $rows = Db::rows(
+            "SELECT created_at FROM login_attempts WHERE ip = ? AND kind = 'lookup' AND created_at > ? ORDER BY created_at DESC LIMIT ?",
+            [$ip, Clock::db(Clock::now()->modify("-{$minutes} minutes")), $max],
+        );
+        if (count($rows) < $max) {
+            return 0;
+        }
+
+        return max(1, Clock::parse($rows[$max - 1]['created_at'])->getTimestamp() + $minutes * 60 - Clock::now()->getTimestamp());
+    }
+
+    public function recordLookup(string $ip): void
+    {
+        $this->record('lookup', $ip, '', false);
+    }
+
     /** Value stored for a submitted ID: the ID itself if it matches the format, else a short hash. */
     public static function keyFor(string $kind, string $submitted): string
     {

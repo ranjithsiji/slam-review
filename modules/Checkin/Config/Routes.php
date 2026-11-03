@@ -10,7 +10,7 @@ $routes->group('', ['namespace' => 'Modules\Checkin\Controllers'], static functi
     $routes->get('checkin/confirm', 'PublicCheckinController::confirmPage', ['filter' => 'nostore']);
     $routes->post('checkin/confirm', 'PublicCheckinController::submit', ['filter' => ['ratelimit:checkin', 'trap', 'nostore']]);
     $routes->get('registered', 'PublicCheckinController::registered', ['filter' => 'nostore']);
-    $routes->post('registered', 'PublicCheckinController::registered', ['filter' => ['ratelimit:lookup', 'trap', 'nostore']]);
+    $routes->post('registered', 'PublicCheckinController::registered', ['filter' => ['ratelimit:checkin', 'trap', 'nostore']]); // attempts are limited in the controller
     // "Get my badge": the badge and its QR code by unique ID (rate-limited, never cached).
     $routes->get('badge', 'PublicBadgeController::form', ['filter' => ['nostore']]);
     $routes->post('badge', 'PublicBadgeController::lookup', ['filter' => ['ratelimit:lookup', 'trap', 'nostore']]);

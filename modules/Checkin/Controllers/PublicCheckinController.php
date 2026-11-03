@@ -71,17 +71,64 @@ class PublicCheckinController extends BaseController
     /** "Am I registered?": GET shows the form, POST the result (never cached). */
     public function registered(): string
     {
-        $data = ['result' => null, 'mobile' => '', 'error' => null];
+        $data = ['result' => null, 'mobile' => '', 'error' => null, 'captchaError' => null];
         if ($this->request->getMethod() === 'POST') {
             $data['mobile'] = (string) $this->request->getPost('mobile');
-            try {
-                $data['result'] = service('checkins')->registrationLookup($data['mobile']);
-            } catch (DomainException $e) {
-                $data['error'] = $e->getMessage();
+            $ip = $this->request->getIPAddress();
+            // Signed-in volunteers and admins help people at the desk: no attempt limit, and they use up nobody's attempts.
+            if (! $this->isSignedInStaff()) {
+                if (service('throttle')->lookupLockedFor($ip) > 0) {
+                    // Deliberately the ordinary error page: nothing tells a script that it has been locked out.
+                    $this->response->setStatusCode(500);
+
+                    return view('errors/html/production');
+                }
+                service('throttle')->recordLookup($ip);
+            }
+            // Each sum works once, so a wrong or repeated answer never reaches the lookup.
+            $expected = session('registered_captcha');
+            session()->remove('registered_captcha');
+            if ($expected === null || trim((string) $this->request->getPost('captcha')) !== (string) $expected) {
+                $data['captchaError'] = 'That answer was not right. Please try this new sum.';
+            } else {
+                try {
+                    $data['result'] = service('checkins')->registrationLookup($data['mobile']);
+                } catch (DomainException $e) {
+                    $data['error'] = $e->getMessage();
+                }
             }
         }
+        $data['captcha'] = $this->newCaptcha();
 
         return view('Modules\Checkin\Views\registered', $data);
+    }
+
+    /** A volunteer or admin still signed in: the same check as AuthFilter, as this page is public. */
+    private function isSignedInStaff(): bool
+    {
+        $auth = session('auth');
+        if (! is_array($auth) || ! in_array($auth['type'] ?? '', ['admin', 'volunteer'], true)) {
+            return false;
+        }
+        $table = $auth['type'] === 'admin' ? 'admins' : 'volunteers';
+        $row   = \Modules\Core\Libraries\Db::row("SELECT is_active, password_changed_at FROM {$table} WHERE id = ?", [(int) $auth['id']]);
+
+        return $row !== null && (int) $row['is_active'] === 1 && (string) ($row['password_changed_at'] ?? '') === (string) ($auth['pwd'] ?? '');
+    }
+
+    /** A small sum for "Am I registered?". The answer stays in the session; the page's script shows the question. */
+    private function newCaptcha(): string
+    {
+        $a = random_int(2, 9);
+        $b = random_int(1, 9);
+        if (random_int(0, 1) === 1 && $a > $b) {
+            session()->set('registered_captcha', $a - $b);
+
+            return base64_encode("{$a} − {$b}");
+        }
+        session()->set('registered_captcha', $a + $b);
+
+        return base64_encode("{$a} + {$b}");
     }
 
     public function notMe(): RedirectResponse

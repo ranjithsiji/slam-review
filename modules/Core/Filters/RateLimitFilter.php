@@ -26,14 +26,25 @@ class RateLimitFilter implements FilterInterface
         'review'  => [30, MINUTE],   // per reviewer session
         'search'  => [120, MINUTE],  // per staff session
         'wait'    => [60, MINUTE],   // per waiting phone (late check-in screen polls every ~3 s)
-        'lookup'  => [10, MINUTE],   // per IP: public "Am I registered?" by mobile
+        'lookup'  => [10, MINUTE],   // per IP: public "Get my badge" (see lookupCapacity)
         'staff'   => [600, MINUTE],  // per IP
     ];
+
+    /** "lookup" per IP on the day of a slam, when the audience and volunteers share the venue's network. */
+    public const LOOKUP_EVENT_DAY = 60;
+
+    public static function lookupCapacity(): int
+    {
+        return service('slams')->isEventDay() ? self::LOOKUP_EVENT_DAY : self::BUCKETS['lookup'][0];
+    }
 
     public function before(RequestInterface $request, $arguments = null)
     {
         $bucket          = $arguments[0] ?? 'public';
         [$cap, $seconds] = self::BUCKETS[$bucket] ?? self::BUCKETS['public'];
+        if ($bucket === 'lookup') {
+            $cap = self::lookupCapacity();
+        }
         $who             = match ($bucket) {
             'poll', 'review' => 'r' . (session('reviewer')['checkin_id'] ?? $request->getIPAddress()),
             'search'         => 's' . (session('auth')['id'] ?? $request->getIPAddress()),

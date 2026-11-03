@@ -5,6 +5,9 @@ import { initSiteMenu } from '../shared/site-menu.js';
 
 initThemeToggle();
 initSiteMenu();
+// "Am I registered?": the sum comes from the server, which also checks the answer. Only the script shows it.
+const captcha = document.querySelector('[data-captcha]');
+if (captcha) captcha.querySelector('[data-captcha-question]').textContent = new TextDecoder().decode(Uint8Array.from(atob(captcha.dataset.captcha), (c) => c.charCodeAt(0)));
 const input = document.querySelector('[data-badge-input]');
 if (input) {
   // Letters first (text keyboard), then digits: switch the keyboard after two letters.
