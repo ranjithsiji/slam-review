@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use CodeIgniter\Test\FeatureTestTrait;
 use Modules\Attendees\Services\AttendeeService;
 use Modules\Attendees\Services\BadgeIdService;
 use Modules\Core\Libraries\Db;
@@ -12,6 +13,8 @@ use Tests\Support\SlamTestCase;
 
 final class AttendeesTest extends SlamTestCase
 {
+    use FeatureTestTrait;
+
     private function csvFile(string $content): string
     {
         $p = tempnam(sys_get_temp_dir(), 'csv');
@@ -119,6 +122,32 @@ final class AttendeesTest extends SlamTestCase
         unlink($out);
         $this->assertStringContainsString('"Cli Person",9447044444,,researcher,', $list);
         $this->assertStringContainsString('/in/', $list);
+    }
+
+    public function testAdminScreensOpenAfterAnImport(): void
+    {
+        $s   = $this->makeSlam(1, 1, 0);
+        $csv = "name,mobile,category\nCard Person,9447055555,researcher\nNo Number,,public\n";
+        $pre = service('importer')->preview($s['id'], $this->csvFile($csv), 'x.csv', 'skip_existing', $this->admin);
+        service('importer')->commit($pre['batch_id'], $this->admin);
+        $pre2 = service('importer')->preview($s['id'], $this->csvFile("name,mobile,category\nPreview Person,9447066666,public\n"), 'y.csv', 'skip_existing', $this->admin);
+        $id  = (int) Db::value('SELECT id FROM attendees WHERE name = ?', ['Card Person']);
+        $row = Db::row('SELECT id, username, role, password_changed_at FROM admins WHERE id = ?', [(int) $this->admin->id]);
+        $this->withSession(['auth' => ['type' => 'admin', 'id' => (int) $row['id'], 'username' => $row['username'], 'name' => 'Admin', 'label' => 'Admin', 'role' => 'admin', 'pwd' => (string) $row['password_changed_at']]]);
+        foreach ([
+            "admin/slams/{$s['id']}/reviewers", "admin/slams/{$s['id']}/judges", "admin/slams/{$s['id']}/representatives",
+            "admin/slams/{$s['id']}/attendees/new", "admin/slams/{$s['id']}/attendees/import", "admin/attendees/{$id}/edit",
+            "admin/attendees/import/{$pre2['batch_id']}", "admin/slams/{$s['id']}/attendees/export.csv",
+        ] as $path) {
+            $r = $this->get($path);
+            $this->assertSame(200, $r->response()->getStatusCode(), $path);
+        }
+        $dt   = service('dataTables');
+        $rows = $dt->handle('attendees', ['draw' => 1, 'start' => 0, 'length' => 100, 'filters' => ['slam_id' => $s['id']]], $this->admin)['data'];
+        $this->assertContains('Researcher', array_column($rows, 'category'));
+        $this->assertNotEmpty($dt->handle('import-batches', ['draw' => 1, 'start' => 0, 'length' => 10, 'filters' => ['slam_id' => $s['id']]], $this->admin)['data']);
+        $this->assertNotEmpty($dt->handle('import-rows', ['draw' => 1, 'start' => 0, 'length' => 10, 'filters' => ['batch_id' => $pre2['batch_id']]], $this->admin)['data']);
+        $this->assertIsArray($dt->handle('complete-reviewers', ['draw' => 1, 'start' => 0, 'length' => 10, 'filters' => ['slam_id' => $s['id'], 'panel' => 'all']], $this->admin)['data']);
     }
 
     public function testRowLimitRejected(): void
