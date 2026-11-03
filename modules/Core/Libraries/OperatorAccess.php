@@ -75,6 +75,10 @@ final class OperatorAccess
     {
         $path   = trim($request->getUri()->getPath(), '/');
         $method = strtoupper($request->getMethod());
+        // Deleting a whole slam is for full admins only, even an operator's own slam.
+        if (preg_match('#^admin/slams/\d+/delete$#', $path) === 1) {
+            return false;
+        }
         foreach (self::rules() as [$methods, $re, $scope]) {
             if (! in_array($method, $methods, true) || ! preg_match($re, $path, $m)) {
                 continue;

@@ -84,6 +84,7 @@ final class OperatorTest extends SlamTestCase
         }
         $this->assertTrue($this->allowed($A, 'POST', "api/slams/{$A}/marks/calculate"));
         $this->assertFalse($this->allowed($A, 'POST', "api/slams/{$B}/marks/calculate"));
+        $this->assertFalse($this->allowed($A, 'POST', "admin/slams/{$A}/delete"));
         $this->assertFalse($this->allowed($A, 'POST', "api/slams/{$B}/timing/pause"));
         $this->assertFalse($this->allowed($A, 'PUT', "api/slams/{$B}/schedule"));
 
