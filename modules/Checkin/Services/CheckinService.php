@@ -51,7 +51,7 @@ class CheckinService
             throw new DomainException('validation', 'Enter a 10-digit Indian mobile number.', 422, ['mobile' => 'Enter a 10-digit mobile number.']);
         }
         $rows = Db::rows(
-            "SELECT s.name AS slam_name, s.opens_at, s.venue_name, a.user_type FROM attendees a JOIN slams s ON s.id = a.slam_id
+            "SELECT a.name, s.name AS slam_name, s.opens_at, s.venue_name, a.user_type FROM attendees a JOIN slams s ON s.id = a.slam_id
              WHERE a.mobile = ? AND a.is_active = 1 AND s.status NOT IN ('draft','ended') ORDER BY s.opens_at",
             [$mobile],
         );

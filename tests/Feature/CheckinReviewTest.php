@@ -113,7 +113,12 @@ final class CheckinReviewTest extends SlamTestCase
         $a = $s['users'][0];
         $rows = service('checkins')->registrationLookup(' +91 ' . substr($a['mobile'], 0, 5) . '-' . substr($a['mobile'], 5));
         $this->assertCount(1, $rows);
-        $this->assertSame(['slam_name', 'opens_at', 'venue_name', 'user_type'], array_keys($rows[0]));
+        $this->assertSame(['name', 'slam_name', 'opens_at', 'venue_name', 'user_type'], array_keys($rows[0]));
+        $this->assertSame($a['name'], $rows[0]['name']);
+        $page = (string) $this->post('registered', ['mobile' => $a['mobile'], csrf_token() => csrf_hash(), \Modules\Core\Filters\HoneypotFilter::STAMP => \Modules\Core\Filters\HoneypotFilter::stamp(time() - 30)])->response()->getBody();
+        $this->assertStringContainsString('Yes, you are registered', $page);
+        $this->assertStringContainsString(esc($a['name']), $page);
+        $this->assertStringNotContainsString($a['badge_id'], $page);
         $this->assertSame([], service('checkins')->registrationLookup('9000000001'));
         $this->expectReason('validation', fn () => service('checkins')->registrationLookup('12345'));
     }
