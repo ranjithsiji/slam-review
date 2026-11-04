@@ -91,7 +91,7 @@ final class OperatorTest extends SlamTestCase
         // Not-reviewing screen and bulk check-out: their own slam only.
         $this->assertTrue($this->allowed($A, 'GET', "admin/slams/{$A}/not-reviewing"));
         $this->assertFalse($this->allowed($A, 'GET', "admin/slams/{$B}/not-reviewing"));
-        $this->assertTrue($this->allowed($A, 'POST', 'api/volunteer/idle-checkout')); // the controller takes the slam from the session
+        $this->assertTrue($this->allowed($A, 'POST', 'api/volunteer/checkin')); // the controller takes the slam from the request
 
         // Global screens stay closed.
         foreach (['admin/slams', 'admin/slams/new', 'admin/users', 'admin/users/new', 'admin/settings', 'admin/volunteers', 'admin/activity-log', 'admin/presenters', 'admin/qr', 'admin/questions/templates', 'admin/reviewers'] as $p) {

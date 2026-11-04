@@ -16,7 +16,19 @@
   </header>
 
   <main class="container container-tight py-3 has-bottom-nav" style="padding-bottom: 9rem !important">
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+      <span class="small" :class="poll.status.value === 'offline' ? 'text-danger' : 'text-secondary'" role="status" aria-live="polite">
+        {{ poll.status.value === 'offline' ? 'No connection. Still trying.' : updatedAt ? `Updated ${updatedAt}` : 'Connecting…' }}
+      </span>
+      <button type="button" class="btn btn-sm flex-shrink-0" :disabled="refreshing" data-refresh @click="refresh">
+        <span v-if="refreshing" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Refresh
+      </button>
+    </div>
     <div v-if="welcome" class="alert alert-success" role="status">{{ welcome }}</div>
+    <div v-if="voteNotice" class="alert d-flex gap-2 align-items-start" :class="voteNotice.ok ? 'alert-success' : 'alert-warning'" role="status" aria-live="polite">
+      <div class="me-auto ml-text">{{ voteNotice.text }}</div>
+      <button type="button" class="btn-close" aria-label="Dismiss" @click="voteNotice = null"></button>
+    </div>
     <div v-if="s.paused" class="alert alert-warning d-flex gap-2 align-items-start" role="status" aria-live="assertive">
       <Icon name="action.hold" cls="icon-lg flex-none" />
       <div><div class="fw-bold">Paused for a moment</div><div>The timer is stopped, so nothing is lost. You will get the full remaining time when we restart.<span v-if="s.paused.reason"> ({{ s.paused.reason }})</span></div></div>
@@ -53,6 +65,13 @@
               <div class="text-secondary mt-3">You can change your marks in the edit window at the end of the slam.</div>
               <NextUp :next="s.next" class="mt-3" />
             </SubmitSuccess>
+          </div>
+        </div>
+        <div v-else-if="queued" class="card text-center" role="status" aria-live="polite">
+          <div class="card-body py-4">
+            <div class="spinner-border text-primary mb-3" aria-hidden="true"></div>
+            <div class="h2">Your vote is saved on this phone</div>
+            <div class="text-secondary">It will be sent as soon as the connection comes back. Keep this page open if you can; if you close it, open it again before the review closes.</div>
           </div>
         </div>
         <form v-else class="card" @submit.prevent="openConfirm">
@@ -141,7 +160,7 @@
       <p class="small text-secondary mt-2">After check-out you cannot review again once the gate has closed.</p>
     </template>
   </main>
-  <VoteConfirm v-if="confirming && screen === 'review'" :item="cur" :questions="s.questions" :answers="answers" :comment="comment" :sending="sending" :retrying="retrying" :error="submitError" @cancel="confirming = false" @confirm="submit" />
+  <VoteConfirm v-if="confirming && screen === 'review'" :item="cur" :questions="s.questions" :answers="answers" :comment="comment" :sending="sending" :error="submitError" @cancel="confirming = false" @confirm="submit" />
 
   <nav class="fixed-bottom bg-body border-top" aria-label="Sections" style="padding-bottom: env(safe-area-inset-bottom)">
     <div class="container container-tight d-flex">
@@ -154,7 +173,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, defineComponent, h } from 'vue';
-import { post } from '../../shared/api.js';
+import { api, post } from '../../shared/api.js';
 import { createPoller } from '../../shared/poller.js';
 import { startTicker, time, longDate } from '../../shared/clock.js';
 import Icon from '../../shared/components/Icon.vue';
@@ -181,7 +200,8 @@ const tabs = [{ key: 'now', label: 'Now', icon: 'status.live' }, { key: 'schedul
 const answers = reactive({});
 const comment = ref('');
 const sending = ref(false);
-const retrying = ref(false);
+const queued = ref(false); // this performance's vote is saved on the phone, waiting for a connection
+const voteNotice = ref(null);
 const submitError = ref('');
 const confirming = ref(false);
 const justSubmitted = ref(false);
@@ -229,25 +249,124 @@ const complete = computed(() => (s.questions || []).length > 0 && s.questions.ev
 const qIndex = (qid) => (s.questions || []).findIndex((q) => q.id === qid) + 1;
 const qMax = (qid) => (s.questions || []).find((q) => q.id === qid)?.max_score || 10;
 
-// Reset the form when a new performance opens.
-watch(() => cur.value.schedule_item_id, () => {
+// Marks are kept on the phone until the server has them, so a reload, a crash or a lost connection loses nothing.
+const draftPrefix = `slam-vote:${me.badge_id}:`;
+const draftKey = (id) => draftPrefix + id;
+function readDraft(id) {
+  try { return JSON.parse(localStorage.getItem(draftKey(id))); } catch { return null; }
+}
+function writeDraft(id, draft) {
+  try { localStorage.setItem(draftKey(id), JSON.stringify(draft)); } catch {}
+}
+function clearDraft(id) {
+  try { localStorage.removeItem(draftKey(id)); } catch {}
+}
+function draftItemIds() {
+  try {
+    return Object.keys(localStorage).filter((k) => k.startsWith(draftPrefix)).map((k) => Number(k.slice(draftPrefix.length)));
+  } catch { return []; }
+}
+
+// Reset the form when a new performance opens, restoring anything saved for it.
+watch(() => cur.value.schedule_item_id, (id) => {
   Object.keys(answers).forEach((k) => delete answers[k]);
   comment.value = '';
   submitError.value = '';
   confirming.value = false;
   justSubmitted.value = false;
+  queued.value = false;
+  const draft = id ? readDraft(id) : null;
+  if (!draft) return;
+  if (s.already_reviewed) { clearDraft(id); return; }
+  Object.assign(answers, draft.answers || {});
+  comment.value = draft.comment || '';
+  if (draft.body) {
+    queued.value = true;
+    deliver(draft);
+  }
 });
+
+function saveTyping() {
+  const id = cur.value.schedule_item_id;
+  if (!id || screen.value !== 'review' || s.already_reviewed || queued.value || sending.value) return;
+  if (readDraft(id)?.body) return;
+  if (Object.keys(answers).length || comment.value) {
+    writeDraft(id, { answers: { ...answers }, comment: comment.value });
+  }
+}
+watch(answers, saveTyping);
+watch(comment, saveTyping);
+
+let draftsChecked = false;
+function checkOtherDrafts() {
+  if (draftsChecked) return;
+  draftsChecked = true;
+  // Votes waiting from an earlier performance are sent (the server decides); unsent typing for one is dropped.
+  for (const id of draftItemIds()) {
+    if (id === cur.value.schedule_item_id) continue;
+    const draft = readDraft(id);
+    if (draft?.body) deliver(draft);
+    else clearDraft(id);
+  }
+}
+
+// The running order is kept on the phone and fetched again only when the poll reports a new version.
+const scheduleKey = () => `slam-schedule:${s.slam?.id}`;
+let scheduleVersion = null;
+let scheduleRetry = null;
+function loadStoredSchedule() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(scheduleKey()));
+    if (stored?.running_order) { s.running_order = stored.running_order; scheduleVersion = stored.version; }
+  } catch {}
+}
+async function fetchSchedule() {
+  clearTimeout(scheduleRetry);
+  try {
+    const doc = await api('/api/live/schedule');
+    s.running_order = doc.running_order;
+    scheduleVersion = doc.version;
+    try { localStorage.setItem(scheduleKey(), JSON.stringify(doc)); } catch {}
+  } catch {
+    scheduleRetry = setTimeout(fetchSchedule, 20000); // the phone keeps showing the copy it has
+  }
+}
+let storedChecked = false;
+let scheduleWait = null;
+function syncSchedule(version) {
+  if (!storedChecked) { storedChecked = true; loadStoredSchedule(); }
+  if (version === scheduleVersion) return;
+  // Spread the phones out: they all learn about a change within seconds of each other.
+  clearTimeout(scheduleWait);
+  scheduleWait = setTimeout(fetchSchedule, s.running_order ? Math.random() * 8000 : 0);
+}
 
 const poll = createPoller('/api/live/state', {
   interval: 4000,
   onData: (data) => {
     Object.assign(s, data);
     loaded.value = true;
+    if (s.already_reviewed && queued.value) queued.value = false;
+    checkOtherDrafts();
+    syncSchedule(data.schedule_version);
     if (data.poll_seconds) poll.setInterval(data.poll_seconds * 1000);
   },
-  onAuthError: () => { window.location.href = '/review/thanks'; },
+  onAuthError: (body) => { window.location.href = body?.reason === 'slam_closed' ? '/review/thanks' : '/checkin'; },
   deadlines: () => [s.current?.closes_at, s.current?.ends_at, s.revision?.closes_at, s.next?.projected_start_at],
 });
+
+// The backup for when automatic updates have not come through: fetch everything again now.
+const refreshing = ref(false);
+const updatedAt = computed(() => (poll.lastOk.value ? new Date(poll.lastOk.value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''));
+async function refresh() {
+  if (refreshing.value) return;
+  refreshing.value = true;
+  window.dispatchEvent(new Event('slam-retry')); // a vote waiting on this phone tries again too
+  scheduleVersion = null;
+  const pause = new Promise((r) => setTimeout(r, 2000)); // one tap at a time, whatever the connection does
+  await Promise.all([poll.now({ fresh: true }), pause]);
+  refreshing.value = false;
+}
 
 const answeredCount = computed(() => (s.questions || []).filter((q) => typeof answers[q.id] === 'number' && answers[q.id] > 0).length);
 function openConfirm() {
@@ -261,28 +380,92 @@ async function submit() {
   if (!complete.value || sending.value) return;
   sending.value = true;
   submitError.value = '';
-  const body = { schedule_item_id: cur.value.schedule_item_id, answers: s.questions.map((q) => ({ question_id: q.id, score: answers[q.id] })), comment: comment.value };
-  // The endpoint is idempotent, so retrying after a network failure is safe.
-  for (let attempt = 0; attempt < 4; attempt++) {
+  const id = cur.value.schedule_item_id;
+  const draft = {
+    answers: { ...answers },
+    comment: comment.value,
+    name: cur.value.presenter_name || '',
+    body: { schedule_item_id: id, answers: s.questions.map((q) => ({ question_id: q.id, score: answers[q.id] })), comment: comment.value },
+  };
+  writeDraft(id, draft);
+  await deliver(draft);
+  sending.value = false;
+}
+
+// Wait before the next try: backed off, but at once when the connection or the screen comes back.
+function waitToRetry(attempt) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      window.removeEventListener('online', done);
+      window.removeEventListener('slam-retry', done);
+      document.removeEventListener('visibilitychange', onVisible);
+      resolve();
+    };
+    const onVisible = () => { if (!document.hidden) done(); };
+    const ms = Math.min(15000, 1000 * 2 ** attempt) * (0.8 + Math.random() * 0.4);
+    const timer = setTimeout(done, ms);
+    window.addEventListener('online', done);
+    window.addEventListener('slam-retry', done);
+    document.addEventListener('visibilitychange', onVisible);
+  });
+}
+
+// Sends a saved vote until the server gives an answer. The endpoint is idempotent and refuses a closed review,
+// so retrying is always safe and no vote can arrive late.
+const delivering = new Set();
+async function deliver(draft) {
+  const id = draft.body.schedule_item_id;
+  if (delivering.has(id)) return;
+  delivering.add(id);
+  const isCurrent = () => cur.value.schedule_item_id === id;
+  for (let attempt = 0; ; attempt++) {
     try {
-      await post('/api/review', body);
-      s.already_reviewed = true;
-      s.my_review = { answers: body.answers };
-      justSubmitted.value = true;
-      confirming.value = false;
-      if (navigator.vibrate) navigator.vibrate([30, 40, 60]);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      await post('/api/review', draft.body);
+      clearDraft(id);
+      if (isCurrent()) {
+        s.already_reviewed = true;
+        s.my_review = { answers: draft.body.answers };
+        justSubmitted.value = attempt === 0;
+        queued.value = false;
+        confirming.value = false;
+        if (navigator.vibrate) navigator.vibrate([30, 40, 60]);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      if (attempt > 0) voteNotice.value = { ok: true, text: `Your vote${draft.name ? ` for ${draft.name}` : ''} has been sent.` };
       poll.now();
       break;
     } catch (e) {
-      if (e.status && e.status < 500) { submitError.value = e.message; break; }
-      retrying.value = true;
-      if (attempt === 3) submitError.value = 'Could not reach the server. Check your connection and try again.';
-      else await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      const tryAgain = !e.status || e.status >= 500 || e.status === 429 || e.reason === 'paused';
+      if (tryAgain) {
+        if (isCurrent()) {
+          queued.value = true;
+          confirming.value = false;
+          sending.value = false;
+        }
+        await waitToRetry(attempt);
+        continue;
+      }
+      const closed = e.reason === 'window_closed' || e.reason === 'no_open_window';
+      if (closed || (e.status !== 401 && e.status !== 403)) {
+        // A final answer: nothing more can be done with this vote. A lost sign-in keeps it for after the next scan.
+        if (closed) clearDraft(id);
+        else writeDraft(id, { answers: draft.answers, comment: draft.comment });
+      }
+      if (isCurrent()) {
+        queued.value = false;
+        submitError.value = e.message;
+      }
+      if (closed || !isCurrent()) {
+        voteNotice.value = { ok: false, text: closed
+          ? `Your vote${draft.name ? ` for ${draft.name}` : ''} could not be sent: the review closed before the connection came back.`
+          : e.message };
+      }
+      poll.now();
+      break;
     }
   }
-  retrying.value = false;
-  sending.value = false;
+  delivering.delete(id);
 }
 
 async function checkout() {

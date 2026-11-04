@@ -56,7 +56,10 @@ final class CheckinReviewTest extends SlamTestCase
         $s = $this->makeSlam(1);
         $this->at('2026-11-01 03:30:00', $s['id']);
         $sess = $this->checkIn($s['users'][0]);
-        $this->expectReason('already_checked_in', fn () => service('checkins')->selfCheckin($s['users'][0]['badge_id'], '3.3.3.3'));
+        $this->withRealCache(function () use ($sess, $s): void {
+            service('checkins')->markPhoneLive((int) $sess['checkin_id']);
+            $this->expectReason('already_checked_in', fn () => service('checkins')->selfCheckin($s['users'][0]['badge_id'], '3.3.3.3'));
+        });
         $again = service('checkins')->selfCheckin($s['users'][0]['badge_id'], '3.3.3.3', $sess);
         $this->assertTrue($again['resumed']);
         $this->assertSame(1, (int) Db::value('SELECT COUNT(*) FROM checkins'));
@@ -153,9 +156,95 @@ final class CheckinReviewTest extends SlamTestCase
         // A session from before the person was checked out, or for someone else's badge, does not skip the steps.
         $this->assertSame(200, $this->withSession(['reviewer' => $sess])->get('in/' . $s['users'][1]['badge_id'])->response()->getStatusCode());
         $this->assertSame(200, $this->withSession(['reviewer' => ['token' => 'wrong'] + $sess])->get('in/' . $a['badge_id'])->response()->getStatusCode());
-        // Another browser with no session still cannot take the badge over.
-        $this->at('2026-11-01 03:40:00', $s['id']);
-        $this->expectReason('already_checked_in', fn () => service('checkins')->selfCheckin($a['badge_id'], '5.5.5.6'));
+    }
+
+    public function testASecondBrowserIsRefusedWhileThePhoneIsLiveAndTakesOverWhenSilent(): void
+    {
+        $this->withRealCache(function (): void {
+            $s = $this->makeSlam(1, 2, 0);
+            $a = $s['users'][0];
+            $this->at('2026-11-01 03:30:00', $s['id']);
+            $checkins = service('checkins');
+            $first    = $checkins->selfCheckin($a['badge_id'], '5.5.5.5');
+            $sess     = ['attendee_id' => (int) $a['id'], 'slam_id' => $s['id'], 'badge_id' => $a['badge_id'], 'name' => $a['name'], 'user_type' => 'user', 'checkin_id' => $first['checkin_id'], 'token' => $first['token']];
+
+            // The review poll marks the phone live, so another browser is refused and pointed to the desk.
+            $poll = $this->withSession(['reviewer' => $sess])->get('api/live/state')->response();
+            $this->assertSame(200, $poll->getStatusCode());
+            Clock::advance(30);
+            try {
+                $checkins->selfCheckin($a['badge_id'], '5.5.5.6');
+                $this->fail('a live phone must keep the badge');
+            } catch (DomainException $e) {
+                $this->assertSame('already_checked_in', $e->reason);
+                $this->assertStringContainsString('volunteer desk', $e->getMessage());
+            }
+            $this->assertSame(1, (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'checkin.duplicate_rejected'"));
+
+            // Silent for a minute (locked phone, closed browser): the new browser takes over, on the same check-in.
+            Clock::advance(31);
+            $second = $checkins->selfCheckin($a['badge_id'], '5.5.5.6');
+            $this->assertSame($first['checkin_id'], $second['checkin_id']);
+            $this->assertNotSame($first['token'], $second['token']);
+            $this->assertSame(1, (int) Db::value('SELECT COUNT(*) FROM checkins'));
+            $this->assertSame(1, (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'checkin.session_taken_over'"));
+
+            // The old browser is told what happened, not thanked, and still only one session works.
+            $this->assertNull($checkins->validateSession($sess));
+            $old = $this->withSession(['reviewer' => $sess])->withHeaders(['Accept' => 'application/json'])->get('api/live/state')->response();
+            $this->assertSame(401, $old->getStatusCode());
+            $this->assertSame('checked_out', json_decode((string) $old->getBody(), true)['reason']);
+            $this->assertStringContainsString('opened on another browser', (string) session()->getFlashdata('error'));
+
+            // A checked-out person does not get back in by scanning: the gate rules apply again.
+            $this->at('2026-11-01 04:35:00', $s['id']);
+            $checkins->checkout((int) $a['id'], 'forced', $this->admin, 'test');
+            $this->expectReason('gate_closed', fn () => $checkins->selfCheckin($a['badge_id'], '5.5.5.6'));
+        });
+    }
+
+    public function testTheSameBrowserSignatureGetsBackInWhileADifferentOneIsRefused(): void
+    {
+        $this->withRealCache(function (): void {
+            $s = $this->makeSlam(1, 2, 0);
+            $a = $s['users'][0];
+            $this->at('2026-11-01 03:30:00', $s['id']);
+            $checkins = service('checkins');
+            $phone    = 'Mozilla/5.0 (Linux; Android 14)|en-IN||?1|"Android"';
+            $first    = $checkins->selfCheckin($a['badge_id'], '5.5.5.5', null, $phone);
+            $stored   = (string) Db::value('SELECT browser_signature FROM checkins WHERE id = ?', [$first['checkin_id']]);
+            $this->assertSame(hash('sha256', $a['badge_id'] . '|' . $phone), $stored, 'only a hash is kept');
+            $checkins->markPhoneLive($first['checkin_id']);
+
+            // A different browser is refused while the phone is live; no signature at all is treated the same.
+            $this->expectReason('already_checked_in', fn () => $checkins->selfCheckin($a['badge_id'], '5.5.5.6', null, 'Mozilla/5.0 (iPhone)|en-IN|||'));
+            $this->expectReason('already_checked_in', fn () => $checkins->selfCheckin($a['badge_id'], '5.5.5.6'));
+
+            // The same browser with its cookie gone gets straight back in, on the same check-in, and the old cookie stops working.
+            $again = $checkins->selfCheckin($a['badge_id'], '5.5.5.5', null, $phone);
+            $this->assertSame($first['checkin_id'], $again['checkin_id']);
+            $this->assertNotSame($first['token'], $again['token']);
+            $this->assertStringContainsString('"same_browser_signature":true', (string) Db::value("SELECT meta FROM activity_log WHERE action = 'checkin.session_taken_over' ORDER BY id DESC LIMIT 1"));
+
+            // The signature opens only its own badge: the same browser cannot get someone else's badge that is in use.
+            $other = $checkins->selfCheckin($s['users'][1]['badge_id'], '5.5.5.7', null, 'Someone else');
+            $checkins->markPhoneLive($other['checkin_id']);
+            $this->expectReason('already_checked_in', fn () => $checkins->selfCheckin($s['users'][1]['badge_id'], '5.5.5.5', null, $phone));
+        });
+    }
+
+    /** Heartbeats need a real cache; tests run on a dummy one. */
+    private function withRealCache(callable $body): void
+    {
+        config('Cache')->handler = 'file';
+        \Config\Services::resetSingle('cache');
+        cache()->clean();
+        try {
+            $body();
+        } finally {
+            config('Cache')->handler = 'dummy';
+            \Config\Services::resetSingle('cache');
+        }
     }
 
     public function testASessionLastsADayButIdleStaffSignOut(): void
@@ -304,8 +393,11 @@ final class CheckinReviewTest extends SlamTestCase
         $this->assertSame($s['users'][0]['name'], $who['name']);
         $claimed = $checkins->selfCheckin($s['users'][0]['badge_id'], '7.7.7.7');
         $this->assertFalse($claimed['resumed']);
-        // A second phone is turned away.
-        $this->expectReason('already_checked_in', fn () => $checkins->selfCheckin($s['users'][0]['badge_id'], '8.8.8.8'));
+        // A second phone is turned away while the first one is live.
+        $this->withRealCache(function () use ($checkins, $claimed, $s): void {
+            $checkins->markPhoneLive((int) $claimed['checkin_id']);
+            $this->expectReason('already_checked_in', fn () => $checkins->selfCheckin($s['users'][0]['badge_id'], '8.8.8.8'));
+        });
         // Someone never checked in at the desk still cannot self check-in.
         $this->expectReason('gate_closed', fn () => $checkins->selfCheckin($s['users'][2]['badge_id'], '9.9.9.9'));
     }

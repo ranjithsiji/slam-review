@@ -160,7 +160,7 @@ class PublicCheckinController extends BaseController
         session()->remove('checkin_pending');
         $current   = session('reviewer');
         try {
-            $r = service('checkins')->selfCheckin($raw, $this->request->getIPAddress(), is_array($current) ? $current : null);
+            $r = service('checkins')->selfCheckin($raw, $this->request->getIPAddress(), is_array($current) ? $current : null, $this->browserHeaders());
         } catch (DomainException $e) {
             if ($wantsJson) {
                 return $this->jsonError($e);
@@ -186,6 +186,17 @@ class PublicCheckinController extends BaseController
         }
 
         return redirect()->to(site_url('review'))->with('welcome', $r['resumed'] ? null : 'You are checked in for ' . $r['slam']['name'] . '.');
+    }
+
+    /** The browser's identifying headers. Only a hash with the badge number is stored; not unique across identical phones. */
+    private function browserHeaders(): string
+    {
+        $parts = [];
+        foreach (['User-Agent', 'Accept-Language', 'Sec-CH-UA', 'Sec-CH-UA-Mobile', 'Sec-CH-UA-Platform'] as $h) {
+            $parts[] = $this->request->getHeaderLine($h);
+        }
+
+        return implode('|', $parts);
     }
 
     /** The attendee checks themself out (leaving early). */

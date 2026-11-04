@@ -31,7 +31,7 @@
         <button type="button" class="btn btn-slam btn-lg flex-fill vote-confirm-btn" :class="{ sending }" :disabled="sending" @click="$emit('confirm')">
           <span v-if="sending" class="vote-spinner" aria-hidden="true"></span>
           <Icon v-else name="status.ok" />
-          {{ sending ? (retrying ? 'Retrying…' : 'Sending your marks…') : error ? 'Try again' : 'Confirm and submit' }}
+          {{ sending ? 'Sending your marks…' : error ? 'Try again' : 'Confirm and submit' }}
         </button>
       </div>
     </div>
@@ -42,7 +42,7 @@
 import { computed, ref, onMounted } from 'vue';
 import Icon from '../../shared/components/Icon.vue';
 
-const props = defineProps({ item: Object, questions: Array, answers: Object, comment: String, sending: Boolean, retrying: Boolean, error: String });
+const props = defineProps({ item: Object, questions: Array, answers: Object, comment: String, sending: Boolean, error: String });
 defineEmits(['confirm', 'cancel']);
 const sheet = ref(null);
 const total = computed(() => Math.round(props.questions.reduce((a, q) => a + Number(props.answers[q.id] || 0), 0) * 10) / 10);

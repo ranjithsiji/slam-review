@@ -145,6 +145,7 @@ class LiveStateService
             'ads'           => $ads,
             'next'          => $next,
             'running_order' => $order,
+            'schedule_version' => substr(md5(json_encode($order)), 0, 16),
             'late_minutes'  => $proj['late_minutes'],
             'revision'      => $revision,
             'judging'       => service('scoring')->judging($slamId),
@@ -217,6 +218,7 @@ class LiveStateService
         $reviewed = (int) Db::value('SELECT COUNT(*) FROM reviews WHERE attendee_id = ?', [$attendee['id']]);
 
         $body              = $shared;
+        unset($body['running_order']); // phones keep the running order and fetch it again only when schedule_version changes
         $body['questions'] = $shared['questions'][$attendee['user_type']] ?? [];
         // Judges whose marks are entered by the organisers get no review form.
         $body['judge_offline'] = $attendee['user_type'] === 'judge' && $shared['judging']['timing'] === 'end_of_slam';
@@ -233,6 +235,14 @@ class LiveStateService
         $body['server_now'] = Clock::iso(Clock::db());
 
         return ['body' => $body, 'etag' => $etag];
+    }
+
+    /** The running order on its own, for the copy kept on the phone. @return array{version: string, running_order: list<array<string, mixed>>} */
+    public function scheduleFor(int $slamId): array
+    {
+        $shared = $this->shared($slamId);
+
+        return ['version' => $shared['schedule_version'], 'running_order' => $shared['running_order']];
     }
 
     /**

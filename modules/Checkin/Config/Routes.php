@@ -28,7 +28,6 @@ $routes->group('', ['namespace' => 'Modules\Checkin\Controllers'], static functi
     $routes->group('api/volunteer', ['filter' => ['auth:volunteer,admin', 'slamscope']], static function ($routes): void {
         $routes->get('state', 'VolunteerController::state');
         $routes->post('checkin', 'VolunteerController::checkin', ['filter' => 'ratelimit:search']);
-        $routes->post('idle-checkout', 'VolunteerController::idleCheckout');
         $routes->post('approve-request', 'VolunteerController::approveRequest');
     });
     $routes->post('api/force-checkout/(:num)', 'VolunteerController::forceCheckout/$1', ['filter' => 'auth:volunteer,admin']);

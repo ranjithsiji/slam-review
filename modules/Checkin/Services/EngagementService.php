@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Checkin\Services;
 
-use Modules\Core\Libraries\Actor;
 use Modules\Core\Libraries\Db;
-use Modules\Core\Libraries\DomainException;
 
 /**
  * Live turnout and "not reviewing" detection, for deciding on the spot whether to extend a review window
@@ -167,30 +165,5 @@ class EngagementService
     public function idleCount(int $slamId, int $min = self::DEFAULT_MIN_MISSED): int
     {
         return (int) service('publicCache')->remember('idle', $slamId, 5, fn () => ['n' => count($this->idle($slamId, $min))])['n'];
-    }
-
-    /**
-     * Force check-out of people who are still "not reviewing": the list is recomputed here, so a stale page can
-     * never check out someone who has voted since. $only narrows it to the people chosen on screen.
-     *
-     * @param list<int>|null $only
-     * @return array{checked_out: int, skipped: int}
-     */
-    public function checkoutIdle(int $slamId, int $min, ?array $only, string $reason, Actor $actor): array
-    {
-        if (trim($reason) === '') {
-            throw new DomainException('reason_required', 'A reason is required for a forced check-out.');
-        }
-        $done = 0;
-        $list = $this->idle($slamId, $min);
-        foreach ($list as $p) {
-            if ($only !== null && ! in_array($p['attendee_id'], $only, true)) {
-                continue;
-            }
-            service('checkins')->checkout($p['attendee_id'], 'forced', $actor, $reason . " ({$p['missed']} in a row not reviewed)");
-            $done++;
-        }
-
-        return ['checked_out' => $done, 'skipped' => ($only === null ? 0 : max(0, count($only) - $done))];
     }
 }

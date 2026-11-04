@@ -153,20 +153,6 @@ class VolunteerController extends BaseController
         return max(1, min(50, $m));
     }
 
-    /** Force check-out everyone still "not reviewing" (or just the chosen ids). The list is recomputed on the server. */
-    public function idleCheckout(): ResponseInterface
-    {
-        $in = $this->input();
-
-        return $this->api(function () use ($in) {
-            $slamId = $this->slamId();
-            $only   = isset($in['ids']) && is_array($in['ids']) ? array_map('intval', $in['ids']) : null;
-            $min    = max(1, min(50, (int) ($in['min'] ?? \Modules\Checkin\Services\EngagementService::DEFAULT_MIN_MISSED)));
-
-            return service('engagement')->checkoutIdle($slamId, $min, $only, (string) ($in['reason'] ?? ''), $this->actor()) + ['ok' => true];
-        });
-    }
-
     /** The desk picks a waiting phone from the list: the person is checked in and exactly that phone gets the review screen. */
     public function approveRequest(): ResponseInterface
     {

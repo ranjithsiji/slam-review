@@ -60,6 +60,30 @@ class CheckinService
         return $rows;
     }
 
+    /** A phone counts as live for this long after its last poll. It polls only while its screen is on. */
+    public const PHONE_LIVE_SECONDS = 60;
+    /** How often a polling phone's mark in the cache is refreshed. No database writes. */
+    private const PHONE_MARK_SECONDS = 15;
+
+    /** Called from the review poll: this check-in's phone is answering. */
+    public function markPhoneLive(int $checkinId): void
+    {
+        $cache = cache();
+        $key   = 'phone_live_' . $checkinId;
+        $now   = Clock::now()->getTimestamp();
+        $last  = $cache->get($key);
+        if (! is_int($last) || $now - $last >= self::PHONE_MARK_SECONDS || $last > $now) {
+            $cache->save($key, $now, self::PHONE_LIVE_SECONDS * 2);
+        }
+    }
+
+    public function phoneIsLive(int $checkinId): bool
+    {
+        $last = cache()->get('phone_live_' . $checkinId);
+
+        return is_int($last) && abs(Clock::now()->getTimestamp() - $last) < self::PHONE_LIVE_SECONDS;
+    }
+
     /** The name on an active badge, or null. Reads only: no check-in and no failed-attempt count. */
     public function badgeHolderName(string $badgeId): ?string
     {
@@ -127,7 +151,7 @@ class CheckinService
      * @param array{checkin_id?: int, token?: string}|null $current existing reviewer session, if any
      * @return array{attendee: array<string,mixed>, slam: array<string,mixed>, checkin_id: int, token: string, resumed: bool}
      */
-    public function selfCheckin(string $rawId, string $ip, ?array $current = null): array
+    public function selfCheckin(string $rawId, string $ip, ?array $current = null, ?string $browserHeaders = null): array
     {
         $throttle = service('throttle');
         $anon     = Actor::anonymous();
@@ -152,7 +176,8 @@ class CheckinService
         service('slamPhase')->tick($slamId);
 
         try {
-            $result = Db::tx(function ($db) use ($att, $actor, $slamId, $current): array {
+            $signature = $browserHeaders === null ? null : hash('sha256', $att['badge_id'] . '|' . $browserHeaders);
+            $result    = Db::tx(function ($db) use ($att, $actor, $slamId, $current, $signature): array {
                 $slam = Db::lockSlam($slamId);
                 $open = Db::row('SELECT * FROM checkins WHERE attendee_id = ? AND checked_out_at IS NULL FOR UPDATE', [$att['id']]);
                 $token = bin2hex(random_bytes(32));
@@ -164,15 +189,19 @@ class CheckinService
                         && $open['session_token_hash'] !== null && hash_equals($open['session_token_hash'], hash('sha256', (string) ($current['token'] ?? '')))) {
                         return ['checkin_id' => (int) $open['id'], 'token' => (string) $current['token'], 'resumed' => true, 'slam' => $slam];
                     }
-                    if ($open['session_token_hash'] !== null) {
-                        throw new DomainException('already_checked_in', 'This badge is already checked in on another phone. Please visit the volunteer desk.', 409);
+                    // No matching cookie. The same browser signature is let back in at once (a private tab, cleared cookies).
+                    // Otherwise another browser holds this check-in: refused while that phone is live, else this one takes over.
+                    $takeover = $open['session_token_hash'] !== null;
+                    $sameSig  = $signature !== null && $open['browser_signature'] !== null && hash_equals($open['browser_signature'], $signature);
+                    if ($takeover && ! $sameSig && $this->phoneIsLive((int) $open['id'])) {
+                        throw new DomainException('already_checked_in', 'This badge is in use on another phone right now. If that is your phone, close it and try again in a minute. Otherwise please visit the volunteer desk.', 409);
                     }
                     if (in_array($slam['status'], ['closed', 'marks_calculated', 'ended'], true)) {
                         throw new DomainException('slam_closed', 'The slam has closed. Thank you for coming!', 403);
                     }
-                    // Claim a check-in made at the desk (or a late-entry override).
-                    $db->table('checkins')->where('id', $open['id'])->update(['session_token_hash' => $hash, 'updated_at' => Clock::db()]);
-                    service('activityLog')->log($actor, 'auth.login.success', ['slam_id' => $slamId, 'target_type' => 'checkin', 'target_id' => (int) $open['id'], 'meta' => ['claimed' => true]]);
+                    // Claim a check-in made at the desk (or a late-entry override), or take it over from a silent phone.
+                    $db->table('checkins')->where('id', $open['id'])->update(['session_token_hash' => $hash, 'browser_signature' => $signature, 'updated_at' => Clock::db()]);
+                    service('activityLog')->log($actor, $takeover ? 'checkin.session_taken_over' : 'auth.login.success', ['slam_id' => $slamId, 'target_type' => 'checkin', 'target_id' => (int) $open['id'], 'meta' => $takeover ? ['same_browser_signature' => $sameSig] : ['claimed' => true]]);
 
                     return ['checkin_id' => (int) $open['id'], 'token' => $token, 'resumed' => false, 'slam' => $slam];
                 }
@@ -180,7 +209,7 @@ class CheckinService
                 $this->assertGateOpen($slam);
                 $db->table('checkins')->insert([
                     'attendee_id' => $att['id'], 'checked_in_at' => Clock::db(), 'checked_in_by_type' => 'self',
-                    'session_token_hash' => $hash, 'open_marker' => 1, 'created_at' => Clock::db(), 'updated_at' => Clock::db(),
+                    'session_token_hash' => $hash, 'browser_signature' => $signature, 'open_marker' => 1, 'created_at' => Clock::db(), 'updated_at' => Clock::db(),
                 ]);
                 $id = (int) $db->insertID();
                 service('activityLog')->log($actor, 'checkin.created', ['slam_id' => $slamId, 'target_type' => 'attendee', 'target_id' => (int) $att['id'], 'meta' => ['by' => 'self', 'checkin_id' => $id]]);

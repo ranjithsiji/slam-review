@@ -81,7 +81,7 @@ export function createPoller(url, { interval = 4000, onData, onAuthError, deadli
     lastOk,
     start() { stopped = false; document.addEventListener('visibilitychange', onVisibility); tick(); },
     stop() { stopped = true; clearTimeout(timer); clearTimeout(deadlineTimer); document.removeEventListener('visibilitychange', onVisibility); },
-    now() { clearTimeout(timer); tick(); },
+    now({ fresh = false } = {}) { if (fresh) etag = null; clearTimeout(timer); return tick(); },
     setInterval(ms) { interval = ms; },
   };
 }

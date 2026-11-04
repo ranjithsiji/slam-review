@@ -15,11 +15,6 @@ $this->setVar('narrow', false);
             <select id="idle-min" name="min" class="form-select form-select-sm" style="width:auto">
                 <?php foreach ([1, 2, 3, 4, 5] as $n): ?><option value="<?= $n ?>" <?= $n === (int) $min ? 'selected' : '' ?>><?= $n ?> or more</option><?php endforeach ?>
             </select>
-            <?php if (! $readOnly): ?>
-                <button type="button" class="btn btn-danger btn-sm ms-md-auto" data-api-post="<?= site_url('api/volunteer/idle-checkout') ?>?slam=<?= $sid ?>" data-form="#idle-filters" data-body='<?= esc(json_encode(['slam_id' => $sid]), 'attr') ?>'
-                    data-confirm="Check out everyone listed here? They are signed out of their phones now and counted as not present. This cannot be undone, but each person can be checked in again from the desk."
-                    data-reason data-reason-default="Not reviewing" data-danger data-title="Check out everyone listed" data-reload data-success="Checked out."><?= icon('action.logout') ?>Check out everyone listed</button>
-            <?php endif ?>
         </form>
     </div>
 </div>

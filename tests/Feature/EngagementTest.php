@@ -71,14 +71,8 @@ final class EngagementTest extends SlamTestCase
         $one = array_column(service('engagement')->idle($id, 1), 'attendee_id');
         $this->assertEqualsCanonicalizing([(int) $u1['id'], (int) $u3['id']], $one);
 
-        // Force check-out: needs a reason, only affects people still idle, and ends their check-in.
-        try {
-            service('engagement')->checkoutIdle($id, 2, null, ' ', $this->admin);
-            $this->fail('reason required');
-        } catch (DomainException $e) {
-            $this->assertSame('reason_required', $e->reason);
-        }
-        $this->assertSame(['checked_out' => 1, 'skipped' => 0], service('engagement')->checkoutIdle($id, 2, null, 'Not reviewing', $this->admin));
+        // There is no bulk check-out: staff check out one person at a time, from the list.
+        service('checkins')->checkout((int) $u3['id'], 'forced', $this->admin, 'Not reviewing');
         $this->assertSame(1, (int) Db::value("SELECT COUNT(*) FROM checkins WHERE attendee_id = ? AND checked_out_at IS NOT NULL AND checkout_type = 'forced'", [$u3['id']]));
         $this->assertSame([], service('engagement')->idle($id, 2));
         $this->assertSame(1, (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'checkout.forced' AND slam_id = ?", [$id]));

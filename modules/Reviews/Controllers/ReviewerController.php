@@ -35,6 +35,7 @@ class ReviewerController extends BaseController
     public function state(): ResponseInterface
     {
         $a = $this->attendee();
+        service('checkins')->markPhoneLive((int) session('reviewer')['checkin_id']);
         session()->close();
         service('slamPhase')->tick($a['slam_id']);
         $state = service('liveState')->forReviewer($a);
@@ -44,6 +45,21 @@ class ReviewerController extends BaseController
         }
 
         return $this->json($state['body']);
+    }
+
+    /** The running order, kept on the phone: fetched at the start and whenever the poll reports a new version. */
+    public function schedule(): ResponseInterface
+    {
+        $a = $this->attendee();
+        session()->close();
+        $doc  = service('liveState')->scheduleFor($a['slam_id']);
+        $etag = '"' . $doc['version'] . '"';
+        $this->response->setHeader('ETag', $etag)->setHeader('Cache-Control', 'no-cache, private');
+        if (trim($this->request->getHeaderLine('If-None-Match')) === $etag) {
+            return $this->response->setStatusCode(304);
+        }
+
+        return $this->json($doc);
     }
 
     public function submit(): ResponseInterface
