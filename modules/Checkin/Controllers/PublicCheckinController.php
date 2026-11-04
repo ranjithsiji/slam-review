@@ -30,10 +30,14 @@ class PublicCheckinController extends BaseController
         return view('Modules\Checkin\Views\checkin', ['badge' => null, 'pending' => null]);
     }
 
-    /** /in/{ID}: shows the holder's name and the ID, ready to continue. */
-    public function landing(string $raw): string
+    /** /in/{ID}: scanning your own badge when already checked in here goes back to the review screen; otherwise name, ID and continue. */
+    public function landing(string $raw): string|RedirectResponse
     {
-        $id = BadgeIdService::fromScan($raw) ?? '';
+        $id   = BadgeIdService::fromScan($raw) ?? '';
+        $sess = session('reviewer');
+        if ($id !== '' && is_array($sess) && ($sess['badge_id'] ?? null) === $id && service('checkins')->validateSession($sess) !== null) {
+            return redirect()->to(site_url('review'));
+        }
 
         return view('Modules\Checkin\Views\checkin', ['badge' => $id, 'badgeName' => service('checkins')->badgeHolderName($id), 'pending' => null]);
     }
@@ -108,6 +112,10 @@ class PublicCheckinController extends BaseController
     {
         $auth = session('auth');
         if (! is_array($auth) || ! in_array($auth['type'] ?? '', ['admin', 'volunteer'], true)) {
+            return false;
+        }
+        $seen = (int) session('auth_seen');
+        if ($seen > 0 && time() - $seen > \Modules\Core\Filters\AuthFilter::STAFF_IDLE_SECONDS) {
             return false;
         }
         $table = $auth['type'] === 'admin' ? 'admins' : 'volunteers';

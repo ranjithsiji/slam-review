@@ -17,6 +17,8 @@ use Modules\Core\Libraries\OperatorMode;
  */
 class AuthFilter implements FilterInterface
 {
+    public const STAFF_IDLE_SECONDS = 7200;
+
     public function before(RequestInterface $request, $arguments = null)
     {
         $allowed = $arguments ?: ['admin'];
@@ -32,6 +34,17 @@ class AuthFilter implements FilterInterface
             if (! $ok) {
                 session()->remove('auth');
                 $auth = null; // signed out: send them to the login page, not a bare 403
+            }
+        }
+        if ($ok) {
+            // Sessions last a day for the audience; a staff account left idle signs out sooner.
+            $seen = (int) session('auth_seen');
+            if ($seen > 0 && time() - $seen > self::STAFF_IDLE_SECONDS) {
+                session()->remove(['auth', 'auth_seen']);
+                $ok   = false;
+                $auth = null;
+            } else {
+                session()->set('auth_seen', time());
             }
         }
         if ($ok && $auth['type'] === 'admin') {

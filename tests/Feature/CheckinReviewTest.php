@@ -135,6 +135,40 @@ final class CheckinReviewTest extends SlamTestCase
         }
     }
 
+    public function testScanningAgainResumesTheSameBrowserAndNoOtherOne(): void
+    {
+        $s = $this->makeSlam(1, 2, 0);
+        $a = $s['users'][0];
+        $this->at('2026-11-01 03:30:00', $s['id']);
+        $r    = service('checkins')->selfCheckin($a['badge_id'], '5.5.5.5');
+        $sess = ['attendee_id' => (int) $a['id'], 'slam_id' => $s['id'], 'badge_id' => $a['badge_id'], 'name' => $a['name'], 'user_type' => 'user', 'checkin_id' => $r['checkin_id'], 'token' => $r['token']];
+
+        // The same browser, whatever the phase: straight back to the review screen.
+        foreach (['2026-11-01 03:40:00', '2026-11-01 04:35:00'] as $when) {
+            $this->at($when, $s['id']);
+            $back = $this->withSession(['reviewer' => $sess])->get('in/' . $a['badge_id'])->response();
+            $this->assertSame(302, $back->getStatusCode(), $when);
+            $this->assertStringEndsWith('/review', $back->getHeaderLine('Location'));
+        }
+        // A session from before the person was checked out, or for someone else's badge, does not skip the steps.
+        $this->assertSame(200, $this->withSession(['reviewer' => $sess])->get('in/' . $s['users'][1]['badge_id'])->response()->getStatusCode());
+        $this->assertSame(200, $this->withSession(['reviewer' => ['token' => 'wrong'] + $sess])->get('in/' . $a['badge_id'])->response()->getStatusCode());
+        // Another browser with no session still cannot take the badge over.
+        $this->at('2026-11-01 03:40:00', $s['id']);
+        $this->expectReason('already_checked_in', fn () => service('checkins')->selfCheckin($a['badge_id'], '5.5.5.6'));
+    }
+
+    public function testASessionLastsADayButIdleStaffSignOut(): void
+    {
+        $this->assertSame(86400, config('Session')->expiration);
+        $id   = (int) $this->admin->id;
+        $auth = ['type' => 'admin', 'id' => $id, 'label' => 'Admin', 'role' => 'admin', 'pwd' => (string) Db::value('SELECT password_changed_at FROM admins WHERE id = ?', [$id])];
+        $this->assertSame(200, $this->withSession(['auth' => $auth, 'auth_seen' => time() - 3600])->get('admin')->response()->getStatusCode());
+        $idle = $this->withSession(['auth' => $auth, 'auth_seen' => time() - 7300])->get('admin')->response();
+        $this->assertSame(302, $idle->getStatusCode());
+        $this->assertStringContainsString('admin/login', $idle->getHeaderLine('Location'));
+    }
+
     public function testRegisteredAttemptsLockOutByTheSlamDate(): void
     {
         $s    = $this->makeSlam(1, 1, 0);

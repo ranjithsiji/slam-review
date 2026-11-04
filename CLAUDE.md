@@ -50,6 +50,7 @@ Rules:
 - Reviewer (user/judge) "login" is a **check-in**: scanning/typing the ID creates an open check-in row and starts a session. Reviewer sessions require an *open* check-in; if a volunteer/admin force-checks-out the user, the next request must be rejected and the session ended.
 - **Login attempt limiting (anti-fraud)**: throttle per IP *and* per submitted ID. e.g. 5 failed attempts / 10 min → lockout 15 min. Log failures in `login_attempts`. Use generic error messages (don't reveal whether an ID exists). Also cap how many different IDs one IP may try.
 - A badge ID can only have **one active session/check-in at a time** (prevents sharing a badge across phones). Second device attempt → rejected with message to visit the volunteer desk.
+- **The check-in lasts the day:** the session cookie lives 24 hours (`Config\Session::$expiration`, renewed with use), so a locked phone or a closed browser stays signed in, and scanning your own badge again goes straight to `/review`. Staff accounts still sign out after 2 idle hours (`AuthFilter::STAFF_IDLE_SECONDS`).
 - Reviewers can only access their own slam. Volunteers only their own slam. Enforce in a Filter, never only in the UI.
 
 ## 4. Unique ID format
