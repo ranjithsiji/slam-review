@@ -332,6 +332,37 @@ final class CheckinReviewTest extends SlamTestCase
         $this->assertSame(500, $send(['auth' => ['pwd' => 'old'] + $auth], '7')->getStatusCode());
     }
 
+    public function testAdminSeesAndUnlocksALockedNetwork(): void
+    {
+        $s  = $this->makeSlam(1, 1, 0);
+        $this->at('2026-11-01 03:30:00', $s['id']);
+        $t  = service('throttle');
+        $ip = '10.1.1.1';
+        for ($i = 0; $i < 40; $i++) {
+            $this->expectReason('invalid_id', fn () => service('checkins')->selfLookup(sprintf('AA%05d', 10001 + $i), $ip));
+        }
+        $this->expectReason('locked_out', fn () => service('checkins')->selfLookup($s['users'][0]['badge_id'], $ip));
+        $net = array_values(array_filter($t->networks(), static fn ($n) => $n['ip'] === $ip))[0];
+        $this->assertGreaterThan(0, $net['locked_seconds']);
+        $this->assertSame(40, $net['distinct_ids']);
+
+        // The admin screen lists it, and Unlock clears it.
+        $id   = (int) $this->admin->id;
+        $auth = ['type' => 'admin', 'id' => $id, 'label' => 'Admin', 'role' => 'admin', 'pwd' => (string) Db::value('SELECT password_changed_at FROM admins WHERE id = ?', [$id])];
+        $page = (string) $this->withSession(['auth' => $auth])->get('admin/lockouts')->response()->getBody();
+        $this->assertStringContainsString($ip, $page);
+        $this->assertStringContainsString('Locked', $page);
+        $r = $this->withSession(['auth' => $auth])->post('admin/lockouts/unlock', ['ip' => $ip, 'reason' => 'Venue Wi-Fi', csrf_token() => csrf_hash()]);
+        $this->assertSame(302, $r->response()->getStatusCode());
+        $this->assertSame([], array_filter($t->networks(), static fn ($n) => $n['ip'] === $ip));
+        $this->assertSame('Person 0', service('checkins')->selfLookup($s['users'][0]['badge_id'], $ip)['name']);
+        $this->assertSame(1, (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'auth.lockout_cleared'"));
+        // Volunteers cannot reach it.
+        $vol = service('auth')->saveVolunteer(null, ['username' => 'desk.lock', 'name' => 'Desk', 'slam_id' => $s['id'], 'password' => 'volunteer-pass', 'is_active' => 1], $this->admin);
+        $vauth = ['type' => 'volunteer', 'id' => $vol, 'label' => 'Desk', 'slam_id' => $s['id'], 'pwd' => (string) Db::value('SELECT password_changed_at FROM volunteers WHERE id = ?', [$vol])];
+        $this->assertNotSame(200, $this->withSession(['auth' => $vauth])->get('admin/lockouts')->response()->getStatusCode());
+    }
+
     public function testRegistrationLookupByMobileIsMinimal(): void
     {
         $s = $this->makeSlam(1, 2, 0);

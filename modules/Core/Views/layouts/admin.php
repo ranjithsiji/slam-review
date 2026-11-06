@@ -28,6 +28,7 @@ $nav  = [
     ['admin/qr', 'Badges & QR', 'nav.qr', '#^/admin/qr#'],
     ['admin/questions/templates', 'Question templates', 'nav.questions', '#^/admin/questions#'],
     ['admin/activity-log', 'Activity log', 'nav.log', '#^/admin/activity-log#'],
+    ['admin/lockouts', 'Lockouts', 'status.lock', '#^/admin/lockouts#'],
     ['admin/settings', 'Settings', 'nav.system', '#^/admin/settings#'],
 ];
 // A slam operator gets a menu for their own slam only, in the mode they are working in.

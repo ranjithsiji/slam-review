@@ -119,6 +119,50 @@ class ThrottleService
         return max(1, $first + $this->cfg->ipDistinctWindowMinutes * 60 - Clock::now()->getTimestamp());
     }
 
+    /**
+     * Networks (IP addresses) with failed badge check-ins, or "Am I registered?" checks, in the last hour, and
+     * whether each is locked out now. For the admin Lockouts screen.
+     *
+     * @return list<array{ip: string, failures: int, distinct_ids: int, lookups: int, last_at: string, locked_seconds: int}>
+     */
+    public function networks(): array
+    {
+        $since = Clock::db(Clock::now()->modify('-' . max($this->cfg->ipDistinctWindowMinutes, $this->cfg->ipWindowMinutes + $this->cfg->ipLockoutMinutes, self::LOOKUP_OTHER_DAY[1]) . ' minutes'));
+        $rows  = Db::rows(
+            "SELECT ip, SUM(kind = 'reviewer' AND success = 0) AS failures, COUNT(DISTINCT IF(kind = 'reviewer' AND success = 0, badge_id_or_username, NULL)) AS distinct_ids,
+                    SUM(kind = 'lookup') AS lookups, MAX(created_at) AS last_at
+             FROM login_attempts WHERE created_at >= ? AND ((kind = 'reviewer' AND success = 0) OR kind = 'lookup') GROUP BY ip ORDER BY last_at DESC",
+            [$since],
+        );
+        foreach ($rows as &$r) {
+            $r['failures'] = (int) $r['failures']; $r['distinct_ids'] = (int) $r['distinct_ids']; $r['lookups'] = (int) $r['lookups'];
+            // A key no-one uses: only the network-wide limits count, not one badge's.
+            $r['locked_seconds'] = max(
+                $this->window('ip', $r['ip'], 'reviewer', $this->cfg->ipMaxFailures, $this->cfg->ipWindowMinutes, $this->cfg->ipLockoutMinutes),
+                $this->distinctIds($r['ip'], 'h:none'),
+                $this->lookupLockedFor($r['ip']),
+            );
+        }
+
+        return $rows;
+    }
+
+    /** Unlock a network: its failed check-ins and "Am I registered?" attempts are cleared. Logged. @return int rows cleared */
+    public function unlockNetwork(string $ip, Actor $actor, ?string $reason = null): int
+    {
+        $db = db_connect();
+        $db->table('login_attempts')->where('ip', $ip)->groupStart()
+            ->groupStart()->where('kind', 'reviewer')->where('success', 0)->groupEnd()->orWhere('kind', 'lookup')
+            ->groupEnd()->delete();
+        $n = $db->affectedRows();
+        service('activityLog')->log($actor, 'auth.lockout_cleared', [
+            'target_type' => 'network', 'reason' => $reason !== null && trim($reason) !== '' ? mb_substr(trim($reason), 0, 255) : null,
+            'meta' => ['ip' => $ip, 'attempts_cleared' => $n],
+        ]);
+
+        return $n;
+    }
+
     public function record(string $kind, string $ip, string $submitted, bool $success): void
     {
         db_connect()->table('login_attempts')->insert([

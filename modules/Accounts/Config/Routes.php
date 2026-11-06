@@ -26,6 +26,8 @@ $routes->group('', ['namespace' => 'Modules\Accounts\Controllers'], static funct
         $routes->post('(:num)/reset-password', 'AdminsController::reset/$1');
     });
 
+    $routes->get('admin/lockouts', 'LockoutsController::index', ['filter' => 'auth:admin']);
+    $routes->post('admin/lockouts/unlock', 'LockoutsController::unlock', ['filter' => 'auth:admin']);
     $routes->post('operator/mode', 'OperatorController::mode', ['filter' => 'auth:admin']);
     $routes->get('admin/account', 'AccountController::show', ['filter' => 'auth:admin']);
     $routes->post('admin/account', 'AccountController::profile', ['filter' => 'auth:admin']);
