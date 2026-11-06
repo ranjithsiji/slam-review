@@ -74,7 +74,7 @@ if (scanStart) {
   document.querySelector('[data-scan-stop]')?.addEventListener('click', stop);
 }
 
-// After Gate Close: the waiting screen polls until a volunteer has checked this person in, then moves on to the review screen.
+// After Check-in Close: the waiting screen polls until a volunteer has checked this person in, then moves on to the review screen.
 const wait = document.querySelector('[data-late-wait]');
 if (wait) {
   const msg = wait.querySelector('[data-late-message]');

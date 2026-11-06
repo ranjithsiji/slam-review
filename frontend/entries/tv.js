@@ -68,7 +68,7 @@ const mainView = (doc) => {
   if (doc.finished) return logoView('', 'Thank you!', `${root.dataset.name} has finished.`);
   if (doc.now && doc.now.kind === 'break') return breakView(doc);
   if (doc.talk) return talkView(doc);
-  if (doc.phase === 'checkin_open') return logoView('Gates are open', 'Welcome!', 'Please check in at the entrance.');
+  if (doc.phase === 'checkin_open') return logoView('Check-in is open', 'Welcome!', 'Please check in at the entrance.');
   if (['reviews_complete', 'revision', 'revision_closed', 'marks_calculated'].includes(doc.phase)) return logoView('', 'All talks are done', 'Scores are being finalised.');
   if (doc.next) {
     const who = doc.next.kind === 'break' ? doc.next.label : doc.next.presenter_name;

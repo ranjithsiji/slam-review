@@ -83,7 +83,7 @@ $rules = [
             <h2 class="h1 mb-3"><?= icon('about.vote', 'me-2') ?>How the audience decides</h2>
             <p>The talks are judged by the public, by students and by subject experts. At the venue it works like this:</p>
             <ol class="about-steps">
-                <li><strong>Check in.</strong> Scan the QR code on your badge, or type your badge ID, and confirm it is you. This is open while the gates are open.</li>
+                <li><strong>Check in.</strong> Scan the QR code on your badge, or type your badge ID, and confirm it is you. This is open while check-in is open.</li>
                 <li><strong>Review each talk.</strong> While a talk's review window is open, your phone shows two short questions, each marked out of 5. Answer both and submit.</li>
                 <li><strong>Edit at the end.</strong> After the last talk you get a short window to change any of your own marks.</li>
                 <li><strong>Marks are combined fairly.</strong> Judges from the audience, a randomly drawn group of audience representatives and a panel of experts each count with a set weight. Experts look at communication, engagement, depth and audience response.</li>

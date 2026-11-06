@@ -27,7 +27,7 @@ $this->setVar('narrow', true); $this->setVar('entry', 'frontend/entries/checkin.
         <span class="badge <?= $badge['user_type'] === 'judge' ? 'bg-purple-lt' : 'bg-blue-lt' ?> mb-3"><?= $badge['user_type'] === 'judge' ? 'EXPERT' : 'JUDGE' ?></span>
         <div class="badge-qr mx-auto" role="img" aria-label="QR code for <?= esc($badge['badge_id'], 'attr') ?>"><?= $qrSvg ?></div>
         <div class="badge-id mt-2"><?= esc($badge['badge_id']) ?></div>
-        <p class="small text-secondary mt-2 mb-0">Show this QR code at the entrance, or scan it with your phone camera to check in when the gates open.</p>
+        <p class="small text-secondary mt-2 mb-0">Show this QR code at the entrance, or scan it with your phone camera to check in when check-in opens.</p>
     </div>
     <div class="card-footer d-grid gap-2">
         <a class="btn btn-slam" href="<?= site_url('badge/' . $badge['badge_id'] . '.pdf') ?>"><?= icon('action.export') ?>Download my badge (PDF, to print)</a>

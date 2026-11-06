@@ -81,7 +81,7 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
                         <?php $mode = old('auto_mode', $slam['auto_mode'] ?? 'manual'); ?>
                         <div class="form-selectgroup form-selectgroup-boxes d-flex flex-column gap-2">
                             <label class="form-selectgroup-item"><input type="radio" name="auto_mode" value="manual" class="form-selectgroup-input" <?= $mode === 'manual' ? 'checked' : '' ?>>
-                                <span class="form-selectgroup-label d-flex text-start p-3"><span><strong>I'll run it live from the Status screen</strong> <span class="badge bg-green-lt">recommended</span><span class="d-block small text-secondary">Real events never match a plan. Every step (open gates, close gates, each performance, edit window, close) starts when you press its button.</span></span></span></label>
+                                <span class="form-selectgroup-label d-flex text-start p-3"><span><strong>I'll run it live from the Status screen</strong> <span class="badge bg-green-lt">recommended</span><span class="d-block small text-secondary">Real events never match a plan. Every step (open check-in, close check-in, each performance, edit window, close) starts when you press its button.</span></span></span></label>
                             <label class="form-selectgroup-item"><input type="radio" name="auto_mode" value="auto" class="form-selectgroup-input" <?= $mode === 'auto' ? 'checked' : '' ?>>
                                 <span class="form-selectgroup-label d-flex text-start p-3"><span><strong>Automatic from planned times</strong><span class="d-block small text-secondary">Steps start by themselves at the planned times below and each performance's planned start. You can still step in with the buttons.</span></span></span></label>
                         </div>
@@ -89,10 +89,10 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
                     </div>
                     <details class="mb-1" <?= array_filter([$dt('checkin_opens_at'), $dt('checkin_closes_at'), $dt('reviews_start_at'), $dt('event_ends_at')]) !== [] || $errors !== [] ? 'open' : '' ?>>
                         <summary class="fw-bold mb-3" style="cursor:pointer">Planned times <span class="text-secondary fw-normal">(optional, only used in automatic mode)</span></summary>
-                        <p class="text-secondary small">Leave any of these blank. Order: gates open &lt; gate close &le; reviews start &lt; slam close.</p>
+                        <p class="text-secondary small">Leave any of these blank. Order: check-in open &lt; check-in close &le; reviews start &lt; slam close.</p>
                         <?php foreach ([
-                            ['checkin_opens_at', 'Gates open (check-in)', 'Blank: you open the gates.'],
-                            ['checkin_closes_at', 'Gate close (check-in stops)', 'Blank: you close the gates.'],
+                            ['checkin_opens_at', 'Check-in open', 'Blank: you open check-in.'],
+                            ['checkin_closes_at', 'Check-in close', 'Blank: you close check-in.'],
                             ['reviews_start_at', 'Reviews start (first performance)', 'Prefills the first slot in the schedule.'],
                             ['closes_at', 'Slam close: hard stop', 'A safety limit: anything still open ends here. Blank: ' . \Modules\Slams\Services\SlamService::DEFAULT_HARD_STOP_HOURS . ' hours after the slam starts. You normally close the slam yourself.'],
                             ['event_ends_at', 'Event ends automatically', 'Ending is irreversible; blank: you end the event.'],

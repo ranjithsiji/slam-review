@@ -65,7 +65,7 @@ $modeTxt = $endMode ? 'Entered by you at the end of the slam' : 'Live on their p
                 $endMode ? ['label' => "Enter this expert's marks", 'icon' => 'person.judge', 'href' => "/admin/slams/{$sid}/judge-marks?judge={id}"] : null,
                 ['label' => 'Edit / reissue ID', 'icon' => 'action.edit', 'href' => '/admin/attendees/{id}/edit?back=judges'],
                 ['label' => 'Timeline', 'icon' => 'nav.log', 'href' => '/admin/activity-log?target_type=attendee&target_id={id}'],
-                ['label' => 'Late check-in (after Gate Close)', 'icon' => 'nav.checkins', 'post' => '/api/checkin/late-override', 'body' => ['attendee_id' => '{id}'], 'reason' => true, 'when' => '!checked_in'],
+                ['label' => 'Late check-in (after Check-in Close)', 'icon' => 'nav.checkins', 'post' => '/api/checkin/late-override', 'body' => ['attendee_id' => '{id}'], 'reason' => true, 'when' => '!checked_in'],
                 ['label' => 'Force check-out', 'icon' => 'action.logout', 'post' => '/api/force-checkout/{id}', 'reason' => true, 'danger' => true, 'when' => 'checked_in'],
             ])),
         ]), 'attr') ?>'></table>

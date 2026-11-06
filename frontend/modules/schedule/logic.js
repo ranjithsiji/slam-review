@@ -48,7 +48,7 @@ export function validate(slam, items, perfIds) {
     if (it.status === 'skipped') return;
     const s = t(it.planned_start_at);
     if (prevEnd !== null && s < prevEnd) errors.push({ index: i, message: 'Overlaps the previous slot.' });
-    if (s < gate && it.status === 'pending') errors.push({ index: i, message: 'Starts before Gate Close.' });
+    if (s < gate && it.status === 'pending') errors.push({ index: i, message: 'Starts before Check-in Close.' });
     prevEnd = s + d * 60000;
     active.push(i);
   });

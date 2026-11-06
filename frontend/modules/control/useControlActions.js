@@ -43,7 +43,7 @@ export function useControlActions({ slamId, st, modal, poll }) {
   }
   function openItem(it, closeGate = false) {
     modal.value.show({
-      title: `Open review: ${it.presenter_name}`, message: closeGate ? 'This also closes the check-in gate.' : '',
+      title: `Open review: ${it.presenter_name}`, message: closeGate ? 'This also closes check-in.' : '',
       fields: [{ name: 'minutes', label: 'Review window (minutes)', type: 'number', required: true, value: it.duration_minutes }],
       run: (v) => api('window/open', { schedule_item_id: it.id, minutes: Number(v.minutes), close_gate: closeGate }, 'Review window opened.'),
     });
@@ -56,14 +56,14 @@ export function useControlActions({ slamId, st, modal, poll }) {
   function gateExtend() {
     const cur = isoToLocal(st.slam.checkin_closes_at || new Date(Date.now() + 15 * 60000).toISOString());
     modal.value.show({
-      title: 'Change gate close time', fields: [{ name: 'time', label: `New close time (${tzLabel})`, type: 'time', required: true, value: cur.time }],
-      run: (v) => api('checkin-gate/extend', { closes_at: localToIso(cur.date || isoToLocal(new Date().toISOString()).date, v.time) }, 'Gate close time changed.'),
+      title: 'Change check-in close time', fields: [{ name: 'time', label: `New close time (${tzLabel})`, type: 'time', required: true, value: cur.time }],
+      run: (v) => api('checkin-gate/extend', { closes_at: localToIso(cur.date || isoToLocal(new Date().toISOString()).date, v.time) }, 'Check-in close time changed.'),
     });
   }
   const gateReopen = () => modal.value.show({
-    title: 'Reopen the check-in gate', message: 'Only possible before the first review window opens.', confirmText: 'Reopen',
+    title: 'Reopen check-in', message: 'Only possible before the first review window opens.', confirmText: 'Reopen',
     fields: [{ name: 'reason', label: 'Reason', required: true }, { name: 'minutes', label: 'Close again after (minutes, blank = by hand)', type: 'number' }],
-    run: (v) => api('checkin-gate/reopen', { reason: v.reason, closes_at: v.minutes ? new Date(Date.now() + Number(v.minutes) * 60000).toISOString() : null }, 'Gate reopened.'),
+    run: (v) => api('checkin-gate/reopen', { reason: v.reason, closes_at: v.minutes ? new Date(Date.now() + Number(v.minutes) * 60000).toISOString() : null }, 'Check-in reopened.'),
   });
   const endReviewing = () => modal.value.show({
     title: 'End reviewing early', message: 'All remaining pending performances are skipped. This cannot be undone.', danger: true, confirmText: 'Skip the rest',
@@ -100,7 +100,7 @@ export function useControlActions({ slamId, st, modal, poll }) {
   // A performance on stage; the review window is opened and closed separately.
   const startPerformance = (it) => api(`items/${it?.id ?? 0}/perform/start`, {}, 'Performance started.').catch(() => {});
   const endPerformance = (it) => api(`items/${it.id}/perform/end`, {}, 'Performance ended. The review stays open.').catch(() => {});
-  const closeGateAndStart = () => api('items/0/perform/start', { close_gate: true }, 'Gate closed. First performance started.').catch(() => {});
+  const closeGateAndStart = () => api('items/0/perform/start', { close_gate: true }, 'Check-in closed. First performance started.').catch(() => {});
 
   // ---- pause, and changing times while the slam runs ----
   const pause = () => modal.value.show({

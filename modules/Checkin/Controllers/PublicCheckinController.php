@@ -166,7 +166,7 @@ class PublicCheckinController extends BaseController
                 return $this->jsonError($e);
             }
             if ($e->reason === 'gate_closed') {
-                return $this->askTheDesk($raw); // after Gate Close: wait for the volunteer
+                return $this->askTheDesk($raw); // after Check-in Close: wait for the volunteer
             }
 
             return redirect()->to(site_url('checkin'))->withInput()->with('error', $e->getMessage());
@@ -213,7 +213,7 @@ class PublicCheckinController extends BaseController
         });
     }
 
-    /** After Gate Close: this phone asks the desk to check the person in and waits on its own screen. */
+    /** After Check-in Close: this phone asks the desk to check the person in and waits on its own screen. */
     private function askTheDesk(string $rawId): RedirectResponse
     {
         try {

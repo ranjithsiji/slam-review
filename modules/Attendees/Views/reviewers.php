@@ -59,7 +59,7 @@
                 ['label' => 'Timeline', 'icon' => 'nav.log', 'href' => '/admin/activity-log?target_type=attendee&target_id={id}'],
                 $repsLocked === null ? ['label' => 'Make audience representative', 'icon' => 'nav.representatives', 'post' => "/api/slams/{$sid}/representatives/{id}/add", 'when' => 'can_make_rep', 'reloadPage' => true, 'success' => 'Added to the audience representatives.'] : null,
                 $repsLocked === null ? ['label' => 'Remove from audience representatives', 'icon' => 'action.delete', 'post' => "/api/slams/{$sid}/representatives/{id}/remove", 'when' => 'is_representative', 'reason' => true, 'danger' => true, 'reloadPage' => true, 'success' => 'Removed from the audience representatives.'] : null,
-                ['label' => 'Late check-in (after Gate Close)', 'icon' => 'nav.checkins', 'post' => '/api/checkin/late-override', 'body' => ['attendee_id' => '{id}'], 'reason' => true, 'when' => '!checked_in'],
+                ['label' => 'Late check-in (after Check-in Close)', 'icon' => 'nav.checkins', 'post' => '/api/checkin/late-override', 'body' => ['attendee_id' => '{id}'], 'reason' => true, 'when' => '!checked_in'],
                 ['label' => 'Force check-out', 'icon' => 'action.logout', 'post' => '/api/force-checkout/{id}', 'reason' => true, 'danger' => true, 'when' => 'checked_in'],
             ])),
         ]), 'attr') ?>'></table>

@@ -301,7 +301,7 @@ class PublicScheduleService
         return $s > $t ? "ഓരോ അവതരണത്തിനും: {$t} മിനിറ്റ് + " . ($s - $t) . " മുന്നൊരുക്കം = {$s} മിനിറ്റ്" : "ഓരോ അവതരണത്തിനും: {$t} മിനിറ്റ്";
     }
 
-    /** iCalendar for one slam (Gates Open → Slam Close). */
+    /** iCalendar for one slam (Check-in Open → Slam Close). */
     public function ics(array $slam, string $url): string
     {
         $start = Clock::parse($slam['checkin_opens_at'] ?? $slam['opens_at'])->format('Ymd\THis\Z');

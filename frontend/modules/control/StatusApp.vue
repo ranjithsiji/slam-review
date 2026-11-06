@@ -160,7 +160,7 @@
                       <div class="progress progress-sm mt-1"><div class="progress-bar bg-green" :style="{ width: pct(checkedIn, st.counts.registered) + '%' }"></div></div>
                     </div>
                   </div>
-                  <div v-if="st.slam.checkin_closes_at" class="text-secondary small">Gate closes at {{ time(st.slam.checkin_closes_at) }} (<Countdown :until="st.slam.checkin_closes_at" :icon="false" />)</div>
+                  <div v-if="st.slam.checkin_closes_at" class="text-secondary small">Check-in closes at {{ time(st.slam.checkin_closes_at) }} (<Countdown :until="st.slam.checkin_closes_at" :icon="false" />)</div>
                   <div class="text-secondary small">Attendees check themselves in by scanning the QR code on their badge.</div>
                 </div>
                 <div v-else-if="n.key === 'checkin_closed'" class="text-secondary">{{ checkedIn }} inside. Start the first performance when the presenter is ready. Late arrivals: volunteers or admins use Late check-in.</div>
@@ -234,7 +234,7 @@ const poll = createPoller(`/api/slams/${slamId}/control-state`, {
 // Several people can run one slam: actions are blocked while this screen has no fresh view of it.
 const connected = computed(() => poll.status.value === 'ok' && poll.lastOk.value !== null && clockNow.value - poll.lastOk.value < 25000);
 const blocked = computed(() => busy.value || !connected.value);
-const changeText = { 'slam.phase_changed': 'changed the phase', 'window.opened': 'opened a review', 'window.extended': 'changed the review time', 'window.closed.manual': 'closed a review', 'window.closed.timer': 'closed a review', 'performance.started': 'started a presentation', 'performance.ended': 'closed a presentation', 'schedule.break_started': 'started a break', 'schedule.break_ended_early': 'ended a break', 'schedule.item_skipped': 'skipped an item', 'slam.paused': 'paused the slam', 'slam.resumed': 'resumed the slam', 'phase.mode_changed': 'changed the run mode', 'phase.hold': 'held the slam', 'phase.resume': 'resumed automatic mode', 'checkin_gate.opened': 'opened the gates', 'checkin_gate.closed': 'closed the gates', 'schedule.shifted': 'adjusted the schedule' };
+const changeText = { 'slam.phase_changed': 'changed the phase', 'window.opened': 'opened a review', 'window.extended': 'changed the review time', 'window.closed.manual': 'closed a review', 'window.closed.timer': 'closed a review', 'performance.started': 'started a presentation', 'performance.ended': 'closed a presentation', 'schedule.break_started': 'started a break', 'schedule.break_ended_early': 'ended a break', 'schedule.item_skipped': 'skipped an item', 'slam.paused': 'paused the slam', 'slam.resumed': 'resumed the slam', 'phase.mode_changed': 'changed the run mode', 'phase.hold': 'held the slam', 'phase.resume': 'resumed automatic mode', 'checkin_gate.opened': 'opened check-in', 'checkin_gate.closed': 'closed check-in', 'schedule.shifted': 'adjusted the schedule' };
 let seenChange = null;
 watch(() => st.last_change?.id, (id) => {
   const c = st.last_change;
@@ -252,8 +252,8 @@ const setMode = (mode) => { if (st.slam.auto_mode !== mode) act('mode', { mode }
 const BEFORE = [
   { key: 'setup', title: 'Setup', phases: ['draft', 'scheduled'], icon: 'phase.draft', plan: null, hint: 'Presenters, schedule, questions and attendees are prepared; the slam is marked ready.' },
   { key: 'open', title: 'Slam open', phases: ['open'], icon: 'phase.open', plan: 'opens_at', hint: 'Admin and volunteer panels go live.' },
-  { key: 'checkin_open', title: 'Gates open', phases: ['checkin_open'], icon: 'phase.checkin_open', plan: 'checkin_opens_at', hint: 'Attendees scan the QR code on their badge to check themselves in.' },
-  { key: 'checkin_closed', title: 'Gate close', phases: ['checkin_closed'], icon: 'phase.checkin_closed', plan: 'checkin_closes_at', hint: 'Check-in stops. Late arrivals are checked in by a volunteer or admin.' },
+  { key: 'checkin_open', title: 'Check-in open', phases: ['checkin_open'], icon: 'phase.checkin_open', plan: 'checkin_opens_at', hint: 'Attendees scan the QR code on their badge to check themselves in.' },
+  { key: 'checkin_closed', title: 'Check-in close', phases: ['checkin_closed'], icon: 'phase.checkin_closed', plan: 'checkin_closes_at', hint: 'Check-in stops. Late arrivals are checked in by a volunteer or admin.' },
 ];
 const AFTER = [
   { key: 'reviews_complete', title: 'All reviews closed', phases: ['reviews_complete'], icon: 'phase.reviews_complete', plan: null, hint: 'Every performance has been reviewed or skipped.' },
@@ -344,8 +344,8 @@ const reviewChip = (i) => (i.status === 'closed' ? { text: `Closed · ${i.review
 const checkedIn = computed(() => (st.counts.users_in || 0) + (st.counts.judges_in || 0));
 const pct = (n, d) => (d ? Math.min(100, Math.round((100 * n) / d)) : 0);
 const idleText = computed(() => ({
-  draft: 'Setup. Mark the slam ready when everything is configured.', scheduled: 'Ready. Open the slam when you are set.', open: 'Slam open. Open the gates when people can come in.',
-  checkin_open: 'Check-in gate is open.', checkin_closed: 'Gate closed.', reviewing: 'Between performances.',
+  draft: 'Setup. Mark the slam ready when everything is configured.', scheduled: 'Ready. Open the slam when you are set.', open: 'Slam open. Open check-in when people can come in.',
+  checkin_open: 'Check-in is open.', checkin_closed: 'Check-in closed.', reviewing: 'Between performances.',
   reviews_complete: st.slam?.edit_window_minutes ? `The ${st.slam.edit_window_minutes}-minute edit window opens next.` : 'The edit phase is set to be skipped; scores lock next.',
   revision_closed: 'Scores are locked. Close the slam when you are ready.', closed: 'Slam closed. Marks are calculated next.',
   marks_calculated: 'Marks calculated. End the event when the results are final.', ended: 'The event has ended. Everything is read-only.',
@@ -416,13 +416,13 @@ function stepActions(n) {
       if (st.advance_label) add(st.advance_label, 'btn-primary', advance, 'action.advance');
       add('Edit slam details', '', null, 'action.edit', `/admin/slams/${slamId}/edit`);
       break;
-    case 'open': add('Open check-in gate', 'btn-success', () => api('checkin-gate/open', {}, 'Gate opened.').catch(() => {}), 'phase.checkin_open'); break;
+    case 'open': add('Open check-in', 'btn-success', () => api('checkin-gate/open', {}, 'Check-in opened.').catch(() => {}), 'phase.checkin_open'); break;
     case 'checkin_open':
-      add('Close gate', 'btn-warning', () => api('checkin-gate/close', {}, 'Gate closed.').catch(() => {}), 'phase.checkin_closed');
-      add('Change gate close time', '', gateExtend);
-      if (perfs.value.some((i) => i.status === 'pending')) add('Close gate and start first performance', 'btn-primary', closeGateAndStart, 'action.resume');
+      add('Close check-in', 'btn-warning', () => api('checkin-gate/close', {}, 'Check-in closed.').catch(() => {}), 'phase.checkin_closed');
+      add('Change check-in close time', '', gateExtend);
+      if (perfs.value.some((i) => i.status === 'pending')) add('Close check-in and start first performance', 'btn-primary', closeGateAndStart, 'action.resume');
       break;
-    case 'checkin_closed': add('Reopen gate', 'btn-outline-warning', gateReopen); break;
+    case 'checkin_closed': add('Reopen check-in', 'btn-outline-warning', gateReopen); break;
     case 'reviews_complete':
       add('Open edit window…', 'btn-primary', revisionOpen, 'phase.revision');
       add('Skip edit phase…', 'btn-outline-secondary', revisionSkip);
@@ -491,12 +491,12 @@ const now = computed(() => {
   if (gateIsClosed.value && nextPerf.value) {
     const node = nodes.value.find((n) => n.item?.id === nextPerf.value.id);
     const first = !perfs.value.some((i) => i.status !== 'pending');
-    return { ...base, tone: 'ready', icon: 'action.resume', kicker: first ? 'Gates closed' : 'Between performances', title: first ? 'Ready for the first performance' : 'Ready for the next performance', subtitle: `${nextPerf.value.presenter_name}: ${nextPerf.value.topic || ''}`, primary: firstOf(itemActions(node)), facts: [`${checkedIn.value} inside`] };
+    return { ...base, tone: 'ready', icon: 'action.resume', kicker: first ? 'Check-in closed' : 'Between performances', title: first ? 'Ready for the first performance' : 'Ready for the next performance', subtitle: `${nextPerf.value.presenter_name}: ${nextPerf.value.topic || ''}`, primary: firstOf(itemActions(node)), facts: [`${checkedIn.value} inside`] };
   }
   if (current) {
     const acts = stepActions(current);
     const timers = [];
-    if (s.status === 'checkin_open' && s.checkin_closes_at) timers.push({ label: 'gate closes in', until: s.checkin_closes_at });
+    if (s.status === 'checkin_open' && s.checkin_closes_at) timers.push({ label: 'check-in closes in', until: s.checkin_closes_at });
     if (s.status === 'revision' && st.revision) timers.push({ label: 'edit window closes in', until: st.revision.closes_at });
     return {
       ...base, tone: 'live', icon: current.icon, kicker: 'Right now', title: current.title, subtitle: idleText.value, timers,

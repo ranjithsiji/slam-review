@@ -19,7 +19,7 @@
             <dt class="col-5 text-secondary fw-normal">Badge ID</dt><dd class="col-7 mb-0"><code><?= esc($pending['badge_id']) ?></code><?= $pending['user_type'] === 'judge' ? ' · Expert' : '' ?></dd>
         </dl>
         <?php if (! empty($pending['late'])): ?>
-            <div class="alert alert-warning text-start"><strong>The gates are closed.</strong> A volunteer at the desk will check you in. After you confirm, keep your phone on the next screen and show your badge at the desk.</div>
+            <div class="alert alert-warning text-start"><strong>Check-in is closed.</strong> A volunteer at the desk will check you in. After you confirm, keep your phone on the next screen and show your badge at the desk.</div>
             <button class="btn btn-slam btn-lg w-100" type="submit"><?= icon('status.ok') ?>Yes, that's me, ask the volunteer</button>
         <?php else: ?>
             <button class="btn btn-primary btn-lg w-100" type="submit"><?= icon('status.ok') ?>Yes, that's me, check me in</button>
@@ -48,28 +48,30 @@
                 <p class="small text-secondary mt-3 mb-0">Not you? <a href="<?= site_url('checkin') ?>">Type a different ID</a></p>
             </div>
         <?php else: ?>
-            <h2 class="h2 text-center mb-1">Check in</h2>
-            <p class="text-center text-secondary">Type the ID printed on your badge</p>
+            <h2 class="h2 text-center mb-3">Check in</h2>
+            <!-- Scan the QR code on the badge with the phone camera (works only over https or localhost). -->
+            <button type="button" class="btn btn-slam btn-lg w-100 scan-cta" data-scan-start>
+                <span class="scan-cta-icon" aria-hidden="true"><?= icon('media.camera', 'icon-lg') ?></span>
+                <span>Scan the QR code on my badge</span>
+            </button>
+            <div data-scan-box hidden class="mt-3">
+                <div id="qr-reader" class="rounded overflow-hidden mx-auto" style="max-width:360px"></div>
+                <div class="text-center small text-secondary mt-2" data-scan-hint>Starting the camera… allow access if your phone asks.</div>
+                <button type="button" class="btn w-100 mt-2" data-scan-stop>Stop camera</button>
+            </div>
+            <div class="hr-text my-3">or type your badge ID</div>
             <label class="form-label visually-hidden" for="badge_id">Badge ID</label>
             <input id="badge_id" name="badge_id" class="form-control form-control-lg text-center fw-bold" style="font-size:1.75rem;letter-spacing:.2em"
                    placeholder="KR48213" maxlength="7" required autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text"
                    pattern="[A-Za-z]{2}[0-9]{5}" aria-describedby="fmt" data-badge-input value="<?= esc((string) old('badge_id')) ?>">
             <div id="fmt" class="form-hint text-center mt-2">2 letters + 5 digits, for example KR48213</div>
             <button class="btn btn-primary btn-lg w-100 mt-3" type="submit"><?= icon('nav.checkins') ?>Continue</button>
-            <div class="hr-text my-3">or</div>
-            <!-- Scan the QR code on the badge with the phone camera (works only over https or localhost). -->
-            <button type="button" class="btn btn-lg w-100" data-scan-start><?= icon('qr.scan') ?>Scan the QR code on my badge</button>
-            <div data-scan-box hidden class="mt-3">
-                <div id="qr-reader" class="rounded overflow-hidden mx-auto" style="max-width:360px"></div>
-                <div class="text-center small text-secondary mt-2" data-scan-hint>Starting the camera… allow access if your phone asks.</div>
-                <button type="button" class="btn w-100 mt-2" data-scan-stop>Stop camera</button>
-            </div>
             <div class="alert alert-warning mt-3 mb-0" data-scan-error role="alert" hidden></div>
         <?php endif ?>
     </div>
 </form>
 <?php endif ?>
-<p class="text-center small text-secondary mt-3">Check-in works only while the gates are open. Lost your badge or arrived late? Visit the volunteer desk.</p>
+<p class="text-center small text-secondary mt-3">You can check yourself in while check-in is open. Lost your badge or arrived late? Visit the volunteer desk.</p>
 <p class="text-center small mb-1"><a href="<?= site_url('badge') ?>"><?= icon('qr.scan', 'icon-inline me-1') ?>Lost your badge? Get it here with your unique ID</a></p>
 <p class="text-center small mb-1"><a href="<?= site_url('registered') ?>"><?= icon('action.search', 'icon-inline me-1') ?>Not sure you are registered? Check with your mobile number</a></p>
 <p class="text-center small"><a href="<?= site_url('/') ?>" class="text-secondary">← Back to home</a></p>

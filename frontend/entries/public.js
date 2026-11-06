@@ -69,10 +69,10 @@ if (home) {
     let t;
     if (d.now && d.now.kind === 'break') t = `Now: <strong>${esc(d.now.label)}</strong>`;
     else if (d.now) t = `Presenting now: <strong>${esc(d.now.presenter_name)}</strong> — ${esc(d.now.topic)}`;
-    else if (d.phase === 'checkin_open') t = 'Gates are open. Check in at the entrance.';
+    else if (d.phase === 'checkin_open') t = 'Check-in is open. Check in at the entrance.';
     else if (d.next) t = `Up next: <strong>${esc(d.next.kind === 'break' ? d.next.label : d.next.presenter_name)}</strong> at ${esc(time(d.next.planned_start_at))}`;
     else if (['reviews_complete', 'revision', 'revision_closed'].includes(d.phase)) t = 'All performances are done. Scores are being finalised.';
-    else t = 'Gates are closed. The first performance starts shortly.';
+    else t = 'Check-in is closed. The first performance starts shortly.';
     if (d.paused) t = `<span class="badge bg-orange-lt me-2">Paused</span>The programme is paused for a short while. ${t}`;
     return t;
   };

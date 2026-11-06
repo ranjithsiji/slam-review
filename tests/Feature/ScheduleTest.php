@@ -30,7 +30,7 @@ final class ScheduleTest extends SlamTestCase
         $d = $this->draft($s['id']);
         $d[0]['planned_start_at'] = '2026-11-01T04:00:00Z'; // before Gate Close
         $r = service('schedule')->validate($slam, service('schedule')->normalise($d));
-        $this->assertStringContainsString('Gate Close', $r['errors'][0]['message']);
+        $this->assertStringContainsString('Check-in Close', $r['errors'][0]['message']);
 
         $d = $this->draft($s['id']);
         $d[1]['planned_start_at'] = '2026-11-01T11:25:00Z'; // + edit window passes closes_at

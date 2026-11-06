@@ -363,20 +363,20 @@ class SlamService
             $e['closes_at'] = 'Slam close must be after slam open.';
         }
         if ($ci !== null && $ci < $o) {
-            $e['checkin_opens_at'] = 'Gates open cannot be before slam open.';
+            $e['checkin_opens_at'] = 'Check-in open cannot be before slam open.';
         }
         if ($ci !== null && $cc !== null && $cc <= $ci) {
-            $e['checkin_closes_at'] = 'Gate close must be after gates open.';
+            $e['checkin_closes_at'] = 'Check-in close must be after check-in open.';
         }
         if ($cc !== null && $cc < $o) {
-            $e['checkin_closes_at'] = 'Gate close cannot be before slam open.';
+            $e['checkin_closes_at'] = 'Check-in close cannot be before slam open.';
         }
         if ($cc !== null && $cc >= $c) {
-            $e['checkin_closes_at'] = 'Gate close must be before slam close.';
+            $e['checkin_closes_at'] = 'Check-in close must be before slam close.';
         }
         if ($rs !== null) {
             if ($cc !== null && $rs < $cc) {
-                $e['reviews_start_at'] = 'Reviews cannot start before gate close.';
+                $e['reviews_start_at'] = 'Reviews cannot start before check-in close.';
             }
             if ($rs < $o || $rs >= $c) {
                 $e['reviews_start_at'] = 'Reviews start must be between slam open and slam close.';

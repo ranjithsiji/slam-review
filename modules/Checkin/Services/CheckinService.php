@@ -13,9 +13,9 @@ use Modules\Core\Libraries\DomainException;
 /**
  * Check-in / check-out. Reviewer "login" = check-in.
  *
- * While the gates are open, check-in is self-service: the attendee scans the QR
+ * While check-in is open, check-in is self-service: the attendee scans the QR
  * on their badge (or types the ID), sees their name and masked mobile to verify,
- * and confirms. After Gate Close a volunteer (own slam) or admin can do a late
+ * and confirms. After Check-in Close a volunteer (own slam) or admin can do a late
  * check-in, which creates an *unclaimed* check-in (no token) that the
  * attendee's phone claims on its first badge scan.
  *
@@ -26,7 +26,7 @@ class CheckinService
 {
     public const GENERIC_FAILURE = 'Check-in failed. Check the ID on your badge, or visit the volunteer desk.';
 
-    /** Phases in which volunteers and admins can late check-in someone (after Gate Close, before Slam Close). */
+    /** Phases in which volunteers and admins can late check-in someone (after Check-in Close, before Slam Close). */
     public const LATE_PHASES = ['checkin_closed', 'reviewing', 'reviews_complete', 'revision', 'revision_closed'];
 
     /** 9847123210 → 98••••3210: enough for the attendee to recognise, little for anyone else. */
@@ -120,7 +120,7 @@ class CheckinService
         $slamId = (int) $att['slam_id'];
         service('slamPhase')->tick($slamId);
         $slam = service('slams')->find($slamId);
-        // A late check-in from the desk can be claimed after Gate Close; otherwise the gate must be open.
+        // A late check-in from the desk can be claimed after Check-in Close; otherwise the gate must be open.
         $open = Db::row('SELECT id, session_token_hash FROM checkins WHERE attendee_id = ? AND checked_out_at IS NULL', [$att['id']]);
         $late = false;
         if ($open === null && in_array($slam['status'], self::LATE_PHASES, true)) {
@@ -231,7 +231,7 @@ class CheckinService
     }
 
     // ------------------------------------------------------------------
-    // After Gate Close: the phone waits, the volunteer checks the person in, the waiting phone moves on.
+    // After Check-in Close: the phone waits, the volunteer checks the person in, the waiting phone moves on.
     // ------------------------------------------------------------------
 
     public const REQUEST_MINUTES = 20;   // a request lives this long
@@ -253,7 +253,7 @@ class CheckinService
         $slam = service('slams')->find((int) $att['slam_id']);
         if (! in_array($slam['status'], self::LATE_PHASES, true)) {
             $this->assertGateOpen($slam); // explains why not (too early / closed)
-            throw new DomainException('self_checkin', 'The gates are open: scan your badge to check in.', 409);
+            throw new DomainException('self_checkin', 'Check-in is open: scan your badge to check in.', 409);
         }
         if (Db::value('SELECT id FROM checkins WHERE attendee_id = ? AND checked_out_at IS NULL', [$att['id']]) !== null) {
             throw new DomainException('already_checked_in', 'This badge is already checked in.', 409);
@@ -401,7 +401,7 @@ class CheckinService
             $at = $slam['checkin_opens_at'];
             throw new DomainException('gate_not_open', $at !== null
                 ? 'Check-in is not open yet. It opens at ' . Clock::local($at, 'H:i') . ' on ' . Clock::local($at, 'd M') . '.'
-                : 'Check-in is not open yet. Please wait for the organisers to open the gate.', 403, ['opens_at' => Clock::iso($at)]);
+                : 'Check-in is not open yet. Please wait for the organisers to open check-in.', 403, ['opens_at' => Clock::iso($at)]);
         }
         if (in_array($s, ['closed', 'marks_calculated', 'ended'], true)) {
             throw new DomainException('slam_closed', 'The slam has closed. Thank you for coming!', 403);
@@ -410,9 +410,9 @@ class CheckinService
     }
 
     /**
-     * Late check-in by a volunteer (own slam) or admin after Gate Close, for an
+     * Late check-in by a volunteer (own slam) or admin after Check-in Close, for an
      * already-registered attendee. Unclaimed until the attendee's phone scans
-     * the badge. While the gates are open attendees check themselves in.
+     * the badge. While check-in is open attendees check themselves in.
      */
     public function lateCheckin(int $attendeeId, ?string $reason, Actor $actor, bool $linkPhone = true): array
     {
@@ -424,13 +424,13 @@ class CheckinService
         if ((int) $att['is_active'] !== 1) {
             throw new DomainException('not_registered', 'This registration is inactive. Please contact the organisers.', 409);
         }
-        $reason = trim((string) $reason) !== '' ? mb_substr(trim((string) $reason), 0, 255) : 'Arrived after Gate Close';
+        $reason = trim((string) $reason) !== '' ? mb_substr(trim((string) $reason), 0, 255) : 'Arrived after Check-in Close';
         service('slamPhase')->tick((int) $att['slam_id']);
         try {
             $made = Db::tx(function ($db) use ($att, $actor, $reason): array {
                 $slam = Db::lockSlam((int) $att['slam_id']);
                 if ($slam['status'] === 'checkin_open') {
-                    throw new DomainException('self_checkin', 'The gates are open: attendees check themselves in by scanning the QR code on their badge.', 409);
+                    throw new DomainException('self_checkin', 'Check-in is open: attendees check themselves in by scanning the QR code on their badge.', 409);
                 }
                 if (! in_array($slam['status'], self::LATE_PHASES, true)) {
                     in_array($slam['status'], ['draft', 'scheduled', 'open'], true)

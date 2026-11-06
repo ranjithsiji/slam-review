@@ -18,7 +18,7 @@ $this->setVar('narrow', true); $this->setVar('entry', 'frontend/entries/checkin.
             <div class="late-code" aria-label="Your code is <?= esc(implode(' ', str_split($lr['code'])), 'attr') ?>"><?= esc($lr['code']) ?></div>
         </div>
         <div class="alert alert-info text-start mb-0" role="status" aria-live="polite" data-late-message>
-            <strong>The gates are closed.</strong> Go to the volunteer desk and show your badge. Tell them the code above.
+            <strong>Check-in is closed.</strong> Go to the volunteer desk and show your badge. Tell them the code above.
             <div class="mt-1">Keep this page open: it moves on by itself as soon as you are checked in.</div>
         </div>
     </div>

@@ -501,3 +501,12 @@ a.slam-tt-body:hover .slam-tt-topic { color: var(--slam-accent-text); }
 .tv-full { position: fixed; top: 2.2vh; left: 50%; transform: translateX(-50%); padding: .6rem 1rem; border: 1px solid #889; border-radius: 6px; background: #1a2438; color: #fff; opacity: .5; }
 .tv-full:hover, .tv-full:focus { opacity: 1; }
 .tv-full[hidden] { display: none; }
+
+/* Check-in page: the camera scan is the main way in */
+.scan-cta { display: flex; align-items: center; justify-content: center; gap: .75rem; min-height: 4rem; font-size: 1.15rem; }
+.scan-cta-icon { display: inline-flex; align-items: center; justify-content: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: rgba(255,255,255,.55); }
+.scan-cta-icon .icon { width: 1.6rem; height: 1.6rem; }
+.scan-cta[hidden] { display: none; }
+/* Volunteer desk: compact "what is on now" line */
+.vol-now { padding: .45rem .75rem; border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); background: var(--tblr-bg-surface); }
+.vol-now .live-dot { width: .6rem; height: .6rem; }

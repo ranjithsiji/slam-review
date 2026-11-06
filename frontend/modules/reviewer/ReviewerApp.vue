@@ -157,7 +157,7 @@
         </div>
       </div>
       <button type="button" class="btn btn-outline-danger w-100" @click="checkout">Leaving? Check out</button>
-      <p class="small text-secondary mt-2">After check-out you cannot review again once the gate has closed.</p>
+      <p class="small text-secondary mt-2">After check-out you cannot review again once check-in has closed.</p>
     </template>
   </main>
   <VoteConfirm v-if="confirming && screen === 'review'" :item="cur" :questions="s.questions" :answers="answers" :comment="comment" :sending="sending" :error="submitError" @cancel="confirming = false" @confirm="submit" />
@@ -469,7 +469,7 @@ async function deliver(draft) {
 }
 
 async function checkout() {
-  if (!window.confirm('Check out now? You will not be able to review the remaining performances if the gate has closed.')) return;
+  if (!window.confirm('Check out now? You will not be able to review the remaining performances if check-in has closed.')) return;
   try {
     const res = await post('/api/checkout');
     window.location.href = res.redirect || '/checkin';

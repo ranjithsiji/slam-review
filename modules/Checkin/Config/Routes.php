@@ -16,7 +16,7 @@ $routes->group('', ['namespace' => 'Modules\Checkin\Controllers'], static functi
     $routes->post('badge', 'PublicBadgeController::lookup', ['filter' => ['ratelimit:lookup', 'trap', 'nostore']]);
     $routes->get('badge/([A-Za-z]{2}[0-9]{5})', 'PublicBadgeController::show/$1', ['filter' => ['ratelimit:lookup', 'nostore']]);
     $routes->get('badge/([A-Za-z]{2}[0-9]{5})\.(png|svg|pdf)', 'PublicBadgeController::file/$1/$2', ['filter' => ['ratelimit:lookup', 'nostore']]);
-    // After Gate Close: the phone waits here until a volunteer checks the person in.
+    // After Check-in Close: the phone waits here until a volunteer checks the person in.
     $routes->get('checkin/waiting', 'PublicCheckinController::waitingPage', ['filter' => 'nostore']);
     $routes->get('api/checkin/waiting', 'PublicCheckinController::waitingPoll', ['filter' => ['ratelimit:wait', 'nostore']]);
     $routes->get('checkin/not-me', 'PublicCheckinController::notMe', ['filter' => 'nostore']);

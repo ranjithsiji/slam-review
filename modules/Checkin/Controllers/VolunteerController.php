@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Modules\Checkin\Controllers;
 
 use CodeIgniter\HTTP\ResponseInterface;
-use Modules\Attendees\Services\BadgeIdService;
 use Modules\Core\Controllers\BaseController;
 use Modules\Core\Libraries\Clock;
 use Modules\Core\Libraries\Db;
@@ -66,19 +65,15 @@ class VolunteerController extends BaseController
         });
     }
 
-    /** Late check-in (after Gate Close) by scan (URL or ID), typed ID, or attendee id from search. */
+    /** Late check-in (after Check-in Close) by attendee id from search. */
     public function checkin(): ResponseInterface
     {
         $in = $this->input();
 
         return $this->api(function () use ($in) {
             $slamId = $this->slamId();
-            if (! empty($in['attendee_id'])) {
-                $att = Db::row('SELECT * FROM attendees WHERE id = ?', [(int) $in['attendee_id']]);
-            } else {
-                $badge = BadgeIdService::fromScan((string) ($in['code'] ?? ''));
-                $att   = $badge !== null ? Db::row('SELECT * FROM attendees WHERE badge_id = ?', [$badge]) : null;
-            }
+            // The desk checks people in from a search result only; scanning or typing a badge at the desk was removed.
+            $att = ! empty($in['attendee_id']) ? Db::row('SELECT * FROM attendees WHERE id = ?', [(int) $in['attendee_id']]) : null;
             if ($att === null || (int) $att['slam_id'] !== $slamId) {
                 service('activityLog')->log($this->actor(), 'checkin.rejected', ['slam_id' => $slamId, 'outcome' => 'failure', 'reason' => 'not_registered']);
                 throw new DomainException('not_registered', 'Not registered for this slam. Please direct the person to the organisers.', 404);

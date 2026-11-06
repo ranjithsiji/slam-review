@@ -46,8 +46,8 @@ class SlamPhaseService
     ];
 
     public const LABELS = [
-        'draft' => 'Setup (draft)', 'scheduled' => 'Setup (ready)', 'open' => 'Slam Open', 'checkin_open' => 'Gates Open',
-        'checkin_closed' => 'Gate Close', 'reviewing' => 'Reviewing', 'reviews_complete' => 'All Review Close',
+        'draft' => 'Setup (draft)', 'scheduled' => 'Setup (ready)', 'open' => 'Slam Open', 'checkin_open' => 'Check-in Open',
+        'checkin_closed' => 'Check-in Close', 'reviewing' => 'Reviewing', 'reviews_complete' => 'All Review Close',
         'revision' => 'Review Edit', 'revision_closed' => 'Edit Close', 'closed' => 'Slam Close',
         'marks_calculated' => 'Marks Calculated', 'ended' => 'Event Ends',
     ];
@@ -706,11 +706,11 @@ class SlamPhaseService
     {
         return $this->override($slamId, $actor, function (array $s) use ($newCloseUtc, $actor): void {
             if ($s['status'] !== 'checkin_open') {
-                throw new DomainException('gate_not_open', 'The check-in gate is not open.');
+                throw new DomainException('gate_not_open', 'Check-in is not open.');
             }
             $new = Clock::parse($newCloseUtc);
             if ($new <= Clock::now() || $new >= Clock::parse($s['closes_at'])) {
-                throw new DomainException('invalid_close_time', 'The new gate close time must be in the future and before slam close.');
+                throw new DomainException('invalid_close_time', 'The new check-in close time must be in the future and before slam close.');
             }
             db_connect()->table('slams')->where('id', $s['id'])->update(['checkin_closes_at' => Clock::db($new), 'updated_at' => Clock::db()]);
             service('activityLog')->log($actor, 'checkin_gate.extended', [
@@ -724,16 +724,16 @@ class SlamPhaseService
     {
         return $this->override($slamId, $actor, function (array $s) use ($reason, $newCloseUtc, $actor): void {
             if (trim($reason) === '') {
-                throw new DomainException('reason_required', 'A reason is required to reopen the gate.');
+                throw new DomainException('reason_required', 'A reason is required to reopen check-in.');
             }
             if ($s['status'] !== 'checkin_closed') {
-                throw new DomainException('forbidden_transition', 'The gate can only be reopened before the first review window opens.', 409);
+                throw new DomainException('forbidden_transition', 'Check-in can only be reopened before the first review window opens.', 409);
             }
             $close = null;
             if ($newCloseUtc !== null && $newCloseUtc !== '') {
                 $c = Clock::parse($newCloseUtc);
                 if ($c <= Clock::now() || $c >= Clock::parse($s['closes_at'])) {
-                    throw new DomainException('invalid_close_time', 'The new gate close time must be in the future and before slam close.');
+                    throw new DomainException('invalid_close_time', 'The new check-in close time must be in the future and before slam close.');
                 }
                 $close = Clock::db($c);
             }
@@ -757,8 +757,8 @@ class SlamPhaseService
             }
             if (! in_array($s['status'], ['checkin_closed', 'reviewing'], true)) {
                 throw new DomainException('gate_open', $s['status'] === 'checkin_open'
-                    ? 'Close the check-in gate before starting a performance.'
-                    : 'Performances can only be started between Gate Close and All Review Close.', 409);
+                    ? 'Close check-in before starting a performance.'
+                    : 'Performances can only be started between Check-in Close and All Review Close.', 409);
             }
             $item = $itemId !== null
                 ? Db::row('SELECT * FROM schedule_items WHERE id = ? AND slam_id = ?', [$itemId, $s['id']])
@@ -834,7 +834,7 @@ class SlamPhaseService
             }
             if (! in_array($s['status'], ['checkin_closed', 'reviewing'], true)) {
                 throw new DomainException('gate_open', $s['status'] === 'checkin_open'
-                    ? 'Close the check-in gate before opening a review window.'
+                    ? 'Close check-in before opening a review window.'
                     : 'Review windows can only be opened during the reviewing phase.', 409);
             }
             $item = $itemId !== null
@@ -1284,7 +1284,7 @@ class SlamPhaseService
         return match ($slam['status']) {
             'draft'            => 'Mark ready',
             'scheduled'        => 'Open slam now',
-            'open'             => 'Open check-in gate now',
+            'open'             => 'Open check-in now',
             'checkin_open'     => 'Close check-in and open review',
             'checkin_closed', 'reviewing' => $this->windows->openWindow($sid) !== null
                 ? 'Close review window now'

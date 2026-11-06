@@ -32,7 +32,7 @@
                 <div class="card-actions"><a href="<?= site_url('admin/slams/' . $slam['id'] . '/edit') ?>" class="btn btn-sm"><?= icon('action.edit') ?>Edit</a></div></div>
             <div class="list-group list-group-flush">
                 <?php foreach ([
-                    ['Slam open', 'opens_at'], ['Gates open (check-in)', 'checkin_opens_at'], ['Gate close', 'checkin_closes_at'],
+                    ['Slam open', 'opens_at'], ['Check-in open', 'checkin_opens_at'], ['Check-in close', 'checkin_closes_at'],
                     ['Reviews start', 'reviews_start_at'], ['Slam close (hard stop)', 'closes_at'], ['Event ends (automatic)', 'event_ends_at'],
                 ] as [$label, $f]): ?>
                     <div class="list-group-item d-flex"><span class="text-secondary me-auto"><?= esc($label) ?></span>

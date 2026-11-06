@@ -33,7 +33,7 @@
                     <ul class="list-unstyled small mb-1 mt-1">
                         <?php foreach ($result as $r): ?><li class="ml-text mb-1"><div class="fs-3 fw-bold"><?= esc($r['name']) ?></div><strong><?= esc($r['slam_name']) ?></strong> · <?= esc(local_time($r['opens_at'], 'D, d M Y')) ?> · <?= esc($r['venue_name']) ?><?= $r['user_type'] === 'judge' ? ' · as an expert' : '' ?></li><?php endforeach ?>
                     </ul>
-                    <div class="text-secondary small">Your ID is printed on your badge. When the gates open, scan the QR code on it to check in. Lost your badge? Visit the volunteer desk.</div></div></div>
+                    <div class="text-secondary small">Your ID is printed on your badge. When check-in opens, scan the QR code on it to check in. Lost your badge? Visit the volunteer desk.</div></div></div>
             <?php endif ?>
         </div>
     <?php endif ?>

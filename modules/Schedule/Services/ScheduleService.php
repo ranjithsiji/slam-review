@@ -149,7 +149,7 @@ class ScheduleService
                 $errors[] = ['index' => $i, 'message' => 'Overlaps the previous slot (starts before it ends).'];
             }
             if ($start < $gate && $it['status'] === 'pending') {
-                $errors[] = ['index' => $i, 'message' => 'Starts before Gate Close.'];
+                $errors[] = ['index' => $i, 'message' => 'Starts before Check-in Close.'];
             }
             $prevEnd  = $end;
             $active[] = $i;
