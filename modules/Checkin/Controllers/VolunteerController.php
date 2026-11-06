@@ -129,7 +129,35 @@ class VolunteerController extends BaseController
     {
         $slam = service('slams')->find($slamId);
 
-        return $this->render('Modules\Checkin\Views\monitor', ['title' => 'Check-in monitor — ' . $slam['name'], 'slam' => $slam]);
+        // Per category: inside now, checked in at some point today, registered (judges from the audience; experts apart).
+        $rows = Db::rows(
+            "SELECT a.user_type, a.category, COUNT(*) AS registered,
+                    SUM(EXISTS (SELECT 1 FROM checkins c WHERE c.attendee_id = a.id AND c.checked_out_at IS NULL)) AS inside,
+                    SUM(EXISTS (SELECT 1 FROM checkins c WHERE c.attendee_id = a.id)) AS ever
+               FROM attendees a WHERE a.slam_id = ? AND a.is_active = 1 GROUP BY a.user_type, a.category",
+            [$slamId],
+        );
+        $cats = [];
+        foreach (\Modules\Attendees\Services\AttendeeService::CATEGORIES as $code => $label) {
+            $cats[$code] = ['label' => $label, 'inside' => 0, 'ever' => 0, 'registered' => 0];
+        }
+        $cats[''] = ['label' => 'Category not set', 'inside' => 0, 'ever' => 0, 'registered' => 0];
+        $experts  = ['label' => 'Experts', 'inside' => 0, 'ever' => 0, 'registered' => 0];
+        foreach ($rows as $r) {
+            $key = $r['user_type'] === 'judge' ? null : (isset($cats[(string) $r['category']]) ? (string) $r['category'] : '');
+            foreach (['inside', 'ever', 'registered'] as $k) {
+                if ($key === null) {
+                    $experts[$k] += (int) $r[$k];
+                } else {
+                    $cats[$key][$k] += (int) $r[$k];
+                }
+            }
+        }
+        if ($cats['']['registered'] === 0) {
+            unset($cats['']);
+        }
+
+        return $this->render('Modules\Checkin\Views\monitor', ['title' => 'Check-in monitor — ' . $slam['name'], 'slam' => $slam, 'cats' => $cats, 'experts' => $experts]);
     }
 
     /** Checked-in reviewers who skipped the last N finished reviews in a row, with force check-out (admin/operator and volunteer). */
