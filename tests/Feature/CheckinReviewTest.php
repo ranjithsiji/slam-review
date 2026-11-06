@@ -341,7 +341,12 @@ final class CheckinReviewTest extends SlamTestCase
         for ($i = 0; $i < 40; $i++) {
             $this->expectReason('invalid_id', fn () => service('checkins')->selfLookup(sprintf('AA%05d', 10001 + $i), $ip));
         }
-        $this->expectReason('locked_out', fn () => service('checkins')->selfLookup($s['users'][0]['badge_id'], $ip));
+        try {
+            service('checkins')->selfLookup($s['users'][0]['badge_id'], $ip);
+            $this->fail('the network should be locked');
+        } catch (DomainException $e) {
+            $this->assertMatchesRegularExpression('/^Too many login attempts\. Please try again after \d+ minutes?\.$/', $e->getMessage());
+        }
         $net = array_values(array_filter($t->networks(), static fn ($n) => $n['ip'] === $ip))[0];
         $this->assertGreaterThan(0, $net['locked_seconds']);
         $this->assertSame(40, $net['distinct_ids']);
@@ -361,6 +366,14 @@ final class CheckinReviewTest extends SlamTestCase
         $vol = service('auth')->saveVolunteer(null, ['username' => 'desk.lock', 'name' => 'Desk', 'slam_id' => $s['id'], 'password' => 'volunteer-pass', 'is_active' => 1], $this->admin);
         $vauth = ['type' => 'volunteer', 'id' => $vol, 'label' => 'Desk', 'slam_id' => $s['id'], 'pwd' => (string) Db::value('SELECT password_changed_at FROM volunteers WHERE id = ?', [$vol])];
         $this->assertNotSame(200, $this->withSession(['auth' => $vauth])->get('admin/lockouts')->response()->getStatusCode());
+    }
+
+    public function testLockedMessageWording(): void
+    {
+        $msg = [\Modules\Accounts\Services\ThrottleService::class, 'lockedMessage'];
+        $this->assertSame('Too many login attempts. Please try again after 1 minute.', $msg(20));
+        $this->assertSame('Too many login attempts. Please try again after 15 minutes.', $msg(900));
+        $this->assertSame('Too many login attempts. Please try again after 2 minutes.', $msg(61));
     }
 
     public function testRegistrationLookupByMobileIsMinimal(): void

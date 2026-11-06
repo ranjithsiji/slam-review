@@ -189,7 +189,7 @@ final class AttendeesTest extends SlamTestCase
 
     public function testStaffLoginLockout(): void
     {
-        $this->expectExceptionMessage('Too many attempts');
+        $this->expectExceptionMessage('Too many login attempts. Please try again after 15 minutes.');
         for ($i = 0; $i < 6; $i++) {
             try {
                 service('auth')->login('admin', 'nobody', 'wrong-password', '9.9.9.9');

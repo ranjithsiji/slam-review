@@ -109,7 +109,7 @@ class CheckinService
         $wait     = $throttle->lockedFor('reviewer', $ip, $badge);
         if ($wait > 0) {
             service('activityLog')->log($anon, 'checkin.rejected', ['outcome' => 'denied', 'reason' => 'locked_out']);
-            throw new DomainException('locked_out', 'Too many attempts. Please wait ' . (int) ceil($wait / 60) . ' minutes or visit the volunteer desk.', 429);
+            throw new DomainException('locked_out', \Modules\Accounts\Services\ThrottleService::lockedMessage($wait), 429);
         }
         $att = BadgeIdService::isValidFormat($badge) ? Db::row('SELECT * FROM attendees WHERE badge_id = ? AND is_active = 1', [$badge]) : null;
         if ($att === null) {
@@ -160,7 +160,7 @@ class CheckinService
         $wait = $throttle->lockedFor('reviewer', $ip, $badge);
         if ($wait > 0) {
             service('activityLog')->log($anon, 'checkin.rejected', ['outcome' => 'denied', 'reason' => 'locked_out']);
-            throw new DomainException('locked_out', 'Too many attempts. Please wait ' . (int) ceil($wait / 60) . ' minutes or visit the volunteer desk.', 429);
+            throw new DomainException('locked_out', \Modules\Accounts\Services\ThrottleService::lockedMessage($wait), 429);
         }
 
         $att = BadgeIdService::isValidFormat($badge)

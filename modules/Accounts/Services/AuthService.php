@@ -35,7 +35,7 @@ class AuthService
         $wait     = $throttle->lockedFor($kind, $ip, $username);
         if ($wait > 0) {
             service('activityLog')->log($anon, 'auth.login.failure', ['outcome' => 'denied', 'reason' => 'locked_out', 'meta' => ['kind' => $kind]]);
-            throw new DomainException('locked_out', 'Too many attempts. Try again in ' . (int) ceil($wait / 60) . ' minutes.', 429);
+            throw new DomainException('locked_out', \Modules\Accounts\Services\ThrottleService::lockedMessage($wait), 429);
         }
         $table = $kind === 'admin' ? 'admins' : 'volunteers';
         $user  = Db::row("SELECT * FROM {$table} WHERE username = ?", [strtolower(trim($username))]);

@@ -47,6 +47,14 @@ class ThrottleService
         $this->record('lookup', $ip, '', false);
     }
 
+    /** What a locked-out person is told: the same wording everywhere, with the minutes left. */
+    public static function lockedMessage(int $seconds): string
+    {
+        $m = max(1, (int) ceil($seconds / 60));
+
+        return 'Too many login attempts. Please try again after ' . $m . ($m === 1 ? ' minute.' : ' minutes.');
+    }
+
     /** Value stored for a submitted ID: the ID itself if it matches the format, else a short hash. */
     public static function keyFor(string $kind, string $submitted): string
     {
