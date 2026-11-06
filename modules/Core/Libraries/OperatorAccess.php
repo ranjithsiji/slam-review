@@ -50,6 +50,7 @@ final class OperatorAccess
 
             [['GET', 'POST'], '#^admin/presenters/(\d+)(/edit|/remove-photo)?$#', ['SELECT slam_id FROM performances WHERE presenter_id = ?', 'many']],
             [['POST'], '#^api/presenters/(\d+)/photo$#', ['SELECT slam_id FROM performances WHERE presenter_id = ?', 'many']],
+            [['POST'], '#^api/performances/(\d+)/delete$#', ['SELECT slam_id FROM performances WHERE id = ?']],
             [['GET', 'POST'], '#^admin/performances/(\d+)(/edit)?$#', ['SELECT slam_id FROM performances WHERE id = ?']],
 
             [['PUT', 'DELETE', 'POST'], '#^api/schedule/items/(\d+)(/extend-break|/end-break)?$#', ['SELECT slam_id FROM schedule_items WHERE id = ?']],

@@ -114,6 +114,12 @@ class PresentersController extends BaseController
         }, 'Performance updated.');
     }
 
+    /** Delete a presenter that is still in the pool (not in the schedule). */
+    public function deletePerformance(int $id): ResponseInterface
+    {
+        return $this->api(fn () => service('presenters')->removeFromPool($id, $this->actor()) + ['ok' => true]);
+    }
+
     public function pool(int $slamId): ResponseInterface
     {
         return $this->api(fn () => ['data' => array_map(static fn ($r) => $r + ['thumb' => $r['photo_thumb_path'] ? '/' . $r['photo_thumb_path'] : null], service('presenters')->pool($slamId, (string) $this->request->getGet('q')))]);

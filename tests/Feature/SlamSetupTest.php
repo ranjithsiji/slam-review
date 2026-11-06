@@ -134,4 +134,26 @@ final class SlamSetupTest extends SlamTestCase
         $this->assertSame([], $rows(['scheduled' => '0']));
         $this->assertCount(2, $rows(['scheduled' => '1']));
     }
+
+    public function testPresenterCanBeDeletedFromThePoolButNotFromTheSchedule(): void
+    {
+        $s   = $this->makeSlam(1, 1, 0);
+        $svc = service('presenters');
+        $r   = $svc->addToSlam($s['id'], ['name' => 'Pool Person', 'topic' => 'Pool topic', 'abstract' => 'A'], $this->admin, null, false);
+        $perf = (int) $r['performance_id'];
+        $pres = (int) \Modules\Core\Libraries\Db::value('SELECT presenter_id FROM performances WHERE id = ?', [$perf]);
+
+        $this->assertSame(['presenter_deleted' => true], $svc->removeFromPool($perf, $this->admin));
+        $this->assertNull(\Modules\Core\Libraries\Db::value('SELECT id FROM performances WHERE id = ?', [$perf]));
+        $this->assertNull(\Modules\Core\Libraries\Db::value('SELECT id FROM presenters WHERE id = ?', [$pres]));
+
+        // A scheduled presenter is refused.
+        try {
+            $svc->removeFromPool((int) $s['perfs'][0], $this->admin);
+            $this->fail('scheduled presenter must not be deleted');
+        } catch (\Modules\Core\Libraries\DomainException $e) {
+            $this->assertSame('in_schedule', $e->reason);
+        }
+        $this->assertSame(1, (int) \Modules\Core\Libraries\Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'performance.deleted'"));
+    }
 }

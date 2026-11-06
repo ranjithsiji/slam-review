@@ -176,6 +176,44 @@ class PresenterService
         service('publicCache')->purge((int) $old['slam_id']);
     }
 
+    /**
+     * Delete a performance that is still in the pool (no schedule slot, no reviews, no marks). The presenter goes too,
+     * with their photo, unless they also present in another slam.
+     *
+     * @return array{presenter_deleted: bool}
+     */
+    public function removeFromPool(int $performanceId, Actor $actor): array
+    {
+        $perf = Db::row('SELECT p.*, pr.name, pr.photo_path, pr.photo_thumb_path FROM performances p JOIN presenters pr ON pr.id = p.presenter_id WHERE p.id = ?', [$performanceId])
+            ?? throw new DomainException('not_found', 'Presenter not found in this slam.', 404);
+        $out = Db::tx(function ($db) use ($perf, $actor): array {
+            Db::lockSlam((int) $perf['slam_id']);
+            if (Db::value('SELECT id FROM schedule_items WHERE performance_id = ? LIMIT 1', [$perf['id']]) !== null) {
+                throw new DomainException('in_schedule', 'This presenter is in the schedule. Remove them from the schedule first (or deactivate them once reviews exist).', 409);
+            }
+            if (Db::value('SELECT id FROM mark_results WHERE performance_id = ? LIMIT 1', [$perf['id']]) !== null) {
+                throw new DomainException('has_marks', 'This presenter has marks; deactivate them instead.', 409);
+            }
+            $db->table('performances')->where('id', $perf['id'])->delete();
+            $others = (int) Db::value('SELECT COUNT(*) FROM performances WHERE presenter_id = ?', [$perf['presenter_id']]);
+            if ($others === 0) {
+                $db->table('presenters')->where('id', $perf['presenter_id'])->delete();
+            }
+            service('activityLog')->log($actor, 'performance.deleted', [
+                'slam_id' => (int) $perf['slam_id'], 'target_type' => 'performance', 'target_id' => (int) $perf['id'],
+                'old' => ['presenter' => $perf['name'], 'topic' => $perf['topic']], 'meta' => ['presenter_deleted' => $others === 0],
+            ]);
+
+            return ['presenter_deleted' => $others === 0];
+        });
+        if ($out['presenter_deleted']) {
+            service('photos')->delete($perf['photo_path'], $perf['photo_thumb_path']);
+        }
+        service('publicCache')->purge((int) $perf['slam_id']);
+
+        return $out;
+    }
+
     private function purgeSlamsOfPresenter(int $presenterId): void
     {
         foreach (Db::rows('SELECT DISTINCT slam_id FROM performances WHERE presenter_id = ?', [$presenterId]) as $r) {

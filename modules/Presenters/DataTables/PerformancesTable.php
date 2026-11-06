@@ -30,6 +30,7 @@ class PerformancesTable extends TableDefinition
             'slot_status'      => ['sql' => 'si.status', 'order' => true],
             'reviews'          => ['sql' => '(SELECT COUNT(*) FROM reviews r WHERE r.schedule_item_id = si.id)', 'order' => true],
             'is_active'        => ['sql' => 'p.is_active', 'order' => true],
+            'in_pool'          => ['sql' => '(si.id IS NULL)'],
         ];
     }
 
