@@ -14,6 +14,9 @@ let etag = null;
 let timer = null;
 let lastGood = Date.now();
 let adTimer = null;
+let adKey = '';   // the ads now rotating, so a data refresh does not send them back to the first one
+let adIndex = 0;
+let lastJson = '';
 
 const logoView = (eyebrow, title, sub = '') => `<div class="tv-center">
     <img src="${esc(root.dataset.logo)}" alt="" class="tv-center-logo">
@@ -46,7 +49,8 @@ const talkView = (doc) => {
 
 const breakView = (doc) => {
   const slot = doc.slots.find((s) => s.id === doc.now.id);
-  const back = slot ? new Date(Date.parse(slot.planned_start_at) + slot.duration_minutes * 60000).toISOString() : null;
+  // When the break really ends (it may have been shortened or extended), else its planned end.
+  const back = doc.stage?.break_ends_at || (slot ? new Date(Date.parse(slot.planned_start_at) + slot.duration_minutes * 60000).toISOString() : null);
   const ads = doc.ads || [];
   const adHtml = ads.map((a, i) => `<div class="tv-ad" ${i ? 'hidden' : ''}>
       ${a.image ? `<img src="${esc(a.image)}" alt="">` : ''}
@@ -88,22 +92,30 @@ const nextView = (doc) => {
     </div>`).join('')}`;
 };
 
-const rotateAds = () => {
+const rotateAds = (doc) => {
   clearInterval(adTimer);
   const slides = [...stage.querySelectorAll('.tv-ad')];
+  const key = (doc.ads || []).map((a) => a.id).join(',');
+  if (key !== adKey) { adKey = key; adIndex = 0; }
+  if (!slides.length) return;
+  adIndex %= slides.length;
+  slides.forEach((s, k) => { s.hidden = k !== adIndex; });
   if (slides.length < 2) return;
-  let i = 0;
-  adTimer = setInterval(() => { slides[i].hidden = true; i = (i + 1) % slides.length; slides[i].hidden = false; }, 8000);
+  adTimer = setInterval(() => { slides[adIndex].hidden = true; adIndex = (adIndex + 1) % slides.length; slides[adIndex].hidden = false; }, 8000);
 };
 
 const render = (doc) => {
+  // Redraw only when something changed: a redraw would also restart the ad rotation.
+  const json = JSON.stringify(doc);
+  if (json === lastJson) return;
+  lastJson = json;
   stage.innerHTML = mainView(doc);
   nextBar.innerHTML = nextView(doc);
   let c = '';
   if (doc.paused && !doc.finished) c += '<span class="tv-chip">Paused for a short while</span>';
   if (doc.late_minutes > 0 && !doc.finished) c += `<span class="tv-chip">Running about ${esc(doc.late_minutes)} min behind</span>`;
   chips.innerHTML = c;
-  rotateAds();
+  rotateAds(doc);
 };
 
 const poll = async () => {
