@@ -16,6 +16,8 @@ use Tests\Support\SlamTestCase;
 
 final class OperatorTest extends SlamTestCase
 {
+    use \CodeIgniter\Test\FeatureTestTrait;
+
     private function req(string $method, string $path, array $post = []): IncomingRequest
     {
         $app = config('App');
@@ -29,6 +31,27 @@ final class OperatorTest extends SlamTestCase
     private function allowed(int $slam, string $method, string $path, array $post = []): bool
     {
         return OperatorAccess::allows($this->req($method, $path, $post), $slam);
+    }
+
+    public function testAnOperatorOpensTheMarksScreensOfTheirOwnSlamDuringTheSlam(): void
+    {
+        $s  = $this->makeSlam(1, 1, 1);
+        $other = $this->makeSlam(1, 1, 0);
+        $this->at('2026-11-01 04:45:00', $s['id']);              // the slam is running (reviewing)
+        $id = service('auth')->saveAdmin(null, ['username' => 'op.marks', 'name' => 'Op Marks', 'role' => 'operator', 'slam_id' => $s['id'], 'password' => 'a-long-password', 'is_active' => 1], $this->admin);
+        $auth = ['type' => 'admin', 'id' => $id, 'label' => 'Op Marks', 'role' => 'operator', 'slam_id' => $s['id'], 'pwd' => (string) Db::value('SELECT password_changed_at FROM admins WHERE id = ?', [$id])];
+        $sid = $s['id'];
+        foreach (['marks', 'judge-marks', 'paper-marks', 'representatives', 'scores', 'leaderboard', 'stats', 'mark-config'] as $p) {
+            $r = $this->withSession(['auth' => $auth])->get("admin/slams/{$sid}/{$p}")->response();
+            $this->assertSame(200, $r->getStatusCode(), $p);
+        }
+        // The menu while the slam runs has the marks screens too.
+        $page = (string) $this->withSession(['auth' => $auth])->get("admin/slams/{$sid}/status")->response()->getBody();
+        foreach (["/admin/slams/{$sid}/marks", "/admin/slams/{$sid}/representatives", "/admin/slams/{$sid}/scores"] as $link) {
+            $this->assertStringContainsString($link, $page, $link);
+        }
+        // Not another slam's.
+        $this->assertNotSame(200, $this->withSession(['auth' => $auth])->get("admin/slams/{$other['id']}/marks")->response()->getStatusCode());
     }
 
     public function testOperatorAccountIsBoundToOneSlamAndSignsInWithIt(): void

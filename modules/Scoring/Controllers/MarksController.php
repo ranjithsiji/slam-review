@@ -270,6 +270,20 @@ class MarksController extends BaseController
             ->setBody(service('resultsPdf')->sheet($slam, $top, $withMarks));
     }
 
+    /** Mark sheet: every presenter with audience, representatives and experts points and the total out of 100. */
+    public function markSheet(int $slamId): ResponseInterface
+    {
+        $slam = service('slams')->find($slamId);
+        if (service('results')->ranking($slamId) === []) {
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('No marks yet: calculate the marks first.');
+        }
+        service('activityLog')->log($this->actor(), 'results.mark_sheet_printed', ['slam_id' => $slamId]);
+
+        return $this->response->setHeader('Content-Type', 'application/pdf')
+            ->setHeader('Content-Disposition', 'inline; filename="mark-sheet-' . $slam['slug'] . '.pdf"')->setHeader('Cache-Control', 'no-store')
+            ->setBody(service('resultsPdf')->markSheet($slam));
+    }
+
     public function publishResults(int $slamId): RedirectResponse
     {
         $public = (bool) $this->request->getPost('public');

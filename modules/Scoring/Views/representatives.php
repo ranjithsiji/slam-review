@@ -19,7 +19,7 @@ $cols = [
         <div class="card h-100 card-accent accent-pink">
             <div class="card-header"><h3 class="card-title"><?= icon('action.shuffle', 'me-2') ?>Draw audience representatives</h3></div>
             <div class="card-body">
-                <p class="text-secondary">Audience representatives are drawn at random from the judges who reviewed <strong>every</strong> performance, in the same category mix as the judges who checked in: if 20% of those checked in are researchers, 20% of the representatives are researchers. They form their own scoring group with its own weight; their reviews no longer count in the judges' average. After the draw you can add or remove people below.</p>
+                <p class="text-secondary">Audience representatives are drawn at random from the judges who reviewed <strong>every</strong> performance, with the same number from every category (for 12 representatives and 4 categories, 3 each; if a category has too few people who reviewed everything, its spare seats go to the others). They form their own scoring group with its own weight; their reviews no longer count in the judges' average. After the draw you can add or remove people below.</p>
                 <?php if ($locked !== null): ?>
                     <div class="alert alert-info mb-3"><?= icon('status.lock', 'me-1') ?><?= esc($locked) ?></div>
                 <?php endif ?>
@@ -30,7 +30,7 @@ $cols = [
                     </div>
                     <div class="col-6 col-sm-8">
                         <button type="button" class="btn btn-primary w-100" data-api-post="<?= site_url("api/slams/{$sid}/representatives/draw") ?>" data-form="#draw-form"
-                            data-title="Draw representatives" data-confirm="<?= $selected > 0 ? 'This replaces the current list of ' . (int) $selected . ' audience representative(s), including people you added by hand.' : 'People are picked at random from everyone who reviewed every performance, in the same category mix as those checked in.' ?>"
+                            data-title="Draw representatives" data-confirm="<?= $selected > 0 ? 'This replaces the current list of ' . (int) $selected . ' audience representative(s), including people you added by hand.' : 'People are picked at random from everyone who reviewed every performance, with the same number from every category.' ?>"
                             data-reload <?= $locked || $pool === 0 ? 'disabled' : '' ?>><?= icon('action.shuffle') ?><?= $selected > 0 ? 'Draw again' : 'Draw at random' ?></button>
                     </div>
                 </form>

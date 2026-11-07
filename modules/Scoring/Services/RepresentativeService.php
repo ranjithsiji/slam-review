@@ -13,8 +13,8 @@ use Modules\Schedule\Services\ScheduleService;
 
 /**
  * Audience representatives: a panel drawn at random from the audience users who
- * reviewed every opened performance (the complete reviewers), keeping the same
- * category mix as the judges who checked in. The admin can then add or remove
+ * reviewed every opened performance (the complete reviewers), the same number
+ * from every category. The admin can then add or remove
  * people, but only complete reviewers can be on the panel.
  * Representatives form their own scoring group; their reviews no longer count
  * in the general reviewers' average.
@@ -76,7 +76,8 @@ class RepresentativeService
             $pool    = service('scoring')->completeReviewerIds($slamId);
             $byGroup = $this->poolByCategory($slamId, $pool);
             $checked = $this->checkedInByCategory($slamId);
-            $quotas  = self::allocate($checked, array_map('count', $byGroup), $count);
+            // The same number of seats for every category (spare seats of a short category go to the others).
+            $quotas  = self::allocate(array_fill_keys(array_keys($byGroup), 1), array_map('count', $byGroup), $count);
 
             $selected   = [];
             $categories = [];

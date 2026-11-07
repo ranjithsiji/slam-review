@@ -59,7 +59,7 @@ $detail = static function (array $r, string $g) use ($questions): string {
                                 <td class="text-end"><?= $m($x['avg'] === null ? null : (float) $x['avg']) ?></td>
                                 <td class="text-end"><?= $n($x['weight'], 0) ?>%</td>
                                 <td class="text-end"><?= $counts ? $n($x['share'] * 100, 1) . '%' : '<span class="small">' . ($x['avg'] === null ? 'no reviews' : 'weight 0') . '</span>' ?></td>
-                                <td class="text-end"><?= $counts ? $m($x['avg']) . ' × ' . $n($x['share'], 3) . ' = <strong>' . $m($x['contribution']) . '</strong>' : '—' ?></td>
+                                <td class="text-end"><?= $counts ? $m($x['avg']) . ' × ' . $n($x['share'], 3) . ' = <strong>' . $m($x['contribution']) . '</strong> / ' . $n($x['share'] * 100, 0) : '—' ?></td>
                             </tr>
                         <?php endforeach ?>
                         <tr><td colspan="4" class="fw-bold">Final mark</td><td class="text-end"><?= $b['final'] !== null ? '100%' : '' ?></td><td class="text-end fw-bold"><?= $m($b['final']) ?></td></tr>

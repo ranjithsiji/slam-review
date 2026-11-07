@@ -16,6 +16,7 @@ $pending = $judging['timing'] === 'end_of_slam' && $judgeProgress['entered'] < $
     <span class="ms-auto d-flex flex-wrap gap-2">
         <?php if ($top !== []): ?>
             <a class="btn btn-sm btn-primary" href="<?= site_url("admin/slams/{$sid}/results.pdf") ?>" target="_blank" rel="noopener"><?= icon('action.export') ?>Print result sheet (A4)</a>
+            <a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/mark-sheet.pdf") ?>" target="_blank" rel="noopener"><?= icon('action.export') ?>Mark sheet (all parts)</a>
             <?php if ($slam['type'] !== 'final'): ?><a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/results.pdf?marks=1") ?>" target="_blank" rel="noopener">With marks</a><?php endif ?>
         <?php endif ?>
         <a class="btn btn-sm" href="<?= site_url("admin/slams/{$sid}/scores") ?>"><?= icon('action.open') ?>Drill down</a>

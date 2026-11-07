@@ -31,6 +31,8 @@ if ($mode !== null) {
     $items['edit']    = ['Times & details', "admin/slams/{$id}/edit", 'nav.schedule'];
     $items['weights'] = ['Mark weights', "admin/slams/{$id}/mark-config", 'nav.system'];
     $items = array_intersect_key(array_replace(array_flip(\Modules\Core\Libraries\OperatorMode::TABS[$mode]), $items), array_flip(\Modules\Core\Libraries\OperatorMode::TABS[$mode]));
+    // A screen this slam does not have (Experts' marks when experts mark live) is left out, not shown as a broken tab.
+    $items = array_filter($items, 'is_array');
 }
 ?>
 <?php

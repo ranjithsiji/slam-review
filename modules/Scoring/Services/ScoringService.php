@@ -35,9 +35,9 @@ class ScoringService
         $c = Db::row('SELECT * FROM score_config WHERE slam_id = ?', [$slamId]);
 
         return [
-            'w_general'        => (float) ($c['w_general'] ?? 40),
-            'w_representative' => (float) ($c['w_representative'] ?? 20),
-            'w_judge'          => (float) ($c['w_judge'] ?? 40),
+            'w_general'        => (float) ($c['w_general'] ?? 10),
+            'w_representative' => (float) ($c['w_representative'] ?? 30),
+            'w_judge'          => (float) ($c['w_judge'] ?? 60),
         ];
     }
 

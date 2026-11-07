@@ -84,7 +84,7 @@ class SlamService
             // alter an existing slam, and start with default group weights.
             service('questions')->copyTemplatesInto($id);
             $db->table('score_config')->insert([
-                'slam_id' => $id, 'w_general' => 40, 'w_judge' => 40, 'w_representative' => 20,
+                'slam_id' => $id, 'w_general' => 10, 'w_judge' => 60, 'w_representative' => 30, // audience /10, representatives /30, experts /60
                 'updated_by' => $actor->id, 'updated_at' => $now,
             ]);
 

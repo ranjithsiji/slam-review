@@ -57,6 +57,32 @@ final class ScoringTest extends SlamTestCase
         $this->assertSame(['' => 4], $alloc(['' => 9], ['' => 9], 4));
     }
 
+    public function testEveryCategoryGetsTheSameNumberOfRepresentatives(): void
+    {
+        $alloc = [\Modules\Scoring\Services\RepresentativeService::class, 'allocate'];
+        $equal = static fn (array $pool) => array_fill_keys(array_keys($pool), 1);
+        $pool  = ['college_student' => 30, 'public' => 90, 'researcher' => 25, 'school_student' => 20];
+        $this->assertSame(['college_student' => 3, 'public' => 3, 'researcher' => 3, 'school_student' => 3], $alloc($equal($pool), $pool, 12));
+        // A category with too few people who reviewed everything: its spare seats go to the others, still 12 in all.
+        $short = ['college_student' => 30, 'public' => 90, 'researcher' => 25, 'school_student' => 1];
+        $q = $alloc($equal($short), $short, 12);
+        $this->assertSame(1, $q['school_student']);
+        $this->assertSame(12, array_sum($q));
+        $this->assertLessThanOrEqual(1, max($q['college_student'], $q['public'], $q['researcher']) - min($q['college_student'], $q['public'], $q['researcher']));
+    }
+
+    public function testMarksOutOf10And30And60MakeATotalOutOf100(): void
+    {
+        $b = ScoringService::breakdown(['general' => 8.0, 'representative' => 7.0, 'judge' => 9.0], ['w_general' => 10, 'w_representative' => 30, 'w_judge' => 60]);
+        $this->assertEqualsWithDelta(8.0, $b['groups']['general']['contribution'] * 10, 1e-9, 'audience 8.0 of 10');
+        $this->assertEqualsWithDelta(21.0, $b['groups']['representative']['contribution'] * 10, 1e-9, 'representatives 21.0 of 30');
+        $this->assertEqualsWithDelta(54.0, $b['groups']['judge']['contribution'] * 10, 1e-9, 'experts 54.0 of 60');
+        $this->assertEqualsWithDelta(83.0, $b['final'] * 10, 1e-9, 'total 83.0 of 100');
+        // New slams start with these weights.
+        $s = $this->makeSlam(1, 1, 0);
+        $this->assertSame(['w_general' => 10.0, 'w_representative' => 30.0, 'w_judge' => 60.0], service('scoring')->weights($s['id']));
+    }
+
     public function testRankTiesShareRankAndOrderByJudgesThenRepresentativesThenGeneral(): void
     {
         $r = ScoringService::rank([
@@ -85,6 +111,8 @@ final class ScoringTest extends SlamTestCase
     {
         $s  = $this->makeSlam(2, 3, 1);
         $id = $s['id'];
+        // This test checks the maths with 40/20/40 weights (new slams start at 10/30/60).
+        service('scoring')->updateWeights($id, ['w_general' => 40, 'w_representative' => 20, 'w_judge' => 40], $this->admin);
         // Audience questions are worth 5 marks each.
         db_connect()->table('review_questions')->where('slam_id', $id)->where('audience', 'user')->update(['max_score' => 5]);
         [$u0, $u1, $u2] = $s['users'];
@@ -178,6 +206,8 @@ final class ScoringTest extends SlamTestCase
         $this->expectReason('forbidden_transition', fn () => $reps->draw($id, 2, $this->admin));
         $this->expectException(DomainException::class);
         service('markRuns')->calculate($id, $this->admin, null);
+        $sheet = service('resultsPdf')->markSheet(service('slams')->find($id));
+        $this->assertStringStartsWith('%PDF', $sheet, 'the mark sheet builds');
     }
 
     public function testWeightsMustSumTo100(): void

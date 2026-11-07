@@ -62,7 +62,7 @@ $ranked = count(array_filter($rows, static fn ($r) => $r['rank'] !== null));
                             </div>
                             <div class="small text-secondary mt-1">
                                 <?php if ($counts): ?>
-                                    Weight <?= $n($x['weight'], 0) ?>% → share <?= $n($x['share'] * 100, 1) ?>% → <strong class="text-body"><?= $m($x['contribution']) ?></strong> points
+                                    Weight <?= $n($x['weight'], 0) ?>% → share <?= $n($x['share'] * 100, 1) ?>% → <strong class="text-body"><?= $m($x['contribution']) ?></strong> of <?= $n($x['share'] * 100, 0) ?> points
                                 <?php else: ?>
                                     <?= $x['avg'] === null ? 'No votes from this group; its weight goes to the others.' : 'Weight 0%, not counted.' ?>
                                 <?php endif ?>

@@ -24,7 +24,7 @@ final class OperatorMode
     /** Screens (slam_nav keys) per mode, in menu order. A screen in several modes does not switch the mode. */
     public const TABS = [
         self::PREPARE => ['overview', 'edit', 'presenters', 'schedule', 'judgelist', 'reviewers', 'questions', 'ads', 'weights'],
-        self::RUN     => ['status', 'schedule', 'checkins', 'idle', 'reviewers'],
+        self::RUN     => ['status', 'schedule', 'checkins', 'idle', 'reviewers', 'representatives', 'marks', 'scores'],
         self::AFTER   => ['status', 'judges', 'paper', 'representatives', 'marks', 'scores', 'leaderboard', 'stats'],
     ];
 
