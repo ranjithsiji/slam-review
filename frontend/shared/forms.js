@@ -153,8 +153,12 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
   const sizeSel = box.querySelector('[data-poster-size]');
   const titleIn = box.querySelector('[data-poster-title]');
   const whoSel = box.querySelector('[data-poster-who]');
+  const styleSel = box.querySelector('[data-poster-style]');
+  const lightBox = box.querySelector('[data-poster-light]');
+  const val = (k) => box.querySelector(`[data-poster-${k}]`)?.value || '';
   const load = (src) => new Promise((ok) => { if (!src) return ok(null); const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
   const imgs = Promise.all([load(cfg.logo), ...cfg.people.map((p) => load(p.photo))]);
+  const extras = Promise.all([load(cfg.logoLight), load(cfg.partners)]);
   const FONT = '"Poppins", "Noto Sans Malayalam", "Noto Sans", system-ui, sans-serif';
   const wrap = (ctx, text, max, maxLines = 2) => {
     const words = String(text || '').split(/\s+/).filter(Boolean); const lines = []; let line = '';
@@ -181,8 +185,83 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
     }
     return best;
   };
+  // Photo drawn to cover a box, keeping the upper part (where the face usually is).
+  const cover = (ctx, img, x, y, w, h) => {
+    const s = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+    const iw = img.naturalWidth * s; const ih = img.naturalHeight * s;
+    ctx.drawImage(img, x - (iw - w) / 2, y - Math.max(0, (ih - h) * 0.2), iw, ih);
+  };
+  const rounded = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
+  // Light card: one person, white page, date corner, Malayalam heading, photo card, logo and partners.
+  async function drawLight(p, photo) {
+    const [logoL, partners] = await extras;
+    const [W, H] = sizeSel.value.split('x').map(Number);
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d'); const m = Math.min(W, H * 0.85) / 1080;
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    // Pale corner with the date and the regional slam.
+    ctx.fillStyle = '#eef2c4'; ctx.beginPath(); ctx.ellipse(-0.02 * W, -0.06 * H, 0.47 * W, 0.29 * H, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#6e5a12'; ctx.font = `800 ${50 * m}px ${FONT}`; ctx.fillText(val('date'), 0.05 * W, 0.075 * H);
+    ctx.fillStyle = '#1f1f1f'; ctx.font = `700 ${30 * m}px ${FONT}`;
+    wrap(ctx, val('region'), 0.33 * W, 3).forEach((l, k) => ctx.fillText(l, 0.05 * W, 0.075 * H + (52 + k * 40) * m));
+    // Heading, top right.
+    const hd = fit(ctx, val('heading'), 0.55 * W, 3, Math.round(58 * m), Math.round(30 * m), 800);
+    ctx.fillStyle = '#7b1a1a'; ctx.font = `800 ${hd.fs}px ${FONT}`;
+    hd.lines.forEach((l, k) => ctx.fillText(l, 0.40 * W, 0.15 * H + k * hd.fs * 1.3));
+    // Photo card on the right; the bottom-left of it is cut away in white for the name.
+    const px = 0.45 * W; const py = 0.29 * H; const pw = 0.50 * W; const ph = 0.51 * H; const cut = py + ph * 0.84;
+    ctx.save(); rounded(ctx, px, py, pw, ph, 30 * m); ctx.clip();
+    if (photo) cover(ctx, photo, px, py, pw, ph);
+    else {
+      ctx.fillStyle = '#d9dfc0'; ctx.fillRect(px, py, pw, ph);
+      ctx.fillStyle = '#6e5a12'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${pw * 0.3}px ${FONT}`;
+      ctx.fillText(p.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join(''), px + pw / 2, py + ph * 0.42);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
+    ctx.restore();
+    ctx.fillStyle = '#ffffff'; rounded(ctx, px + 14 * m, cut, pw + 40 * m, H, [60 * m, 0, 0, 0]); ctx.fill();
+    // Name and institution in the cut-away.
+    const tx = px + 0.09 * W; const tw = px + pw - tx;
+    const nm = fit(ctx, p.name, tw, 2, Math.round(40 * m), Math.round(24 * m), 800);
+    ctx.fillStyle = '#1f1f1f'; ctx.font = `800 ${nm.fs}px ${FONT}`;
+    let y = cut + 0.045 * H;
+    nm.lines.forEach((l) => { ctx.fillText(l, tx, y); y += nm.fs * 1.2; });
+    if (p.designation) {
+      const inst = fit(ctx, p.designation, tw, 3, Math.round(24 * m), Math.round(16 * m), 700);
+      ctx.fillStyle = '#4f7a28'; ctx.font = `700 ${inst.fs}px ${FONT}`;
+      inst.lines.forEach((l) => { ctx.fillText(l, tx, y); y += inst.fs * 1.3; });
+    }
+    // Logo bottom left, tagline under it.
+    if (logoL) {
+      const lw = 0.36 * W; const lh = lw * (logoL.naturalHeight / logoL.naturalWidth || 0.66);
+      const ly = Math.min(0.88 * H - 60 * m, cut + 0.08 * H) - lh;
+      ctx.drawImage(logoL, 0.05 * W, ly, lw, lh);
+      ctx.fillStyle = '#1f1f1f'; ctx.font = `700 ${32 * m}px ${FONT}`; ctx.textAlign = 'center';
+      ctx.fillText(val('tagline'), 0.05 * W + lw / 2, ly + lh + 42 * m); ctx.textAlign = 'left';
+    }
+    // Rule and the partner logos in one row (the strip has two rows; they are placed side by side).
+    ctx.strokeStyle = '#b59a6a'; ctx.lineWidth = Math.max(1.5, 2 * m);
+    ctx.beginPath(); ctx.moveTo(0.05 * W, 0.905 * H); ctx.lineTo(0.95 * W, 0.905 * H); ctx.stroke();
+    if (partners) {
+      const k = partners.naturalWidth / 1200;
+      const rows = [[40, 30, 1120, 140], [120, 205, 995, 140]].map(([x, yy, w, h]) => [x * k, yy * k, w * k, h * k]);
+      const total = rows.reduce((a, r) => a + r[2], 0) + 60 * k;
+      const s = Math.min((0.9 * W) / total, (0.07 * H) / (140 * k));
+      let x = (W - total * s) / 2; const yy = 0.95 * H - (70 * k * s);
+      rows.forEach((r) => { ctx.drawImage(partners, r[0], r[1], r[2], r[3], x, yy, r[2] * s, r[3] * s); x += (r[2] + 60 * k) * s; });
+    }
+  }
+  const syncUi = () => {
+    const single = Number(whoSel?.value ?? -1) >= 0;
+    if (styleSel) styleSel.closest('[data-poster-style-wrap]').hidden = !single;
+    const light = single && styleSel?.value === 'light';
+    if (lightBox) lightBox.hidden = !light;
+    titleIn.closest('[data-poster-title-wrap]').hidden = light;
+  };
   // who: -1 draws everyone on one poster; an index draws that one person on their own poster.
   async function draw(who = Number(whoSel?.value ?? -1)) {
+    if (who >= 0 && styleSel?.value === 'light') { const all = await imgs; await document.fonts?.ready; return drawLight(cfg.people[who], all[1 + who]); }
     const [logo, ...allPhotos] = await imgs;
     const people = who < 0 ? cfg.people : [cfg.people[who]];
     const photos = who < 0 ? allPhotos : [allPhotos[who]];
@@ -246,10 +325,12 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
     setTimeout(() => URL.revokeObjectURL(a.href), 5000); ok();
   }, 'image/png'));
   const personFile = (i) => `${cfg.file}-${i + 1}-${cfg.people[i].name.trim().replace(/[\s/\\:*?"<>|.]+/g, '-')}`;
-  const redraw = () => draw();
+  const redraw = () => { syncUi(); draw(); };
   sizeSel.addEventListener('change', redraw);
   titleIn.addEventListener('input', redraw);
   whoSel?.addEventListener('change', redraw);
+  styleSel?.addEventListener('change', redraw);
+  lightBox?.addEventListener('input', redraw);
   box.querySelector('[data-poster-png]').addEventListener('click', () => {
     const who = Number(whoSel?.value ?? -1);
     save(who < 0 ? cfg.file : personFile(who));
@@ -263,5 +344,5 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
     }
     await draw(); btn.disabled = false;
   });
-  draw();
+  syncUi(); draw();
 });
