@@ -394,6 +394,25 @@ final class CheckinReviewTest extends SlamTestCase
         $this->post('admin/login', ['username' => 'x', 'password' => 'y']);
     }
 
+    public function testAReviewCanBeShortenedButNotIntoThePast(): void
+    {
+        $s = $this->makeSlam(2, 1, 0);
+        $this->at('2026-11-01 04:45:00', $s['id']);           // first review opens by itself, 5 minutes
+        $slam = service('slams')->find($s['id']);
+        $w    = service('slamPhase')->windows();
+        $before = \Modules\Slams\Services\ReviewWindowService::effectiveClose($w->openWindow($s['id']), $slam);
+        $w->extend($slam, -2, $this->admin);
+        $after = \Modules\Slams\Services\ReviewWindowService::effectiveClose($w->openWindow($s['id']), $slam);
+        $this->assertSame(Clock::addMinutes($before, -2), $after);
+        $w->extend($slam, 3, $this->admin);                  // +3 works too
+        $this->assertSame(Clock::addMinutes($before, 1), \Modules\Slams\Services\ReviewWindowService::effectiveClose($w->openWindow($s['id']), $slam));
+        // 6 minutes left: taking off 10 would end it in the past, so nothing changes.
+        $this->expectReason('invalid_minutes', fn () => $w->extend($slam, -10, $this->admin));
+        $this->assertSame(Clock::addMinutes($before, 1), \Modules\Slams\Services\ReviewWindowService::effectiveClose($w->openWindow($s['id']), $slam));
+        // The phones are told the new closing time on their next poll.
+        $this->assertSame(Clock::iso(Clock::addMinutes($before, 1)), service('liveState')->buildShared($s['id'])['current']['closes_at']);
+    }
+
     public function testRegistrationLookupByMobileIsMinimal(): void
     {
         $s = $this->makeSlam(1, 2, 0);

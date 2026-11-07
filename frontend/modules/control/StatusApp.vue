@@ -395,7 +395,9 @@ function itemActions(n) {
   if (stagePanel(n)) {
     // Open review / Close presentation / Close review live in the stage panel; here only the extras.
     if (i.status === 'open') {
-      for (const m of [1, 2, 5]) add(`+${m} min`, '', () => api('window/extend', { minutes: m }, `Extended by ${m} min.`).catch(() => {}), 'action.extend');
+      // Shorten (−) or extend (+). The server refuses a cut that would end the review in the past.
+      for (const m of [5, 2, 1]) add(`−${m} min`, 'btn-outline-warning', () => api('window/extend', { minutes: -m }, `Shortened by ${m} min.`).catch(() => {}), 'action.shorten');
+      for (const m of [1, 2, 3, 5]) add(`+${m} min`, '', () => api('window/extend', { minutes: m }, `Extended by ${m} min.`).catch(() => {}), 'action.extend');
       add('Other…', '', () => customExtend('window/extend', 'Extend or shorten the review window'));
     } else if (i.status === 'pending') add('Skip…', 'btn-ghost-secondary', () => skip(i), 'action.skip');
   } else if (n.isNext) {
@@ -428,6 +430,7 @@ function stepActions(n) {
       add('Skip edit phase…', 'btn-outline-secondary', revisionSkip);
       break;
     case 'revision':
+      for (const m of [5, 2]) add(`−${m} min`, 'btn-outline-warning', () => api('revision/extend', { minutes: -m }, `Shortened by ${m} min.`).catch(() => {}), 'action.shorten');
       for (const m of [2, 5]) add(`+${m} min`, '', () => api('revision/extend', { minutes: m }, `Extended by ${m} min.`).catch(() => {}), 'action.extend');
       add('Other…', '', () => customExtend('revision/extend', 'Extend or shorten the edit window'));
       add('Close & lock scores', 'btn-outline-danger', () => confirmApi('revision/close', 'Close the edit window now?', 'Scores will be locked permanently.'), 'phase.revision_closed');

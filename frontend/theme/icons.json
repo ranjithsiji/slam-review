@@ -36,6 +36,7 @@
   "action.resume": "player-play",
   "action.skip": "player-skip-forward",
   "action.extend": "clock-plus",
+  "action.shorten": "clock-minus",
   "action.stop": "player-stop",
   "action.up": "arrow-up",
   "action.down": "arrow-down",
