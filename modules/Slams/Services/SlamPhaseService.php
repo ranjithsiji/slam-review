@@ -899,10 +899,17 @@ class SlamPhaseService
         return $this->override($slamId, $actor, function (array $s) use ($itemId, $minutes, $actor): void {
             $item = Db::row("SELECT * FROM schedule_items WHERE id = ? AND slam_id = ? AND item_type = 'break'", [$itemId, $s['id']]);
             if ($item === null || ! in_array($item['status'], ['pending', 'open'], true)) {
-                throw new DomainException('not_a_break', 'Only a pending or running break can be extended.');
+                throw new DomainException('not_a_break', 'Only a pending or running break can be changed.');
             }
-            if ($minutes < 1 || $minutes > 120) {
-                throw new DomainException('invalid_minutes', 'Extension must be 1–120 minutes.');
+            // Positive extends, negative shortens. A shortened break keeps at least a minute and never ends in the past.
+            if ($minutes === 0 || abs($minutes) > 120) {
+                throw new DomainException('invalid_minutes', 'Change the break by 1–120 minutes.');
+            }
+            if ((int) $item['duration_minutes'] + $minutes < 1) {
+                throw new DomainException('invalid_minutes', 'The break cannot be shorter than 1 minute.');
+            }
+            if ($minutes < 0 && $item['status'] === 'open' && Clock::parse(Clock::addMinutes($item['ends_at'], $minutes)) <= Clock::now()) {
+                throw new DomainException('invalid_minutes', 'That would end the break in the past. Use "End break now" instead.');
             }
             $upd = ['duration_minutes' => (int) $item['duration_minutes'] + $minutes, 'updated_at' => Clock::db()];
             if ($item['status'] === 'open') {

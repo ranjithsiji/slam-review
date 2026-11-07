@@ -383,6 +383,7 @@ function itemActions(n) {
   const add = (label, cls, run, icon, href, primary = false) => out.push({ label, cls, run, icon, href, primary });
   if (i.item_type === 'break') {
     if (i.status === 'open') {
+      for (const m of [10, 5]) add(`−${m} min`, 'btn-outline-warning', () => itemApi(i.id, 'extend-break', { minutes: -m }, `Break shortened by ${m} min.`), 'action.shorten');
       for (const m of [5, 10]) add(`+${m} min`, '', () => itemApi(i.id, 'extend-break', { minutes: m }, `Break extended by ${m} min.`), 'action.extend');
       add('End break now', 'btn-outline-warning', () => itemApi(i.id, 'end-break', {}, 'Break ended.'));
     } else if (i.status === 'pending' && gateIsClosed.value) {
@@ -477,7 +478,12 @@ const now = computed(() => {
     return {
       ...base, tone: 'live', icon: isPerforming(runItem) ? 'person.user' : 'status.live', kicker: isPerforming(runItem) ? (open ? 'On stage · review open' : 'On stage') : 'Performance over · review still open',
       title: runItem.presenter_name, subtitle: runItem.topic,
-      timers: open ? [{ label: 'review closes in', until: runItem.window_closes_at }] : [],
+      timers: [
+        // The talk's own clock (it ends nothing by itself in manual mode): presentation length from the moment it started.
+        ...(isPerforming(runItem) && runItem.performing_started_at
+          ? [{ label: 'talk time left', until: new Date(Date.parse(runItem.performing_started_at) + (st.slam.presentation_minutes || 10) * 60000).toISOString() }] : []),
+        ...(open ? [{ label: 'review closes in', until: runItem.window_closes_at }] : []),
+      ],
       facts: open ? [`${runItem.reviews} review(s) so far`, `${checkedIn.value} inside`] : [],
       primary: (() => { const r = stagePrimary(stagePanel(node)); return r ? { label: r.label, cls: r.cls, icon: r.icon, run: r.run, primary: true } : firstOf(itemActions(node)); })(), next: nextText,
     };

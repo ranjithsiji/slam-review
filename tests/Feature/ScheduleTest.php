@@ -170,6 +170,34 @@ final class ScheduleTest extends SlamTestCase
         $this->assertSame('open', Db::value('SELECT status FROM schedule_items WHERE id = ?', [$s['items'][1]]));
     }
 
+    public function testARunningBreakCanBeShortenedButNotIntoThePast(): void
+    {
+        $s    = $this->makeSlam(2);
+        $slam = service('slams')->find($s['id']);
+        $d    = $this->draft($s['id']);
+        array_splice($d, 1, 0, [[
+            'id' => null, 'item_type' => 'break', 'break_type' => 'lunch', 'label' => 'Lunch',
+            'planned_start_at' => '2026-11-01T04:50:00Z', 'duration_minutes' => 30, 'is_pinned' => false, 'status' => 'pending',
+        ]]);
+        $d[2]['planned_start_at'] = '2026-11-01T05:20:00Z';
+        service('schedule')->saveDraft($s['id'], $d, (int) $slam['schedule_version'], $this->admin);
+        $this->at('2026-11-01 04:45:00', $s['id']);
+        $this->at('2026-11-01 04:50:00', $s['id']);
+        $breakId = (int) Db::value("SELECT id FROM schedule_items WHERE item_type = 'break'");
+        service('slamPhase')->extendBreak($s['id'], $breakId, -10, $this->admin);
+        $this->assertSame('2026-11-01T05:10:00Z', service('liveState')->buildShared($s['id'])['current']['ends_at']);
+        $this->assertSame('2026-11-01 05:10:00', Db::value('SELECT planned_start_at FROM schedule_items WHERE id = ?', [$s['items'][1]]), 'the next talk moves earlier');
+        $this->at('2026-11-01 05:05:00', $s['id']);
+        try {
+            service('slamPhase')->extendBreak($s['id'], $breakId, -10, $this->admin);
+            $this->fail('a cut into the past must be refused');
+        } catch (DomainException $e) {
+            $this->assertSame('invalid_minutes', $e->reason);
+        }
+        $this->at('2026-11-01 05:10:00', $s['id']);
+        $this->assertSame('open', Db::value('SELECT status FROM schedule_items WHERE id = ?', [$s['items'][1]]));
+    }
+
     public function testCannotRemovePerformanceWithReviews(): void
     {
         $s = $this->makeSlam(1);
