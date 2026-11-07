@@ -238,7 +238,9 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
       const ly = Math.min(0.88 * H - 60 * m, cut + 0.08 * H) - lh;
       ctx.drawImage(logoL, 0.05 * W, ly, lw, lh);
       ctx.fillStyle = '#1f1f1f'; ctx.font = `700 ${32 * m}px ${FONT}`; ctx.textAlign = 'center';
-      ctx.fillText(val('tagline'), 0.05 * W + lw / 2, ly + lh + 42 * m); ctx.textAlign = 'left';
+      ctx.fillText(val('tagline'), 0.05 * W + lw / 2, ly + lh + 42 * m);
+      ctx.fillStyle = '#7b1a1a'; ctx.font = `700 ${30 * m}px ${FONT}`;
+      ctx.fillText('scienceslam.in', 0.05 * W + lw / 2, ly + lh + 92 * m); ctx.textAlign = 'left';
     }
     // Rule and the partner logos in one row (the strip has two rows; they are placed side by side).
     ctx.strokeStyle = '#b59a6a'; ctx.lineWidth = Math.max(1.5, 2 * m);
