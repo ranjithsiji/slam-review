@@ -67,8 +67,12 @@ class FinalistsService
     public function save(int $slamId, array $ids, Actor $actor, ?string $note): void
     {
         $ids = array_values(array_unique(array_map('intval', $ids)));
-        if (count($ids) !== self::COUNT) {
-            throw new DomainException('validation', 'Choose exactly ' . self::COUNT . ' presenters (' . count($ids) . ' chosen).', 422);
+        // Normally 5. A different number (6 after a tie, say) is an exception and needs a reason.
+        if ($ids === [] || count($ids) > 12) {
+            throw new DomainException('validation', 'Choose the presenters going to the final (' . self::COUNT . ' normally).', 422);
+        }
+        if (count($ids) !== self::COUNT && ($note === null || trim($note) === '')) {
+            throw new DomainException('validation', count($ids) . ' chosen instead of ' . self::COUNT . '. Write the reason in the note (for example: tie at 5th place) and save again.', 422);
         }
         $valid = array_map('intval', array_column(Db::rows('SELECT id FROM performances WHERE slam_id = ? AND is_active = 1', [$slamId]), 'id'));
         if (array_diff($ids, $valid) !== []) {

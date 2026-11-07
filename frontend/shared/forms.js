@@ -131,14 +131,20 @@ export function initForms(root = document) {
   }));
 }
 
-// Finalists screen: "Tick the top N by marks" and a running count of the ticks.
-document.querySelectorAll('[data-pick-top]').forEach((btn) => {
-  const form = btn.closest('form');
+// Finalists screen: a running count of the ticks, and "Tick the top N by marks" when marks exist.
+document.querySelectorAll('[data-finalists]').forEach((form) => {
+  const want = Number(form.dataset.finalists);
   const boxes = [...form.querySelectorAll('input[name="finalists[]"]')];
   const out = form.querySelector('[data-pick-count]');
-  const want = JSON.parse(btn.dataset.pickTop).length;
-  const count = () => { if (out) out.textContent = `${boxes.filter((b) => b.checked).length} of ${want} chosen`; };
-  btn.addEventListener('click', () => { const ids = JSON.parse(btn.dataset.pickTop).map(String); boxes.forEach((b) => { b.checked = ids.includes(b.value); }); count(); });
+  const count = () => {
+    const n = boxes.filter((b) => b.checked).length;
+    if (out) out.textContent = n === want ? `${n} chosen` : `${n} chosen: not ${want}, so write the reason in the note`;
+  };
+  form.querySelector('[data-pick-top]')?.addEventListener('click', (e) => {
+    const ids = JSON.parse(e.currentTarget.dataset.pickTop).map(String);
+    boxes.forEach((b) => { b.checked = ids.includes(b.value); });
+    count();
+  });
   boxes.forEach((b) => b.addEventListener('change', count));
   count();
 });

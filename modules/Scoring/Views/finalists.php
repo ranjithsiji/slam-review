@@ -29,9 +29,9 @@ $topIds = array_column(array_slice(array_filter($byRank, static fn ($r) => $r['r
         </div>
     </div>
     <div class="col-12 col-lg-7">
-        <form class="card" method="post" action="<?= site_url("admin/slams/{$sid}/finalists") ?>" id="finalists-form">
+        <form class="card" method="post" action="<?= site_url("admin/slams/{$sid}/finalists") ?>" id="finalists-form" data-finalists="<?= (int) $count ?>">
             <?= csrf_field() ?>
-            <div class="card-header"><h3 class="card-title">Choose <?= $count ?> presenters</h3>
+            <div class="card-header"><h3 class="card-title">Choose <?= $count ?> presenters <span class="small text-secondary fw-normal">(another number only with a reason)</span></h3>
                 <?php if ($hasMarks && $topIds !== []): ?><div class="card-actions"><button type="button" class="btn btn-sm" data-pick-top='<?= esc(json_encode($topIds), 'attr') ?>'>Tick the top <?= $count ?> by marks</button></div><?php endif ?>
             </div>
             <div class="table-responsive">
@@ -54,8 +54,8 @@ $topIds = array_column(array_slice(array_filter($byRank, static fn ($r) => $r['r
             </div>
             <div class="card-footer">
                 <?php if (! $hasMarks): ?><p class="small text-secondary">Marks have not been calculated yet; you can still choose by hand.</p><?php endif ?>
-                <label class="form-label" for="note">Note (optional, kept in the activity log)</label>
-                <input class="form-control mb-3" id="note" name="note" maxlength="255" placeholder="e.g. tie at 5th place decided by the experts">
+                <label class="form-label" for="note">Note (kept in the activity log; required if you choose more or fewer than <?= $count ?>)</label>
+                <input class="form-control mb-3" id="note" name="note" maxlength="255" placeholder="e.g. tie at 5th place: both go to the final">
                 <div class="d-flex align-items-center gap-3"><button class="btn btn-primary" type="submit"><?= icon('action.save') ?>Save finalists</button><span class="small text-secondary" data-pick-count></span></div>
             </div>
         </form>
