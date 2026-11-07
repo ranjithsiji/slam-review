@@ -133,15 +133,12 @@ export function initForms(root = document) {
 
 // Finalists screen: a running count of the ticks, and "Tick the top N by marks" when marks exist.
 document.querySelectorAll('[data-finalists]').forEach((form) => {
-  const want = Number(form.dataset.finalists);
   const boxes = [...form.querySelectorAll('input[name="finalists[]"]')];
   const out = form.querySelector('[data-pick-count]');
-  const count = () => {
-    const n = boxes.filter((b) => b.checked).length;
-    if (out) out.textContent = n === want ? `${n} chosen` : `${n} chosen: not ${want}, so write the reason in the note`;
-  };
+  const count = () => { if (out) out.textContent = `${boxes.filter((b) => b.checked).length} chosen`; };
   form.querySelector('[data-pick-top]')?.addEventListener('click', (e) => {
-    const ids = JSON.parse(e.currentTarget.dataset.pickTop).map(String);
+    const n = Number(form.querySelector('#pick-n')?.value || 0);
+    const ids = JSON.parse(e.currentTarget.dataset.pickTop).slice(0, n).map(String);
     boxes.forEach((b) => { b.checked = ids.includes(b.value); });
     count();
   });

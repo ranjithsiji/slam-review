@@ -16,6 +16,7 @@ use Modules\Core\Libraries\DomainException;
  */
 class FinalistsService
 {
+    /** The usual number, used only to pre-fill "Tick the top N by marks". Any number can be chosen. */
     public const COUNT = 5;
 
     private static function key(int $slamId): string
@@ -67,12 +68,8 @@ class FinalistsService
     public function save(int $slamId, array $ids, Actor $actor, ?string $note): void
     {
         $ids = array_values(array_unique(array_map('intval', $ids)));
-        // Normally 5. A different number (6 after a tie, say) is an exception and needs a reason.
-        if ($ids === [] || count($ids) > 12) {
-            throw new DomainException('validation', 'Choose the presenters going to the final (' . self::COUNT . ' normally).', 422);
-        }
-        if (count($ids) !== self::COUNT && ($note === null || trim($note) === '')) {
-            throw new DomainException('validation', count($ids) . ' chosen instead of ' . self::COUNT . '. Write the reason in the note (for example: tie at 5th place) and save again.', 422);
+        if ($ids === []) {
+            throw new DomainException('validation', 'Tick at least one presenter.', 422);
         }
         $valid = array_map('intval', array_column(Db::rows('SELECT id FROM performances WHERE slam_id = ? AND is_active = 1', [$slamId]), 'id'));
         if (array_diff($ids, $valid) !== []) {

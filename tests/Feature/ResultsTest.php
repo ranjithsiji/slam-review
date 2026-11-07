@@ -20,14 +20,16 @@ final class ResultsTest extends SlamTestCase
         $svc = new \Modules\Scoring\Services\FinalistsService();
         $perfs = $s['perfs'];
         try {
-            $svc->save($sid, array_slice($perfs, 0, 6), $this->admin, null);
-            $this->fail('six without a reason');
+            $svc->save($sid, [], $this->admin, null);
+            $this->fail('nobody');
         } catch (\Modules\Core\Libraries\DomainException $e) {
-            $this->assertStringContainsString('reason', $e->getMessage());
+            $this->assertStringContainsString('at least one', $e->getMessage());
         }
-        // Six with a reason is the allowed exception.
-        $svc->save($sid, array_slice($perfs, 0, 6), $this->admin, 'tie at 5th place');
+        // Any number: six, or three, no reason needed.
+        $svc->save($sid, array_slice($perfs, 0, 6), $this->admin, null);
         $this->assertCount(6, $svc->chosen($sid));
+        $svc->save($sid, array_slice($perfs, 0, 3), $this->admin, null);
+        $this->assertCount(3, $svc->chosen($sid));
         $other = $this->makeSlam(1, 1, 0);
         try {
             $svc->save($sid, [...array_slice($perfs, 0, 4), $other['perfs'][0]], $this->admin, null);

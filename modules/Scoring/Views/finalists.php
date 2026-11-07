@@ -7,7 +7,7 @@ $sid    = (int) $slam['id'];
 $chosen = array_values(array_filter($rows, static fn ($r) => $r['chosen']));
 $byRank = $rows;
 usort($byRank, static fn ($a, $b) => ($a['rank'] ?? PHP_INT_MAX) <=> ($b['rank'] ?? PHP_INT_MAX));
-$topIds = array_column(array_slice(array_filter($byRank, static fn ($r) => $r['rank'] !== null), 0, $count), 'id');
+$ranked = array_values(array_map(static fn ($r) => $r['id'], array_filter($byRank, static fn ($r) => $r['rank'] !== null)));
 ?>
 <div class="row row-cards">
     <div class="col-12 col-lg-5">
@@ -15,7 +15,7 @@ $topIds = array_column(array_slice(array_filter($byRank, static fn ($r) => $r['r
             <div class="card-header"><h3 class="card-title"><?= icon('nav.marks', 'me-2') ?>Selected for the final</h3></div>
             <div class="card-body">
                 <?php if ($chosen === []): ?>
-                    <p class="text-secondary mb-0">Nobody chosen yet. Tick <?= $count ?> presenters on the right and save.</p>
+                    <p class="text-secondary mb-0">Nobody chosen yet. Tick the presenters on the right and save.</p>
                 <?php else: ?>
                     <p class="small text-secondary">Names in alphabetical order. No positions or marks are shown or printed.</p>
                     <ol class="list-unstyled mb-3">
@@ -31,8 +31,12 @@ $topIds = array_column(array_slice(array_filter($byRank, static fn ($r) => $r['r
     <div class="col-12 col-lg-7">
         <form class="card" method="post" action="<?= site_url("admin/slams/{$sid}/finalists") ?>" id="finalists-form" data-finalists="<?= (int) $count ?>">
             <?= csrf_field() ?>
-            <div class="card-header"><h3 class="card-title">Choose <?= $count ?> presenters <span class="small text-secondary fw-normal">(another number only with a reason)</span></h3>
-                <?php if ($hasMarks && $topIds !== []): ?><div class="card-actions"><button type="button" class="btn btn-sm" data-pick-top='<?= esc(json_encode($topIds), 'attr') ?>'>Tick the top <?= $count ?> by marks</button></div><?php endif ?>
+            <div class="card-header"><h3 class="card-title">Choose the presenters for the final</h3>
+                <?php if ($hasMarks && $ranked !== []): ?><div class="card-actions d-flex align-items-center gap-2">
+                    <label class="small text-secondary" for="pick-n">Tick the top</label>
+                    <input id="pick-n" type="number" min="1" max="<?= count($ranked) ?>" value="<?= min($count, count($ranked)) ?>" class="form-control form-control-sm" style="width:4.5rem">
+                    <button type="button" class="btn btn-sm" data-pick-top='<?= esc(json_encode($ranked), 'attr') ?>'>by marks</button>
+                </div><?php endif ?>
             </div>
             <div class="table-responsive">
                 <table class="table table-vcenter card-table">
@@ -54,7 +58,7 @@ $topIds = array_column(array_slice(array_filter($byRank, static fn ($r) => $r['r
             </div>
             <div class="card-footer">
                 <?php if (! $hasMarks): ?><p class="small text-secondary">Marks have not been calculated yet; you can still choose by hand.</p><?php endif ?>
-                <label class="form-label" for="note">Note (kept in the activity log; required if you choose more or fewer than <?= $count ?>)</label>
+                <label class="form-label" for="note">Note (optional, kept in the activity log)</label>
                 <input class="form-control mb-3" id="note" name="note" maxlength="255" placeholder="e.g. tie at 5th place: both go to the final">
                 <div class="d-flex align-items-center gap-3"><button class="btn btn-primary" type="submit"><?= icon('action.save') ?>Save finalists</button><span class="small text-secondary" data-pick-count></span></div>
             </div>
