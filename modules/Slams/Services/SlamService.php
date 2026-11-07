@@ -293,6 +293,20 @@ class SlamService
                 $data[$f] = (int) $input[$f];
             }
         }
+        // The minute of the presentation at which the review opens: blank = half time; never after the presentation ends.
+        if (array_key_exists('review_opens_after_minutes', $input)) {
+            $v = trim((string) $input['review_opens_after_minutes']);
+            $pm = $data['presentation_minutes'] ?? (int) ($slam['presentation_minutes'] ?? 10);
+            if ($v === '') {
+                $data['review_opens_after_minutes'] = null;
+            } elseif (! ctype_digit($v)) {
+                $errors['review_opens_after_minutes'] = 'Must be a whole number of minutes.';
+            } elseif ((int) $v > $pm) {
+                $errors['review_opens_after_minutes'] = "Must be within the presentation (0–{$pm} minutes).";
+            } else {
+                $data['review_opens_after_minutes'] = (int) $v;
+            }
+        }
         foreach (['default_review_minutes', 'default_tea_break_minutes', 'default_lunch_break_minutes'] as $f) {
             if (isset($data[$f]) && $data[$f] < 1) {
                 $errors[$f] = 'Must be at least 1 minute.';

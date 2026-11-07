@@ -108,19 +108,35 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
                 </div>
             </div>
             <div class="card card-accent accent-orange">
-                <div class="card-header"><h3 class="card-title">Automation (minutes)</h3></div>
+                <div class="card-header"><h3 class="card-title">Timing (minutes)</h3></div>
                 <div class="card-body">
-                    <p class="text-secondary small">Placeholders: confirm with the organisers before the event.</p>
+                    <p class="text-secondary small">Automatic mode follows these. In manual mode they are only shown as guides.</p>
+                    <?php
+                    $pmNow  = $num('presentation_minutes', 10);
+                    $opens  = old('review_opens_after_minutes', isset($slam['review_opens_after_minutes']) && $slam['review_opens_after_minutes'] !== null ? (string) $slam['review_opens_after_minutes'] : (string) intdiv($pmNow, 2));
+                    $fields = [
+                        ['presentation_minutes', 'How long is each presentation?', 10, 'Usually 10 minutes.'],
+                        ['review_opens_after_minutes', 'At which minute of the presentation does the review open?', null, '0 = as soon as the presentation starts. For example 6 = six minutes into a 10-minute talk.'],
+                        ['default_review_minutes', 'How long does the review stay open?', 5, 'Counted from when it opens.'],
+                        ['changeover_minutes', 'Changeover between presentations', 2, ''],
+                        ['edit_window_minutes', 'Edit window at the end', 10, '0 = no edit window.'],
+                        ['close_grace_minutes', 'From edit close to slam close', 5, ''],
+                        ['default_tea_break_minutes', 'Tea break', 15, ''],
+                        ['default_lunch_break_minutes', 'Lunch break', 45, ''],
+                    ];
+                    ?>
                     <div class="row">
-                        <?php foreach ([
-                            ['presentation_minutes', 'Presentation (review opens at half; 0 = with the talk)', 10], ['default_review_minutes', 'Review window (from when it opens)', 5], ['changeover_minutes', 'Changeover', 2], ['edit_window_minutes', 'Edit window (0 = skip)', 10],
-                            ['close_grace_minutes', 'Edit close → slam close', 5], ['default_tea_break_minutes', 'Tea break', 15], ['default_lunch_break_minutes', 'Lunch break', 45],
-                        ] as [$f, $label, $d]): ?>
-                            <div class="col-6 mb-3">
-                                <label class="form-label" for="<?= $f ?>"><?= esc($label) ?></label>
-                                <input id="<?= $f ?>" name="<?= $f ?>" type="number" min="0" max="600" class="form-control<?= is_invalid($errors, $f) ?>" value="<?= $num($f, $d) ?>">
+                        <?php foreach ($fields as $k => [$f, $label, $d, $hint]): ?>
+                            <div class="<?= $k < 3 ? 'col-12' : 'col-6' ?> mb-3">
+                                <label class="form-label" for="<?= $f ?>"><?= ($k < 3 ? ($k + 1) . '. ' : '') . esc($label) ?></label>
+                                <div class="input-group" style="max-width: <?= $k < 3 ? '14rem' : 'none' ?>">
+                                    <input id="<?= $f ?>" name="<?= $f ?>" type="number" min="0" max="600" class="form-control<?= is_invalid($errors, $f) ?>" value="<?= esc($f === 'review_opens_after_minutes' ? $opens : (string) $num($f, $d), 'attr') ?>">
+                                    <span class="input-group-text">min</span>
+                                </div>
+                                <?php if ($hint !== ''): ?><div class="form-hint"><?= esc($hint) ?></div><?php endif ?>
                                 <?= field_error($errors, $f) ?>
                             </div>
+                            <?php if ($k === 2): ?><div class="col-12"><hr class="mt-0 mb-3"></div><?php endif ?>
                         <?php endforeach ?>
                     </div>
                 </div>

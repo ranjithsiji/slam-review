@@ -115,6 +115,7 @@ class ControlController extends BaseController
                     'default_review_minutes' => (int) $slam['default_review_minutes'], 'edit_window_minutes' => (int) $slam['edit_window_minutes'],
                     'close_grace_minutes' => (int) $slam['close_grace_minutes'], 'changeover_minutes' => (int) $slam['changeover_minutes'],
                     'presentation_minutes' => (int) ($slam['presentation_minutes'] ?? 10),
+                    'review_opens_after_minutes' => SlamPhaseService::reviewOpensAfter($slam),
                 ],
                 'presence'    => service('engagement')->presence($id),
                 'version'     => service('slamPhase')->stateVersion($id),

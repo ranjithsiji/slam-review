@@ -286,7 +286,7 @@ class SlamPhaseService
             $perf = $pm > 0 && in_array($slam['status'], ['checkin_closed', 'reviewing'], true) ? $this->performingItem($sid) : null;
             if ($perf !== null) {
                 if ($perf['status'] === 'pending' && $w === null) {
-                    $cand[] = Clock::parse(Clock::addMinutes($perf['performing_started_at'], intdiv($pm, 2)));
+                    $cand[] = Clock::parse(Clock::addMinutes($perf['performing_started_at'], self::reviewOpensAfter($slam)));
                 }
                 $cand[] = Clock::parse(Clock::addMinutes($perf['performing_started_at'], $pm));
             } elseif (in_array($slam['status'], ['checkin_closed', 'reviewing'], true) && $w === null && $b === null
@@ -354,10 +354,10 @@ class SlamPhaseService
             return null;
         }
 
-        // Automatic presentation timing: review opens at half time, the presentation ends at full time.
+        // Automatic presentation timing: the review opens at the chosen minute (half time if not set), the presentation ends at full time.
         $pm = (int) ($slam['presentation_minutes'] ?? 0);
         if ($pm > 0 && in_array($status, ['checkin_closed', 'reviewing'], true) && ($perf = $this->performingItem($sid)) !== null) {
-            $half = Clock::addMinutes($perf['performing_started_at'], intdiv($pm, 2));
+            $half = Clock::addMinutes($perf['performing_started_at'], self::reviewOpensAfter($slam));
             $end  = Clock::addMinutes($perf['performing_started_at'], $pm);
             if ($perf['status'] === 'pending' && $window === null && $now >= Clock::parse($half)) {
                 return ['step' => 'open_review_mid', 'item' => $perf, 'due_at' => $half, 'trigger' => 'timer'];
@@ -892,6 +892,15 @@ class SlamPhaseService
             service('activityLog')->log($actor, 'schedule.item_skipped', ['slam_id' => (int) $s['id'], 'target_type' => 'schedule_item', 'target_id' => $itemId, 'reason' => $reason]);
             $this->bumpScheduleVersion($s);
         });
+    }
+
+    /** Minute of the presentation at which its review opens in automatic mode: the slam's setting, else half time. */
+    public static function reviewOpensAfter(array $slam): int
+    {
+        $pm = (int) ($slam['presentation_minutes'] ?? 0);
+        $at = $slam['review_opens_after_minutes'] ?? null;
+
+        return $at === null ? intdiv($pm, 2) : min((int) $at, $pm);
     }
 
     public function extendBreak(int $slamId, int $itemId, int $minutes, Actor $actor): array

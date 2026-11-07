@@ -482,6 +482,8 @@ const now = computed(() => {
         // The talk's own clock (it ends nothing by itself in manual mode): presentation length from the moment it started.
         ...(isPerforming(runItem) && runItem.performing_started_at
           ? [{ label: 'talk time left', until: new Date(Date.parse(runItem.performing_started_at) + (st.slam.presentation_minutes || 10) * 60000).toISOString() }] : []),
+        ...(!open && isPerforming(runItem) && runItem.performing_started_at && st.slam.auto_mode === 'auto' && !st.slam.hold
+          ? [{ label: 'review opens in', until: new Date(Date.parse(runItem.performing_started_at) + st.slam.review_opens_after_minutes * 60000).toISOString() }] : []),
         ...(open ? [{ label: 'review closes in', until: runItem.window_closes_at }] : []),
       ],
       facts: open ? [`${runItem.reviews} review(s) so far`, `${checkedIn.value} inside`] : [],
