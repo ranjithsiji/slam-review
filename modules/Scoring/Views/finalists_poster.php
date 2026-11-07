@@ -11,6 +11,13 @@
 ], JSON_UNESCAPED_UNICODE), 'attr') ?>'>
     <div class="card-header d-flex flex-wrap gap-2 align-items-center">
         <h3 class="card-title me-auto">Finalists poster</h3>
+        <label class="form-label mb-0 small" for="poster-who">Poster</label>
+        <select id="poster-who" class="form-select form-select-sm" style="width:auto;max-width:16rem" data-poster-who>
+            <option value="-1">Everyone together</option>
+            <?php foreach ($people as $i => $p): ?>
+                <option value="<?= (int) $i ?>"><?= esc($p['name']) ?> only</option>
+            <?php endforeach ?>
+        </select>
         <label class="form-label mb-0 small" for="poster-size">Size</label>
         <select id="poster-size" class="form-select form-select-sm" style="width:auto" data-poster-size>
             <option value="1080x1350">Social media 1080 × 1350</option>
@@ -21,10 +28,11 @@
         <label class="form-label mb-0 small" for="poster-title">Heading</label>
         <input id="poster-title" class="form-control form-control-sm" style="width:16rem" value="Selected for the Final" data-poster-title>
         <button type="button" class="btn btn-primary btn-sm" data-poster-png><?= icon('action.download') ?>Download PNG</button>
+        <button type="button" class="btn btn-sm" data-poster-each><?= icon('action.download') ?>Download one per person (<?= count($people) ?>)</button>
     </div>
     <div class="card-body text-center" style="background:#e9ecef">
         <canvas data-poster-canvas style="max-width:100%;max-height:75vh;box-shadow:0 4px 18px rgba(0,0,0,.25)"></canvas>
-        <p class="small text-secondary mt-2 mb-0">Photos come from the presenters' profiles. A presenter without a photo gets their initials.</p>
+        <p class="small text-secondary mt-2 mb-0">Choose a name under Poster for that person's own poster. Photos come from the presenters' profiles. A presenter without a photo gets their initials.</p>
     </div>
 </div>
 <?php endif ?>

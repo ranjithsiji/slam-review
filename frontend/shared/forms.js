@@ -152,25 +152,41 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
   const canvas = box.querySelector('[data-poster-canvas]');
   const sizeSel = box.querySelector('[data-poster-size]');
   const titleIn = box.querySelector('[data-poster-title]');
+  const whoSel = box.querySelector('[data-poster-who]');
   const load = (src) => new Promise((ok) => { if (!src) return ok(null); const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
   const imgs = Promise.all([load(cfg.logo), ...cfg.people.map((p) => load(p.photo))]);
   const FONT = '"Poppins", "Noto Sans Malayalam", "Noto Sans", system-ui, sans-serif';
-  const wrap = (ctx, text, max) => {
-    const words = String(text || '').split(/\s+/); const lines = []; let line = '';
+  const wrap = (ctx, text, max, maxLines = 2) => {
+    const words = String(text || '').split(/\s+/).filter(Boolean); const lines = []; let line = '';
     for (const w of words) { const t = line ? `${line} ${w}` : w; if (ctx.measureText(t).width > max && line) { lines.push(line); line = w; } else line = t; }
     if (line) lines.push(line);
-    return lines.slice(0, 2);
+    return lines.slice(0, maxLines);
+  };
+  // The largest font size (down to a floor) at which the text fits in maxLines; returns the size and the lines.
+  const fit = (ctx, text, max, maxLines, start, floor, weight) => {
+    for (let fs = start; fs >= floor; fs -= 1) {
+      ctx.font = `${weight} ${fs}px ${FONT}`;
+      const words = String(text || '').split(/\s+/).filter(Boolean);
+      const all = wrap(ctx, text, max, 99);
+      if (all.length <= maxLines && !words.some((w) => ctx.measureText(w).width > max)) return { fs, lines: all };
+    }
+    ctx.font = `${weight} ${floor}px ${FONT}`;
+    return { fs: floor, lines: wrap(ctx, text, max, maxLines) };
   };
   const grid = (n, W, H) => {
     let best = null;
     for (let cols = 1; cols <= n; cols++) {
-      const rows = Math.ceil(n / cols); const cell = Math.min(W / cols, H / rows / 1.38);
+      const rows = Math.ceil(n / cols); const cell = Math.min(W / cols, H / rows / 1.7);
       if (!best || cell > best.cell) best = { cols, rows, cell };
     }
     return best;
   };
-  async function draw() {
-    const [logo, ...photos] = await imgs;
+  // who: -1 draws everyone on one poster; an index draws that one person on their own poster.
+  async function draw(who = Number(whoSel?.value ?? -1)) {
+    const [logo, ...allPhotos] = await imgs;
+    const people = who < 0 ? cfg.people : [cfg.people[who]];
+    const photos = who < 0 ? allPhotos : [allPhotos[who]];
+    const single = people.length === 1;
     await document.fonts?.ready;
     const [W, H] = sizeSel.value.split('x').map(Number);
     canvas.width = W; canvas.height = H;
@@ -190,9 +206,9 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
     ctx.fillText(titleIn.value || '', W / 2, headY);
     // People: circular photo, name below, institution smaller.
     const areaTop = headY + 50 * u; const areaH = H - areaTop - 90 * u; const areaW = W - 2 * pad;
-    const n = cfg.people.length; const g = grid(n, areaW, areaH);
+    const n = people.length; const g = grid(n, areaW, areaH);
     const r = g.cell * 0.36; const rowH = areaH / g.rows;
-    cfg.people.forEach((p, i) => {
+    people.forEach((p, i) => {
       const row = Math.floor(i / g.cols); const inRow = Math.min(g.cols, n - row * g.cols);
       const colW = areaW / g.cols; const x0 = pad + (areaW - inRow * colW) / 2;
       const cx = x0 + (i - row * g.cols + 0.5) * colW; const cy = areaTop + row * rowH + r + 10 * u;
@@ -209,22 +225,43 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
       }
       ctx.restore();
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.lineWidth = 8 * u; ctx.strokeStyle = '#f2b51d'; ctx.stroke();
-      const fs = Math.max(20 * u, Math.min(40 * u, r * 0.3));
-      ctx.fillStyle = '#ffffff'; ctx.font = `700 ${fs}px ${FONT}`;
-      const nameLines = wrap(ctx, p.name, colW * 0.92);
-      nameLines.forEach((l, k) => ctx.fillText(l, cx, cy + r + fs * 1.5 + k * fs * 1.2));
-      ctx.fillStyle = '#b8c6d4'; ctx.font = `400 ${fs * 0.62}px ${FONT}`;
-      wrap(ctx, p.designation, colW * 0.92).forEach((l, k) => ctx.fillText(l, cx, cy + r + fs * 1.5 + nameLines.length * fs * 1.2 + fs * 0.2 + k * fs * 0.78));
+      // Name, then the institution: up to four lines, smaller rather than cut off.
+      const width = colW * 0.92;
+      const top0 = Math.max(20 * u, Math.min((single ? 64 : 40) * u, r * 0.3));
+      const nm = fit(ctx, p.name, width, 2, Math.round(top0), Math.round(18 * u), 700);
+      ctx.fillStyle = '#ffffff'; ctx.font = `700 ${nm.fs}px ${FONT}`;
+      let y = cy + r + nm.fs * 1.5;
+      nm.lines.forEach((l) => { ctx.fillText(l, cx, y); y += nm.fs * 1.2; });
+      if (p.designation) {
+        const inst = fit(ctx, p.designation, width, 4, Math.round(nm.fs * 0.72), Math.round(12 * u), 500);
+        ctx.fillStyle = '#e2e9f0'; ctx.font = `500 ${inst.fs}px ${FONT}`;
+        y += inst.fs * 0.35;
+        inst.lines.forEach((l) => { ctx.fillText(l, cx, y); y += inst.fs * 1.25; });
+      }
     });
     ctx.fillStyle = '#f2b51d'; ctx.font = `600 ${28 * u}px ${FONT}`; ctx.fillText('scienceslam.in', W / 2, H - 40 * u);
   }
-  sizeSel.addEventListener('change', draw);
-  titleIn.addEventListener('input', draw);
+  const save = (name) => new Promise((ok) => canvas.toBlob((blob) => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${name}-${sizeSel.value}.png`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000); ok();
+  }, 'image/png'));
+  const personFile = (i) => `${cfg.file}-${i + 1}-${cfg.people[i].name.trim().replace(/[\s/\\:*?"<>|.]+/g, '-')}`;
+  const redraw = () => draw();
+  sizeSel.addEventListener('change', redraw);
+  titleIn.addEventListener('input', redraw);
+  whoSel?.addEventListener('change', redraw);
   box.querySelector('[data-poster-png]').addEventListener('click', () => {
-    canvas.toBlob((blob) => {
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${cfg.file}-${sizeSel.value}.png`; a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    }, 'image/png');
+    const who = Number(whoSel?.value ?? -1);
+    save(who < 0 ? cfg.file : personFile(who));
+  });
+  // One PNG per person, one after another (the browser may ask once to allow several downloads).
+  box.querySelector('[data-poster-each]')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget; btn.disabled = true;
+    for (let i = 0; i < cfg.people.length; i++) {
+      await draw(i); await save(personFile(i));
+      await new Promise((ok) => setTimeout(ok, 400));
+    }
+    await draw(); btn.disabled = false;
   });
   draw();
 });
