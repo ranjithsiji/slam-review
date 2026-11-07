@@ -130,3 +130,15 @@ export function initForms(root = document) {
     try { el.setSelectionRange(p, p); } catch {}
   }));
 }
+
+// Finalists screen: "Tick the top N by marks" and a running count of the ticks.
+document.querySelectorAll('[data-pick-top]').forEach((btn) => {
+  const form = btn.closest('form');
+  const boxes = [...form.querySelectorAll('input[name="finalists[]"]')];
+  const out = form.querySelector('[data-pick-count]');
+  const want = JSON.parse(btn.dataset.pickTop).length;
+  const count = () => { if (out) out.textContent = `${boxes.filter((b) => b.checked).length} of ${want} chosen`; };
+  btn.addEventListener('click', () => { const ids = JSON.parse(btn.dataset.pickTop).map(String); boxes.forEach((b) => { b.checked = ids.includes(b.value); }); count(); });
+  boxes.forEach((b) => b.addEventListener('change', count));
+  count();
+});

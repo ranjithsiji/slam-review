@@ -24,6 +24,7 @@ if (service('scoring')->judging($id)['timing'] === 'end_of_slam') {
 $items['marks']  = ['Marks', "admin/slams/{$id}/marks", 'nav.marks'];
 $items['scores'] = ['Scores', "admin/slams/{$id}/scores", 'nav.marks'];
 $items['leaderboard'] = ['Leaderboard', "admin/slams/{$id}/leaderboard", 'nav.marks'];
+$items['finalists'] = ['Finalists', "admin/slams/{$id}/finalists", 'nav.marks'];
 $items['stats']  = ['Statistics', "admin/slams/{$id}/stats", 'nav.stats'];
 // A slam operator sees only the screens of the mode they are in; they also get two extra screens.
 $mode = operator_mode();

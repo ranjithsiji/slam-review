@@ -124,8 +124,14 @@ class ResultsPdfService
         return $pdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
     }
 
+    /** The presenters chosen for the final: names in alphabetical order, no positions or marks. */
+    public function finalistsSheet(array $slam, array $rows): string
+    {
+        return $this->regionalSheet($slam, $rows, false, 'Selected for the final');
+    }
+
     /** @param list<array<string, mixed>> $top */
-    private function regionalSheet(array $slam, array $top, bool $withMarks): string
+    private function regionalSheet(array $slam, array $top, bool $withMarks, ?string $heading = null): string
     {
         $h   = static fn (?string $v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
         $n   = count($top);
@@ -150,7 +156,7 @@ class ResultsPdfService
             .sign { margin-top: 22mm; width: 100%; } .sign td { width: 33%; text-align: center; font-size: 10pt; padding-top: 2mm; border-top: 0.3mm solid #666; }
         </style>'
             . '<div class="band"><h1>Kerala Science Slam 2026</h1><div class="sub">' . $h($slam['name']) . ' · ' . $h($date) . ' · ' . $h($slam['venue_name']) . ($slam['city'] ? ', ' . $h($slam['city']) : '') . '</div></div>'
-            . '<h2>Result: top ' . $n . ' presenters</h2>'
+            . '<h2>' . $h($heading ?? 'Result: top ' . $n . ' presenters') . '</h2>'
             . '<div class="lead">' . $h($kind) . ' · names in alphabetical order' . ($withMarks ? ', with marks out of 100' : '') . '</div>'
             . '<table class="r"><tr><th>PRESENTER</th><th>TALK</th>' . ($withMarks ? '<th style="text-align:right">MARKS /100</th>' : '') . '</tr>' . $rows . '</table>'
             . '<table class="sign"><tr><td>Coordinator</td><td>Chief of experts</td><td>Organiser</td></tr></table>'

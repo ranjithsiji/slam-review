@@ -25,7 +25,7 @@ final class OperatorMode
     public const TABS = [
         self::PREPARE => ['overview', 'edit', 'presenters', 'schedule', 'judgelist', 'reviewers', 'questions', 'ads', 'weights'],
         self::RUN     => ['status', 'schedule', 'checkins', 'idle', 'reviewers', 'representatives', 'marks', 'scores'],
-        self::AFTER   => ['status', 'judges', 'paper', 'representatives', 'marks', 'scores', 'leaderboard', 'stats'],
+        self::AFTER   => ['status', 'judges', 'paper', 'representatives', 'marks', 'scores', 'leaderboard', 'finalists', 'stats'],
     ];
 
     /** Menu entry per screen: [label, path under admin/slams/{id}, icon]. */
@@ -36,7 +36,7 @@ final class OperatorMode
         'questions' => ['Questions', '/questions', 'nav.questions'], 'ads' => ['Break ads', '/ads', 'about.talk'], 'weights' => ['Mark weights', '/mark-config', 'nav.system'],
         'status' => ['Status & controls', '/status', 'nav.status'], 'checkins' => ['Check-ins', '/checkins', 'nav.checkins'], 'idle' => ['Not reviewing', '/not-reviewing', 'status.warning'],
         'judges' => ["Experts' marks", '/judge-marks', 'person.judge'], 'paper' => ['Paper marks', '/paper-marks', 'action.edit'], 'representatives' => ['Audience representatives', '/representatives', 'nav.representatives'],
-        'marks' => ['Calculate marks', '/marks', 'nav.marks'], 'scores' => ['Final scores', '/scores', 'nav.marks'], 'leaderboard' => ['Leaderboard', '/leaderboard', 'nav.marks'], 'stats' => ['Statistics', '/stats', 'nav.stats'],
+        'marks' => ['Calculate marks', '/marks', 'nav.marks'], 'scores' => ['Final scores', '/scores', 'nav.marks'], 'finalists' => ['Finalists', '/finalists', 'nav.marks'], 'leaderboard' => ['Leaderboard', '/leaderboard', 'nav.marks'], 'stats' => ['Statistics', '/stats', 'nav.stats'],
     ];
 
     public static function current(int $slamId): string

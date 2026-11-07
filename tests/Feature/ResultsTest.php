@@ -11,6 +11,47 @@ use Tests\Support\SlamTestCase;
 /** Top 5 result sheet: names without positions, A4 PDF, and publishing to the home page. */
 final class ResultsTest extends SlamTestCase
 {
+    use \CodeIgniter\Test\FeatureTestTrait;
+
+    public function testChooseFiveFinalistsAndPrintThemByName(): void
+    {
+        $s   = $this->makeSlam(6, 1, 0);
+        $sid = $s['id'];
+        $svc = new \Modules\Scoring\Services\FinalistsService();
+        $perfs = $s['perfs'];
+        try {
+            $svc->save($sid, array_slice($perfs, 0, 4), $this->admin, null);
+            $this->fail('four is not five');
+        } catch (\Modules\Core\Libraries\DomainException $e) {
+            $this->assertStringContainsString('exactly 5', $e->getMessage());
+        }
+        $other = $this->makeSlam(1, 1, 0);
+        try {
+            $svc->save($sid, [...array_slice($perfs, 0, 4), $other['perfs'][0]], $this->admin, null);
+            $this->fail('another slam');
+        } catch (\Modules\Core\Libraries\DomainException $e) {
+            $this->assertStringContainsString('this slam', $e->getMessage());
+        }
+        $svc->save($sid, array_slice($perfs, 1, 5), $this->admin, 'tie decided by the experts');
+        $names = array_column($svc->chosen($sid), 'name');
+        $this->assertCount(5, $names);
+        $sorted = $names; sort($sorted, SORT_STRING | SORT_FLAG_CASE);
+        $this->assertSame($sorted, $names, 'alphabetical');
+        $this->assertSame(1, (int) Db::value("SELECT COUNT(*) FROM activity_log WHERE action = 'results.finalists_saved' AND reason = 'tie decided by the experts'"));
+
+        $row  = Db::row('SELECT id, username, password_changed_at FROM admins WHERE id = ?', [(int) $this->admin->id]);
+        $auth = ['type' => 'admin', 'id' => (int) $row['id'], 'username' => $row['username'], 'name' => 'Admin', 'label' => 'Admin', 'role' => 'admin', 'pwd' => (string) $row['password_changed_at']];
+        $page = (string) $this->withSession(['auth' => $auth])->get("admin/slams/{$sid}/finalists")->response()->getBody();
+        $this->assertStringContainsString('Selected for the final', $page);
+        $pdf = $this->withSession(['auth' => $auth])->get("admin/slams/{$sid}/finalists.pdf")->response();
+        $this->assertSame(200, $pdf->getStatusCode());
+        $this->assertStringStartsWith('%PDF', (string) $pdf->getBody());
+        // An operator of this slam can use it too.
+        $op = service('auth')->saveAdmin(null, ['username' => 'op.final', 'name' => 'Op', 'role' => 'operator', 'slam_id' => $sid, 'password' => 'a-long-password', 'is_active' => 1], $this->admin);
+        $opAuth = ['type' => 'admin', 'id' => $op, 'label' => 'Op', 'role' => 'operator', 'slam_id' => $sid, 'pwd' => (string) Db::value('SELECT password_changed_at FROM admins WHERE id = ?', [$op])];
+        $this->assertSame(200, $this->withSession(['auth' => $opAuth])->get("admin/slams/{$sid}/finalists")->response()->getStatusCode());
+    }
+
     public function testTopFiveSheetPublishingAndTwoDecimalAverages(): void
     {
         $s = $this->makeSlam(7, 3, 0);
