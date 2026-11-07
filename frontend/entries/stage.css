@@ -1,21 +1,23 @@
-.stage-body { margin: 0; background: #000; overflow: hidden; }
-.stage { --c: #fff; position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--c); font-family: 'Poppins', 'Inter', system-ui, sans-serif; text-align: center; transition: background .4s; padding: 2vh 3vw; }
-.stage-top { position: absolute; top: 2vh; left: 3vw; right: 3vw; display: flex; align-items: center; gap: 2vw; color: #aaa; font-size: 3.2vh; }
-.stage-logo { height: 7vh; }
-.stage-who { flex: 1; text-align: left; color: #ddd; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stage-clock { font-variant-numeric: tabular-nums; }
-.stage-label { font-size: 6vh; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; opacity: .8; min-height: 7vh; }
-.stage-time { font-size: min(42vw, 62vh); font-weight: 800; line-height: .95; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-.stage-sub { font-size: 3.6vh; color: #bbb; max-width: 90vw; margin-top: 2vh; min-height: 4vh; }
+/* Stage timer, in the style of stagetimer.io: dark screen, huge white digits, name at the top, progress bar below. */
+.stage-body { margin: 0; background: #21201f; overflow: hidden; }
+.stage { --c: #fff; position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--c); font-family: 'Inter', 'Poppins', system-ui, sans-serif; text-align: center; background: #21201f; transition: background .4s; padding: 2vh 3vw 12vh; }
+.stage-top { position: absolute; top: 3vh; left: 2.5vw; right: 2.5vw; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw; }
+.stage-logo { height: 7vh; justify-self: start; }
+.stage-who { color: #5aaef0; font-weight: 700; font-size: 6vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
+.stage-clock { justify-self: end; color: #9a9a9a; font-size: 3.4vh; font-variant-numeric: tabular-nums; }
+.stage-label { font-size: 5vh; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; min-height: 6vh; }
+.stage-time { font-size: min(40vw, 58vh); font-weight: 800; line-height: .95; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.stage-sub { font-size: 3.4vh; color: #a9a9a9; max-width: 90vw; margin-top: 2vh; min-height: 4vh; }
 .stage.stage-text .stage-time { font-size: min(9vw, 14vh); line-height: 1.15; letter-spacing: 0; }
-.stage[data-state="ok"] { --c: #3ddc84; }
-.stage[data-state="soon"] { --c: #ffb020; }
-.stage[data-state="last"] { --c: #ff6b3d; }
-.stage[data-state="over"] { --c: #fff; background: #c4161c; animation: stage-blink 1s steps(2, start) infinite; }
+.stage[data-state="soon"] { --c: #e8a33e; }
+.stage[data-state="last"] { --c: #df5048; }
+.stage[data-state="over"] { --c: #df5048; }
 .stage[data-state="paused"] { --c: #8ab4ff; }
 .stage[data-state="break"] { --c: #f2c94c; }
-.stage[data-state="over"] .stage-sub, .stage[data-state="over"] .stage-who, .stage[data-state="over"] .stage-top { color: #ffe3e3; }
-@keyframes stage-blink { 50% { background: #8f0d12; } }
-.stage.stage-offline::after { content: 'Reconnecting…'; position: absolute; bottom: 2vh; right: 3vw; color: #ff8a80; font-size: 2.6vh; }
-.stage-full { position: absolute; bottom: 2vh; left: 50%; transform: translateX(-50%); background: #222; color: #fff; border: 1px solid #555; border-radius: 6px; padding: .6em 1.2em; }
-@media (prefers-reduced-motion: reduce) { .stage[data-state="over"] { animation: none; } }
+.stage-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 9vh; display: flex; }
+.stage-seg { height: 100%; }
+.stage-seg-ok { background: #5fc16b; } .stage-seg-soon { background: #e8a33e; } .stage-seg-last { background: #df5048; }
+.stage-mark { position: absolute; top: 0; width: 0; height: 0; transform: translateX(-50%); border-left: 3.2vh solid transparent; border-right: 3.2vh solid transparent; border-top: 3.6vh solid #fff; filter: drop-shadow(0 0 2px #000); transition: left 1s linear; }
+.stage.stage-offline::after { content: 'Reconnecting…'; position: absolute; bottom: 11vh; right: 3vw; color: #ff8a80; font-size: 2.6vh; }
+.stage-full { position: absolute; bottom: 11vh; left: 50%; transform: translateX(-50%); background: #333; color: #fff; border: 1px solid #555; border-radius: 6px; padding: .6em 1.2em; }
+@media (prefers-reduced-motion: reduce) { .stage-mark { transition: none; } }

@@ -12,6 +12,7 @@
     <div class="stage-label" data-stage-label></div>
     <div class="stage-time" data-stage-time role="timer" aria-live="off"></div>
     <div class="stage-sub ml-text" data-stage-sub></div>
+    <div class="stage-bar" data-stage-bar hidden><div class="stage-seg stage-seg-ok" data-seg-ok></div><div class="stage-seg stage-seg-soon" data-seg-soon></div><div class="stage-seg stage-seg-last" data-seg-last></div><div class="stage-mark" data-seg-mark></div></div>
     <button class="stage-full" type="button" data-stage-full>Full screen</button>
 </div>
 </body>
