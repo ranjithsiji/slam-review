@@ -201,10 +201,10 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     // Pale corner with the date and the regional slam.
-    ctx.fillStyle = '#eef2c4'; ctx.beginPath(); ctx.ellipse(-0.02 * W, -0.06 * H, 0.47 * W, 0.29 * H, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#eef2c4'; ctx.beginPath(); ctx.ellipse(-0.02 * W, -0.06 * H, 0.52 * W, 0.31 * H, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#6e5a12'; ctx.font = `800 ${50 * m}px ${FONT}`; ctx.fillText(val('date'), 0.05 * W, 0.075 * H);
     ctx.fillStyle = '#1f1f1f'; ctx.font = `700 ${30 * m}px ${FONT}`;
-    wrap(ctx, val('region'), 0.33 * W, 3).forEach((l, k) => ctx.fillText(l, 0.05 * W, 0.075 * H + (52 + k * 40) * m));
+    wrap(ctx, val('region'), 0.31 * W, 3).forEach((l, k) => ctx.fillText(l, 0.05 * W, 0.075 * H + (52 + k * 40) * m));
     // Heading, top right.
     const hd = fit(ctx, val('heading'), 0.55 * W, 3, Math.round(58 * m), Math.round(30 * m), 800);
     ctx.fillStyle = '#7b1a1a'; ctx.font = `800 ${hd.fs}px ${FONT}`;
