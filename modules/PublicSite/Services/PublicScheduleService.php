@@ -100,6 +100,12 @@ class PublicScheduleService
                 // The talk on stage and the break ads are public; review deadlines and review state are not.
                 'talk'         => ! empty($live['talk']) ? array_intersect_key($live['talk'], array_flip(['title', 'presenter', 'designation', 'thumb', 'photo', 'photo_alt', 'summary', 'started_at', 'on_stage'])) : null,
                 'ads'          => $live['ads'] ?? [],
+                // For the stage timer: the talk length, when a running break ends, and since when the slam is paused.
+                'stage'        => [
+                    'presentation_minutes' => (int) ($slam['presentation_minutes'] ?? 10),
+                    'break_ends_at'        => ($live['current']['kind'] ?? null) === 'break' ? ($live['current']['ends_at'] ?? null) : null,
+                    'paused_since'         => Clock::iso($slam['paused_at']),
+                ],
                 'slots'        => $slots,
                 'extras'       => $this->extras((int) $slam['id']),
             ];

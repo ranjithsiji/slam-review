@@ -10,6 +10,8 @@ use Tests\Support\SlamTestCase;
 /** Sessions on the public schedule are derived from the talks and breaks. */
 final class PublicProgrammeTest extends SlamTestCase
 {
+    use \CodeIgniter\Test\FeatureTestTrait;
+
     private int $id = 0;
 
     /** Times are IST, stored as UTC ISO like the public document. */
@@ -21,6 +23,18 @@ final class PublicProgrammeTest extends SlamTestCase
             'thumb' => null, 'photo' => null, 'status' => 'upcoming', 'duration_minutes' => $minutes,
             'planned_start_at' => gmdate('Y-m-d\TH:i:s\Z', strtotime("2026-11-07 {$istTime} Asia/Kolkata")),
         ];
+    }
+
+    public function testStageTimerPageAndItsData(): void
+    {
+        $s = $this->makeSlam(1, 1, 0, ['presentation_minutes' => 12]);
+        service('slams')->setPublished($s['id'], true, $this->admin);
+        $slug = (string) \Modules\Core\Libraries\Db::value('SELECT slug FROM slams WHERE id = ?', [$s['id']]);
+        $doc  = (new \Modules\PublicSite\Services\PublicScheduleService())->document(service('slams')->find($s['id']));
+        $this->assertSame(12, $doc['stage']['presentation_minutes']);
+        $this->assertNull($doc['stage']['paused_since']);
+        $page = (string) $this->get("slams/{$slug}/stage")->response()->getBody();
+        $this->assertStringContainsString('data-stage-time', $page);
     }
 
     public function testGroupsOpeningSessionsBreaksAndClosing(): void

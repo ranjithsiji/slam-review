@@ -7,6 +7,8 @@ $routes->group('', ['namespace' => 'Modules\PublicSite\Controllers', 'filter' =>
     $routes->get('slams/(:segment)/presenters', 'PublicController::presenters/$1');
     $routes->get('slams/(:segment)/tv', 'PublicController::tv/$1');
     $routes->get('tv', 'PublicController::tvCurrent');
+    $routes->get('slams/(:segment)/stage', 'PublicController::stage/$1');
+    $routes->get('stage', 'PublicController::stageCurrent');
     $routes->get('slams/(:segment)', 'PublicController::show/$1');
     $routes->get('api/public/live', 'PublicController::liveJson');
     $routes->get('api/public/slams/(:segment)/schedule', 'PublicController::scheduleJson/$1');

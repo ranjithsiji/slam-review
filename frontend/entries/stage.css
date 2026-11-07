@@ -1,0 +1,21 @@
+.stage-body { margin: 0; background: #000; overflow: hidden; }
+.stage { --c: #fff; position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--c); font-family: 'Poppins', 'Inter', system-ui, sans-serif; text-align: center; transition: background .4s; padding: 2vh 3vw; }
+.stage-top { position: absolute; top: 2vh; left: 3vw; right: 3vw; display: flex; align-items: center; gap: 2vw; color: #aaa; font-size: 3.2vh; }
+.stage-logo { height: 7vh; }
+.stage-who { flex: 1; text-align: left; color: #ddd; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stage-clock { font-variant-numeric: tabular-nums; }
+.stage-label { font-size: 6vh; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; opacity: .8; min-height: 7vh; }
+.stage-time { font-size: min(42vw, 62vh); font-weight: 800; line-height: .95; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.stage-sub { font-size: 3.6vh; color: #bbb; max-width: 90vw; margin-top: 2vh; min-height: 4vh; }
+.stage.stage-text .stage-time { font-size: min(9vw, 14vh); line-height: 1.15; letter-spacing: 0; }
+.stage[data-state="ok"] { --c: #3ddc84; }
+.stage[data-state="soon"] { --c: #ffb020; }
+.stage[data-state="last"] { --c: #ff6b3d; }
+.stage[data-state="over"] { --c: #fff; background: #c4161c; animation: stage-blink 1s steps(2, start) infinite; }
+.stage[data-state="paused"] { --c: #8ab4ff; }
+.stage[data-state="break"] { --c: #f2c94c; }
+.stage[data-state="over"] .stage-sub, .stage[data-state="over"] .stage-who, .stage[data-state="over"] .stage-top { color: #ffe3e3; }
+@keyframes stage-blink { 50% { background: #8f0d12; } }
+.stage.stage-offline::after { content: 'Reconnecting…'; position: absolute; bottom: 2vh; right: 3vw; color: #ff8a80; font-size: 2.6vh; }
+.stage-full { position: absolute; bottom: 2vh; left: 50%; transform: translateX(-50%); background: #222; color: #fff; border: 1px solid #555; border-radius: 6px; padding: .6em 1.2em; }
+@media (prefers-reduced-motion: reduce) { .stage[data-state="over"] { animation: none; } }

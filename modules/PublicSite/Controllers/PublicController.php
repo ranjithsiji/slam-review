@@ -52,6 +52,18 @@ class PublicController extends BaseController
         return view('Modules\\PublicSite\\Views\\tv', ['slam' => $this->published($slug)]);
     }
 
+    /** Big countdown for the presenter on stage. */
+    public function stage(string $slug): string
+    {
+        return view('Modules\\PublicSite\\Views\\stage', ['slam' => $this->published($slug)]);
+    }
+
+    /** A fixed address for the stage timer: the same slam the TV would show. */
+    public function stageCurrent(): RedirectResponse
+    {
+        return redirect()->to(str_replace('/tv', '/stage', $this->tvCurrent()->getHeaderLine('Location')));
+    }
+
     /** A fixed address for the venue TV: the running slam, else the next one, else the latest. */
     public function tvCurrent(): RedirectResponse
     {
