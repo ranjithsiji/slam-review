@@ -69,7 +69,7 @@ const breakView = (doc) => {
 };
 
 const mainView = (doc) => {
-  if (doc.finished) return logoView('', 'Thank you!', `${root.dataset.name} has finished.`);
+  if (doc.finished) return logoView('The slam is closed', 'Thank you!', 'The results will be announced soon.');
   if (doc.now && doc.now.kind === 'break') return breakView(doc);
   if (doc.talk) return talkView(doc);
   if (doc.phase === 'checkin_open') return logoView('Check-in is open', 'Welcome!', 'Please check in at the entrance.');

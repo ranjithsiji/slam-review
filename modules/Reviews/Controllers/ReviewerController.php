@@ -28,7 +28,7 @@ class ReviewerController extends BaseController
 
     public function thanks(): string
     {
-        return view('Modules\Reviews\Views\thanks', ['message' => session('thanks') ?? 'Thank you for reviewing!']);
+        return view('Modules\Reviews\Views\thanks', ['message' => session('thanks') ?? 'Thank you!']);
     }
 
     /** Polled every few seconds: ETag/304, session released early, tick on the cheap path. */

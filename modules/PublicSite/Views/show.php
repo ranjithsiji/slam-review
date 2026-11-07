@@ -32,7 +32,7 @@
     <?php
     $banner = '';
     if ($doc['finished']) {
-        $banner = 'Slam finished — thank you!';
+        $banner = 'Thank you! The slam is closed. The results will be announced soon.';
     } elseif ($doc['now']) {
         $banner = $doc['now']['kind'] === 'break' ? 'Now: ' . esc($doc['now']['label']) : 'Now: <strong>' . esc($doc['now']['presenter_name']) . '</strong> — ' . esc($doc['now']['topic']);
     } elseif ($doc['next']) {

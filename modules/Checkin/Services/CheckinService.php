@@ -197,7 +197,7 @@ class CheckinService
                         throw new DomainException('already_checked_in', 'This badge is in use on another phone right now. If that is your phone, close it and try again in a minute. Otherwise please visit the volunteer desk.', 409);
                     }
                     if (in_array($slam['status'], ['closed', 'marks_calculated', 'ended'], true)) {
-                        throw new DomainException('slam_closed', 'The slam has closed. Thank you for coming!', 403);
+                        throw new DomainException('slam_closed', 'Thank you! The slam is closed. The results will be announced soon.', 403);
                     }
                     // Claim a check-in made at the desk (or a late-entry override), or take it over from a silent phone.
                     $db->table('checkins')->where('id', $open['id'])->update(['session_token_hash' => $hash, 'browser_signature' => $signature, 'updated_at' => Clock::db()]);
@@ -404,7 +404,7 @@ class CheckinService
                 : 'Check-in is not open yet. Please wait for the organisers to open check-in.', 403, ['opens_at' => Clock::iso($at)]);
         }
         if (in_array($s, ['closed', 'marks_calculated', 'ended'], true)) {
-            throw new DomainException('slam_closed', 'The slam has closed. Thank you for coming!', 403);
+            throw new DomainException('slam_closed', 'Thank you! The slam is closed. The results will be announced soon.', 403);
         }
         throw new DomainException('gate_closed', 'Check-in has closed for this slam. Please visit the volunteer desk.', 403);
     }

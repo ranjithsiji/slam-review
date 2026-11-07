@@ -42,7 +42,7 @@ function view() {
   const talk = doc.talk;
   if (doc.finished) {
     bar.hidden = true;
-    set(who, ''); set(label, ''); set(big, 'Thank you!'); set(sub, `${root.dataset.name} has finished.`); state = 'done';
+    set(who, ''); set(label, ''); set(big, 'Thank you!'); set(sub, 'The slam is closed. The results will be announced soon.'); state = 'done';
   } else if (talk && talk.on_stage && talk.started_at) {
     const end = Date.parse(talk.started_at) + (st.presentation_minutes || 10) * 60000;
     const left = (end - at) / 1000;

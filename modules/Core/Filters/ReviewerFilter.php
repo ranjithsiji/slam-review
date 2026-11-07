@@ -36,7 +36,7 @@ class ReviewerFilter implements FilterInterface
             // Still checked in, with a different token: another browser has taken this badge over.
             $moved = ! $closed && \Modules\Core\Libraries\Db::value('SELECT id FROM checkins WHERE id = ? AND checked_out_at IS NULL', [(int) ($sess['checkin_id'] ?? 0)]) !== null;
             session()->setFlashdata($closed ? 'thanks' : 'error', $closed
-                ? 'The slam has closed. Thank you for reviewing!'
+                ? 'Thank you!'
                 : ($moved
                     ? 'Your badge was opened on another browser. Scan your badge here to use this one again.'
                     : 'Your session has ended. If this is unexpected, please visit the volunteer desk.'));
