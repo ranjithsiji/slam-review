@@ -376,6 +376,24 @@ final class CheckinReviewTest extends SlamTestCase
         $this->assertSame('Too many login attempts. Please try again after 2 minutes.', $msg(61));
     }
 
+    public function testAFailedPublicFormExplainsInsteadOfTheErrorPage(): void
+    {
+        $s = $this->makeSlam(1, 1, 0);
+        $this->at('2026-11-01 03:30:00', $s['id']);
+        $stamp = \Modules\Core\Filters\HoneypotFilter::STAMP;
+        // No cookie and no token (a browser that keeps no cookies): back to the page with what to do.
+        $r = $this->post('checkin', ['badge_id' => $s['users'][0]['badge_id'], 'csrf_test_name' => 'wrong', $stamp => \Modules\Core\Filters\HoneypotFilter::stamp(time() - 30)])->response();
+        $this->assertSame(302, $r->getStatusCode());
+        $this->assertStringEndsWith('/checkin?nocookie=1', $r->getHeaderLine('Location'));
+        $page = (string) $this->get('checkin?nocookie=1')->response()->getBody();
+        $this->assertStringContainsString('This browser is not keeping our login', $page);
+        $this->assertStringContainsString('That page had expired', (string) $this->get('registered?retry=1')->response()->getBody());
+        $this->assertSame(0, (int) Db::value('SELECT COUNT(*) FROM checkins'), 'nothing checked in');
+        // Staff and API forms still fail as before.
+        $this->expectException(\CodeIgniter\Security\Exceptions\SecurityException::class);
+        $this->post('admin/login', ['username' => 'x', 'password' => 'y']);
+    }
+
     public function testRegistrationLookupByMobileIsMinimal(): void
     {
         $s = $this->makeSlam(1, 2, 0);
