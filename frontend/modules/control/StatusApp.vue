@@ -243,7 +243,7 @@ watch(() => st.last_change?.id, (id) => {
   seenChange = id;
 });
 const {
-  busy, api, act, itemApi, confirmApi, advance, customExtend, openItem, skip, gateExtend, gateReopen, startPerformance, endPerformance, closeGateAndStart,
+  busy, api, act, itemApi, confirmApi, advance, customExtend, breakLength, openItem, skip, gateExtend, gateReopen, startPerformance, endPerformance, closeGateAndStart,
   endReviewing, revisionOpen, revisionSkip, calcMarks, endEvent, reflowRemaining, pause, resume, shiftRemaining, changeTime,
 } = useControlActions({ slamId, st, modal, poll });
 const setMode = (mode) => { if (st.slam.auto_mode !== mode) act('mode', { mode }, mode === 'manual' ? 'Manual: every step waits for you.' : 'Automatic from the planned times.'); };
@@ -381,14 +381,20 @@ function itemActions(n) {
   const i = n.item;
   const out = [];
   const add = (label, cls, run, icon, href, primary = false) => out.push({ label, cls, run, icon, href, primary });
+  // Running or upcoming break: shorten, extend, or type a new length. Later items move with it.
+  const breakTimes = (b) => {
+    for (const m of [10, 5]) if (b.duration_minutes - m >= 1) add(`−${m} min`, 'btn-outline-warning', () => itemApi(b.id, 'extend-break', { minutes: -m }, `Break shortened by ${m} min.`), 'action.shorten');
+    for (const m of [5, 10]) add(`+${m} min`, '', () => itemApi(b.id, 'extend-break', { minutes: m }, `Break extended by ${m} min.`), 'action.extend');
+    add(`Length (${b.duration_minutes} min)…`, '', () => breakLength(b), 'status.time');
+  };
   if (i.item_type === 'break') {
     if (i.status === 'open') {
-      for (const m of [10, 5]) add(`−${m} min`, 'btn-outline-warning', () => itemApi(i.id, 'extend-break', { minutes: -m }, `Break shortened by ${m} min.`), 'action.shorten');
-      for (const m of [5, 10]) add(`+${m} min`, '', () => itemApi(i.id, 'extend-break', { minutes: m }, `Break extended by ${m} min.`), 'action.extend');
+      breakTimes(i);
       add('End break now', 'btn-outline-warning', () => itemApi(i.id, 'end-break', {}, 'Break ended.'));
-    } else if (i.status === 'pending' && gateIsClosed.value) {
-      if (canStartBreak(i)) add('Start break', 'btn-primary', () => act(`items/${i.id}/break-start`, {}, 'Break started.'), `break.${i.break_type || 'other'}`, undefined, true);
-      add('Skip…', 'btn-ghost-secondary', () => skip(i), 'action.skip');
+    } else if (i.status === 'pending') {
+      if (gateIsClosed.value && canStartBreak(i)) add('Start break', 'btn-primary', () => act(`items/${i.id}/break-start`, {}, 'Break started.'), `break.${i.break_type || 'other'}`, undefined, true);
+      breakTimes(i);
+      if (gateIsClosed.value) add('Skip…', 'btn-ghost-secondary', () => skip(i), 'action.skip');
     }
 
     return out;

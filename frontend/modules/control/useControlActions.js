@@ -36,6 +36,15 @@ export function useControlActions({ slamId, st, modal, poll }) {
     title, fields: [{ name: 'minutes', label: 'Minutes (negative shortens)', type: 'number', required: true, value: 3 }],
     run: (v) => api(path, { minutes: Number(v.minutes) }, 'Updated.'),
   });
+  // A break's length, running or not yet started: type the new length; later items move by the difference.
+  const breakLength = (item) => modal.value.show({
+    title: `Length of ${item.label || 'the break'}`,
+    fields: [{ name: 'minutes', label: 'Break length in minutes', type: 'number', required: true, value: item.duration_minutes }],
+    run: async (v) => {
+      const diff = Number(v.minutes) - item.duration_minutes;
+      if (diff !== 0) await itemApi(item.id, 'extend-break', { minutes: diff }, `Break is now ${Number(v.minutes)} min.`);
+    },
+  });
   function openWindowModal(closeGate) {
     const next = st.items.find((i) => i.status === 'pending' && i.item_type === 'performance');
     if (!next) { toast('No pending performance.', 'error'); return; }
@@ -140,6 +149,7 @@ export function useControlActions({ slamId, st, modal, poll }) {
   };
 
   return {
+    breakLength,
     pause, resume, shiftRemaining, changeTime,
     startPerformance, endPerformance, closeGateAndStart,
     busy, api, act, itemApi, confirmApi, advance, customExtend, openWindowModal, openItem, skip, gateExtend, gateReopen,
