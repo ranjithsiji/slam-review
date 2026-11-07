@@ -24,6 +24,7 @@ $routes->group('', ['namespace' => 'Modules\Attendees\Controllers', 'filter' => 
     $routes->post('api/import-batches/(:num)/deactivate', 'AttendeesController::deactivateBatch/$1');
 
     $routes->get('admin/qr', 'QrController::index');
+    $routes->get('admin/qr/(:num)', 'QrController::show/$1', ['filter' => 'nostore']);
     $routes->get('admin/qr/(:num).svg', 'QrController::svg/$1', ['filter' => 'nostore']);
     $routes->get('admin/qr/(:num).png', 'QrController::png/$1', ['filter' => 'nostore']);
     $routes->post('admin/qr/batch', 'QrController::batch', ['filter' => 'nostore']);

@@ -42,7 +42,7 @@ function actionsHtml(actions, row) {
   const visible = actions.filter((a) => !a.when || (a.when.startsWith('!') ? !Number(row[a.when.slice(1)]) : Number(row[a.when])));
   if (!visible.length) return '';
   const items = visible.map((a, i) => (a.href
-    ? `<a class="dropdown-item${a.danger ? ' text-danger' : ''}" href="${esc(fill(a.href, row))}">${a.icon ? iconHtml(a.icon, 'me-2') : ''}${esc(a.label)}</a>`
+    ? `<a class="dropdown-item${a.danger ? ' text-danger' : ''}" href="${esc(fill(a.href, row))}"${a.newTab ? ' target="_blank" rel="noopener"' : ''}>${a.icon ? iconHtml(a.icon, 'me-2') : ''}${esc(a.label)}</a>`
     : `<button type="button" class="dropdown-item${a.danger ? ' text-danger' : ''}" data-dt-action="${i}">${a.icon ? iconHtml(a.icon, 'me-2') : ''}${esc(a.label)}</button>`)).join('');
   return `<div class="dropdown"><button class="btn btn-icon btn-ghost-secondary" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-label="Actions" aria-expanded="false">${iconHtml('action.more')}</button><div class="dropdown-menu dropdown-menu-end">${items}</div></div>`;
 }

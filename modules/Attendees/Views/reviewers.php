@@ -56,6 +56,8 @@
             ],
             'actions' => array_values(array_filter([
                 ['label' => 'Edit / reissue ID', 'icon' => 'action.edit', 'href' => '/admin/attendees/{id}/edit?back=reviewers'],
+                ['label' => 'QR code', 'icon' => 'nav.qr', 'href' => '/admin/qr/{id}', 'newTab' => true],
+                ['label' => 'Download QR (PNG)', 'icon' => 'action.download', 'href' => '/admin/qr/{id}.png'],
                 ['label' => 'Timeline', 'icon' => 'nav.log', 'href' => '/admin/activity-log?target_type=attendee&target_id={id}'],
                 $repsLocked === null ? ['label' => 'Make audience representative', 'icon' => 'nav.representatives', 'post' => "/api/slams/{$sid}/representatives/{id}/add", 'when' => 'can_make_rep', 'reloadPage' => true, 'success' => 'Added to the audience representatives.'] : null,
                 $repsLocked === null ? ['label' => 'Remove from audience representatives', 'icon' => 'action.delete', 'post' => "/api/slams/{$sid}/representatives/{id}/remove", 'when' => 'is_representative', 'reason' => true, 'danger' => true, 'reloadPage' => true, 'success' => 'Removed from the audience representatives.'] : null,

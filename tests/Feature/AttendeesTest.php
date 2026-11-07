@@ -150,6 +150,23 @@ final class AttendeesTest extends SlamTestCase
         $this->assertIsArray($dt->handle('complete-reviewers', ['draw' => 1, 'start' => 0, 'length' => 10, 'filters' => ['slam_id' => $s['id'], 'panel' => 'all']], $this->admin)['data']);
     }
 
+    public function testOnePersonsQrCodePage(): void
+    {
+        $s    = $this->makeSlam(1, 1, 0);
+        $u    = $s['users'][0];
+        $row  = Db::row('SELECT id, username, password_changed_at FROM admins WHERE id = ?', [(int) $this->admin->id]);
+        $auth = ['type' => 'admin', 'id' => (int) $row['id'], 'username' => $row['username'], 'name' => 'Admin', 'label' => 'Admin', 'role' => 'admin', 'pwd' => (string) $row['password_changed_at']];
+        $page = $this->withSession(['auth' => $auth])->get("admin/qr/{$u['id']}")->response();
+        $this->assertSame(200, $page->getStatusCode());
+        $body = (string) $page->getBody();
+        $this->assertStringContainsString(esc($u['name']), $body);
+        $this->assertStringContainsString($u['badge_id'], $body);
+        $this->assertStringContainsString('<svg', $body);
+        $this->assertStringContainsString("/admin/qr/{$u['id']}.png", $body);
+        $this->assertSame(200, $this->withSession(['auth' => $auth])->get("admin/qr/{$u['id']}.svg")->response()->getStatusCode());
+        $this->assertSame(200, $this->withSession(['auth' => $auth])->get("admin/qr/{$u['id']}.png")->response()->getStatusCode());
+    }
+
     public function testRowLimitRejected(): void
     {
         $s   = $this->makeSlam(1, 1, 0);

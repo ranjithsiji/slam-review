@@ -31,6 +31,17 @@ class QrController extends BaseController
         return Db::row('SELECT * FROM attendees WHERE id = ?', [$id]) ?? throw new DomainException('not_found', 'Attendee not found.', 404);
     }
 
+    /** One person's QR code with their name and ID, to show on screen, download or print. */
+    public function show(int $id): string
+    {
+        $a = $this->attendee($id);
+
+        return $this->render('Modules\\Attendees\\Views\\qr_one', [
+            'title' => 'QR code — ' . $a['name'], 'a' => $a, 'slam' => service('slams')->find((int) $a['slam_id']),
+            'svg' => service('qr')->svg(service('qr')->badgeUrl($a['badge_id'])), 'url' => service('qr')->badgeUrl($a['badge_id']),
+        ]);
+    }
+
     public function svg(int $id): ResponseInterface
     {
         $a = $this->attendee($id);
