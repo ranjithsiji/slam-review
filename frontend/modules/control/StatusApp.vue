@@ -416,7 +416,9 @@ function itemActions(n) {
 
   return out;
 }
+const allDone = computed(() => st.slam?.status === 'reviewing' && st.advance_label === 'All reviews closed');
 function stepActions(n) {
+  if (n.key === 'reviews_complete' && allDone.value) return [{ label: 'All reviews closed', cls: 'btn-primary', run: advance, icon: 'phase.reviews_complete' }];
   if (n.state !== 'current') return [];
   const out = [];
   const add = (label, cls, run, icon, href) => out.push({ label, cls, run, icon, href });
@@ -521,6 +523,8 @@ const now = computed(() => {
       primary: firstOf(acts), next: nextText,
     };
   }
+  // Every performance has run (manual mode does not move on by itself): offer All Review Close here.
+  if (allDone.value) return { ...base, tone: 'ready', icon: 'phase.reviews_complete', kicker: 'All performances done', title: 'Close all reviews?', subtitle: 'Every performance has been reviewed or skipped. Next: All Review Close, then the edit window.', primary: { label: 'All reviews closed', cls: 'btn-primary', icon: 'phase.reviews_complete', run: advance, primary: true } };
   return { ...base, title: s.status_label, subtitle: idleText.value };
 });
 
