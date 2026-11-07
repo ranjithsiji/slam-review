@@ -23,7 +23,11 @@ $ranked = array_values(array_map(static fn ($r) => $r['id'], array_filter($byRan
                             <li class="mb-2"><div class="fw-bold fs-3 ml-text"><?= esc($r['name']) ?></div><div class="small text-secondary ml-text"><?= esc($r['designation'] ?? '') ?></div></li>
                         <?php endforeach ?>
                     </ol>
-                    <a class="btn btn-primary" href="<?= site_url("admin/slams/{$sid}/finalists.pdf") ?>" target="_blank" rel="noopener"><?= icon('action.print') ?>Print finalists (A4)</a>
+                    <div class="btn-list">
+                        <a class="btn btn-primary" href="<?= site_url("admin/slams/{$sid}/finalists/poster") ?>"><?= icon('about.talk') ?>Poster</a>
+                        <a class="btn" href="<?= site_url("admin/slams/{$sid}/finalists.pdf") ?>" target="_blank" rel="noopener"><?= icon('action.print') ?>Print list (A4)</a>
+                    </div>
+                    <p class="small text-secondary mt-3 mb-0">"Publish to the home page" on the Leaderboard shows these names as the result.</p>
                 <?php endif ?>
             </div>
         </div>

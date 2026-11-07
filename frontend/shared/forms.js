@@ -145,3 +145,86 @@ document.querySelectorAll('[data-finalists]').forEach((form) => {
   boxes.forEach((b) => b.addEventListener('change', count));
   count();
 });
+
+// Finalists poster: drawn on a canvas in the browser (so Malayalam names are shaped correctly) and saved as PNG.
+document.querySelectorAll('[data-poster]').forEach((box) => {
+  const cfg = JSON.parse(box.dataset.poster);
+  const canvas = box.querySelector('[data-poster-canvas]');
+  const sizeSel = box.querySelector('[data-poster-size]');
+  const titleIn = box.querySelector('[data-poster-title]');
+  const load = (src) => new Promise((ok) => { if (!src) return ok(null); const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+  const imgs = Promise.all([load(cfg.logo), ...cfg.people.map((p) => load(p.photo))]);
+  const FONT = '"Poppins", "Noto Sans Malayalam", "Noto Sans", system-ui, sans-serif';
+  const wrap = (ctx, text, max) => {
+    const words = String(text || '').split(/\s+/); const lines = []; let line = '';
+    for (const w of words) { const t = line ? `${line} ${w}` : w; if (ctx.measureText(t).width > max && line) { lines.push(line); line = w; } else line = t; }
+    if (line) lines.push(line);
+    return lines.slice(0, 2);
+  };
+  const grid = (n, W, H) => {
+    let best = null;
+    for (let cols = 1; cols <= n; cols++) {
+      const rows = Math.ceil(n / cols); const cell = Math.min(W / cols, H / rows / 1.38);
+      if (!best || cell > best.cell) best = { cols, rows, cell };
+    }
+    return best;
+  };
+  async function draw() {
+    const [logo, ...photos] = await imgs;
+    await document.fonts?.ready;
+    const [W, H] = sizeSel.value.split('x').map(Number);
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d'); const u = Math.min(W, H) / 1080;
+    const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#13374f'); bg.addColorStop(1, '#0b2233');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // Logo in the top-left corner, slam and date on the right.
+    const pad = 48 * u; let top = pad;
+    if (logo) { const lw = 300 * u; const lh = lw * (logo.naturalHeight / logo.naturalWidth || 0.66); ctx.drawImage(logo, pad, pad, lw, lh); top = pad + lh; }
+    ctx.textAlign = 'right'; ctx.fillStyle = '#f2b51d'; ctx.font = `700 ${34 * u}px ${FONT}`;
+    ctx.fillText(cfg.slam, W - pad, pad + 40 * u);
+    ctx.fillStyle = '#cfd8e3'; ctx.font = `400 ${26 * u}px ${FONT}`;
+    ctx.fillText([cfg.date, cfg.venue].filter(Boolean).join(' · '), W - pad, pad + 80 * u);
+    // Heading
+    ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff'; ctx.font = `800 ${62 * u}px ${FONT}`;
+    const headY = Math.max(top, pad + 110 * u) + 70 * u;
+    ctx.fillText(titleIn.value || '', W / 2, headY);
+    // People: circular photo, name below, institution smaller.
+    const areaTop = headY + 50 * u; const areaH = H - areaTop - 90 * u; const areaW = W - 2 * pad;
+    const n = cfg.people.length; const g = grid(n, areaW, areaH);
+    const r = g.cell * 0.36; const rowH = areaH / g.rows;
+    cfg.people.forEach((p, i) => {
+      const row = Math.floor(i / g.cols); const inRow = Math.min(g.cols, n - row * g.cols);
+      const colW = areaW / g.cols; const x0 = pad + (areaW - inRow * colW) / 2;
+      const cx = x0 + (i - row * g.cols + 0.5) * colW; const cy = areaTop + row * rowH + r + 10 * u;
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.closePath(); ctx.fillStyle = '#2b5272'; ctx.fill(); ctx.clip();
+      const ph = photos[i];
+      if (ph) {
+        // Cover the circle, keeping the upper part of the photo (where the face usually is).
+        const s = Math.max((2 * r) / ph.naturalWidth, (2 * r) / ph.naturalHeight);
+        const w = ph.naturalWidth * s; const h = ph.naturalHeight * s;
+        ctx.drawImage(ph, cx - w / 2, cy - r - Math.max(0, (h - 2 * r) * 0.15), w, h);
+      } else {
+        ctx.fillStyle = '#ffffff'; ctx.font = `700 ${r * 0.8}px ${FONT}`; ctx.textBaseline = 'middle';
+        ctx.fillText(p.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join(''), cx, cy); ctx.textBaseline = 'alphabetic';
+      }
+      ctx.restore();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.lineWidth = 8 * u; ctx.strokeStyle = '#f2b51d'; ctx.stroke();
+      const fs = Math.max(20 * u, Math.min(40 * u, r * 0.3));
+      ctx.fillStyle = '#ffffff'; ctx.font = `700 ${fs}px ${FONT}`;
+      const nameLines = wrap(ctx, p.name, colW * 0.92);
+      nameLines.forEach((l, k) => ctx.fillText(l, cx, cy + r + fs * 1.5 + k * fs * 1.2));
+      ctx.fillStyle = '#b8c6d4'; ctx.font = `400 ${fs * 0.62}px ${FONT}`;
+      wrap(ctx, p.designation, colW * 0.92).forEach((l, k) => ctx.fillText(l, cx, cy + r + fs * 1.5 + nameLines.length * fs * 1.2 + fs * 0.2 + k * fs * 0.78));
+    });
+    ctx.fillStyle = '#f2b51d'; ctx.font = `600 ${28 * u}px ${FONT}`; ctx.fillText('scienceslam.in', W / 2, H - 40 * u);
+  }
+  sizeSel.addEventListener('change', draw);
+  titleIn.addEventListener('input', draw);
+  box.querySelector('[data-poster-png]').addEventListener('click', () => {
+    canvas.toBlob((blob) => {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${cfg.file}-${sizeSel.value}.png`; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }, 'image/png');
+  });
+  draw();
+});

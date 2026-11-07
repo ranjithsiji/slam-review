@@ -36,6 +36,18 @@ class FinalistsController extends BaseController
         }, 'Finalists saved.');
     }
 
+    /** One poster of the finalists: photo and name each, the Science Slam logo in the corner. Drawn in the browser. */
+    public function poster(int $slamId): string
+    {
+        $slam = service('slams')->find($slamId);
+        $people = array_map(static fn ($r) => [
+            'name' => $r['name'], 'designation' => (string) $r['designation'],
+            'photo' => $r['photo_path'] !== null ? base_url($r['photo_path']) : null,
+        ], $this->svc()->chosen($slamId));
+
+        return $this->render('Modules\Scoring\Views\finalists_poster', ['title' => 'Finalists poster — ' . $slam['name'], 'slam' => $slam, 'people' => $people]);
+    }
+
     public function sheet(int $slamId): ResponseInterface
     {
         $slam = service('slams')->find($slamId);

@@ -26,6 +26,16 @@ class ResultsService
     public function top(int $slamId, ?bool $alphabetical = null): array
     {
         $slam = service('slams')->find($slamId);
+        // A regional slam's result is the finalists the expert panel chose (Finalists screen), when they have been chosen.
+        if ($slam['type'] !== 'final') {
+            $chosen = (new FinalistsService())->chosen($slamId);
+            if ($chosen !== []) {
+                return array_map(static fn ($r) => [
+                    'presenter_name' => $r['name'], 'designation' => $r['designation'], 'topic' => $r['topic'],
+                    'thumb' => $r['photo_thumb_path'] !== null ? '/' . $r['photo_thumb_path'] : null, 'final_mark' => (float) ($r['final_mark'] ?? 0), 'rank' => null,
+                ], $chosen);
+            }
+        }
         $run  = service('markRuns')->currentRun($slamId);
         if ($run === null) {
             return [];
@@ -77,8 +87,9 @@ class ResultsService
     {
         $slam = service('slams')->find($slamId);
         if ($public) {
-            if (service('markRuns')->currentRun($slamId) === null || ! in_array($slam['status'], ['closed', 'marks_calculated', 'ended'], true)) {
-                throw new DomainException('forbidden_transition', 'Results can be published after Slam Close, once the marks are calculated.', 409);
+            $hasResult = service('markRuns')->currentRun($slamId) !== null || ($slam['type'] !== 'final' && (new FinalistsService())->ids($slamId) !== []);
+            if (! $hasResult || ! in_array($slam['status'], ['closed', 'marks_calculated', 'ended'], true)) {
+                throw new DomainException('forbidden_transition', 'Results can be published after Slam Close, once the marks are calculated or the finalists are chosen.', 409);
             }
         }
         db_connect()->table('slams')->where('id', $slamId)->update([

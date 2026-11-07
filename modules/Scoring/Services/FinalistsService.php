@@ -43,7 +43,7 @@ class FinalistsService
         $marks  = $run === null ? [] : array_column(Db::rows('SELECT performance_id, final_mark, `rank` FROM mark_results WHERE mark_run_id = ?', [$run['id']]), null, 'performance_id');
         $chosen = array_flip($this->ids($slamId));
         $rows   = Db::rows(
-            'SELECT p.id, pr.name, pr.designation_or_institution AS designation, p.topic FROM performances p JOIN presenters pr ON pr.id = p.presenter_id
+            'SELECT p.id, pr.name, pr.designation_or_institution AS designation, p.topic, pr.photo_path, pr.photo_thumb_path FROM performances p JOIN presenters pr ON pr.id = p.presenter_id
               WHERE p.slam_id = ? AND p.is_active = 1 ORDER BY pr.name',
             [$slamId],
         );

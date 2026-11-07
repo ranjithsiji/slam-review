@@ -10,6 +10,7 @@ $routes->group('', ['namespace' => 'Modules\Scoring\Controllers', 'filter' => 'a
     $routes->get('admin/slams/(:num)/finalists', 'FinalistsController::index/$1');
     $routes->post('admin/slams/(:num)/finalists', 'FinalistsController::save/$1');
     $routes->get('admin/slams/(:num)/finalists.pdf', 'FinalistsController::sheet/$1', ['filter' => 'nostore']);
+    $routes->get('admin/slams/(:num)/finalists/poster', 'FinalistsController::poster/$1');
     $routes->post('admin/slams/(:num)/results/publish', 'MarksController::publishResults/$1');
     $routes->get('admin/slams/(:num)/paper-marks', 'PaperMarksController::index/$1');
     $routes->post('admin/slams/(:num)/paper-marks/audience', 'PaperMarksController::saveAudience/$1');

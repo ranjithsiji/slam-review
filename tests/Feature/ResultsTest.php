@@ -51,6 +51,18 @@ final class ResultsTest extends SlamTestCase
         $pdf = $this->withSession(['auth' => $auth])->get("admin/slams/{$sid}/finalists.pdf")->response();
         $this->assertSame(200, $pdf->getStatusCode());
         $this->assertStringStartsWith('%PDF', (string) $pdf->getBody());
+        // The published result is the chosen finalists (the expert panel has the final say), names only.
+        $top = service('results')->top($sid);
+        $this->assertSame($svc->chosen($sid) === [] ? [] : array_column($svc->chosen($sid), 'name'), array_column($top, 'presenter_name'));
+        $this->assertSame([null], array_values(array_unique(array_column($top, 'rank'))), 'no positions');
+        db_connect()->table('slams')->where('id', $sid)->update(['status' => 'closed']);
+        service('results')->setPublic($sid, true, $this->admin);   // allowed without a marks run, finalists are chosen
+        $pub = array_values(array_filter(service('results')->published(), static fn ($x) => (int) $x['slam']['id'] === $sid));
+        $this->assertCount(1, $pub);
+        $this->assertCount(count($svc->chosen($sid)), $pub[0]['top']);
+        $poster = (string) $this->withSession(['auth' => $auth])->get("admin/slams/{$sid}/finalists/poster")->response()->getBody();
+        $this->assertStringContainsString('data-poster=', $poster);
+        $this->assertStringContainsString(esc($svc->chosen($sid)[0]['name'], 'attr'), $poster);
         // An operator of this slam can use it too.
         $op = service('auth')->saveAdmin(null, ['username' => 'op.final', 'name' => 'Op', 'role' => 'operator', 'slam_id' => $sid, 'password' => 'a-long-password', 'is_active' => 1], $this->admin);
         $opAuth = ['type' => 'admin', 'id' => $op, 'label' => 'Op', 'role' => 'operator', 'slam_id' => $sid, 'pwd' => (string) Db::value('SELECT password_changed_at FROM admins WHERE id = ?', [$op])];
