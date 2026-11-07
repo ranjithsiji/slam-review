@@ -167,6 +167,29 @@ final class AttendeesTest extends SlamTestCase
         $this->assertSame(200, $this->withSession(['auth' => $auth])->get("admin/qr/{$u['id']}.png")->response()->getStatusCode());
     }
 
+    public function testJudgesPageShowsWhoIsInsideByCategory(): void
+    {
+        $s = $this->makeSlam(1, 3, 1);
+        $db = db_connect();
+        $db->table('attendees')->where('id', $s['users'][0]['id'])->update(['category' => 'researcher']);
+        $db->table('attendees')->where('id', $s['users'][1]['id'])->update(['category' => 'researcher']);
+        $db->table('attendees')->where('id', $s['users'][2]['id'])->update(['category' => 'school_student']);
+        $this->at('2026-11-01 03:30:00', $s['id']);
+        $this->checkIn($s['users'][0]);
+        $this->checkIn($s['judges'][0]);
+        $by = service('engagement')->byCategory($s['id']);
+        $this->assertSame(['inside' => 1, 'ever' => 1, 'registered' => 2], array_intersect_key($by['cats']['researcher'], ['inside' => 0, 'ever' => 0, 'registered' => 0]));
+        $this->assertSame(0, $by['cats']['school_student']['inside']);
+        $this->assertSame(1, $by['experts']['inside'], 'experts counted apart');
+        $row  = Db::row('SELECT id, username, password_changed_at FROM admins WHERE id = ?', [(int) $this->admin->id]);
+        $auth = ['type' => 'admin', 'id' => (int) $row['id'], 'username' => $row['username'], 'name' => 'Admin', 'label' => 'Admin', 'role' => 'admin', 'pwd' => (string) $row['password_changed_at']];
+        foreach (["admin/slams/{$s['id']}/reviewers", "admin/slams/{$s['id']}/checkins"] as $path) {
+            $page = (string) $this->withSession(['auth' => $auth])->get($path)->response()->getBody();
+            $this->assertStringContainsString('Judges inside now, by category: 1', $page, $path);
+            $this->assertStringContainsString('Researcher', $page, $path);
+        }
+    }
+
     public function testRowLimitRejected(): void
     {
         $s   = $this->makeSlam(1, 1, 0);

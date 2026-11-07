@@ -166,4 +166,41 @@ class EngagementService
     {
         return (int) service('publicCache')->remember('idle', $slamId, 5, fn () => ['n' => count($this->idle($slamId, $min))])['n'];
     }
+
+    /**
+     * Per audience category: judges inside now, checked in at some point, registered. Experts are counted apart.
+     *
+     * @return array{cats: array<string, array{label: string, inside: int, ever: int, registered: int}>, experts: array{label: string, inside: int, ever: int, registered: int}}
+     */
+    public function byCategory(int $slamId): array
+    {
+        $rows = Db::rows(
+            "SELECT a.user_type, a.category, COUNT(*) AS registered,
+                    SUM(EXISTS (SELECT 1 FROM checkins c WHERE c.attendee_id = a.id AND c.checked_out_at IS NULL)) AS inside,
+                    SUM(EXISTS (SELECT 1 FROM checkins c WHERE c.attendee_id = a.id)) AS ever
+               FROM attendees a WHERE a.slam_id = ? AND a.is_active = 1 GROUP BY a.user_type, a.category",
+            [$slamId],
+        );
+        $cats = [];
+        foreach (\Modules\Attendees\Services\AttendeeService::CATEGORIES as $code => $label) {
+            $cats[$code] = ['label' => $label, 'inside' => 0, 'ever' => 0, 'registered' => 0];
+        }
+        $cats['']  = ['label' => 'Category not set', 'inside' => 0, 'ever' => 0, 'registered' => 0];
+        $experts   = ['label' => 'Experts', 'inside' => 0, 'ever' => 0, 'registered' => 0];
+        foreach ($rows as $r) {
+            $key = $r['user_type'] === 'judge' ? null : (isset($cats[(string) $r['category']]) ? (string) $r['category'] : '');
+            foreach (['inside', 'ever', 'registered'] as $k) {
+                if ($key === null) {
+                    $experts[$k] += (int) $r[$k];
+                } else {
+                    $cats[$key][$k] += (int) $r[$k];
+                }
+            }
+        }
+        if ($cats['']['registered'] === 0) {
+            unset($cats['']);
+        }
+
+        return ['cats' => $cats, 'experts' => $experts];
+    }
 }

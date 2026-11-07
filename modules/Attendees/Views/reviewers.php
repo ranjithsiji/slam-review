@@ -25,6 +25,7 @@
     <a href="<?= site_url("admin/qr?slam={$sid}") ?>" class="btn"><?= icon('action.print') ?>Badges &amp; QR</a>
     <a href="#" id="rev-export" class="btn"><?= icon('action.export') ?>Export view (CSV)</a>
 </div>
+<?= view('Modules\\Checkin\\Views\\partials\\category_tiles', ['cats' => service('engagement')->byCategory((int) $slam['id'])['cats'], 'experts' => null]) ?>
 <?php if ($repsLocked !== null): ?><div class="alert alert-info"><?= icon('status.lock', 'me-1') ?>Audience representatives: <?= esc($repsLocked) ?></div><?php endif ?>
 
 <div class="card">
