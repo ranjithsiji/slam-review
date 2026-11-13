@@ -283,6 +283,10 @@ class SlamService
                 $errors[$f] = 'Invalid coordinate.';
             }
         }
+        // Home page switch (only when the form sends it).
+        if (array_key_exists('show_on_homepage', $input)) {
+            $data['show_on_homepage'] = in_array((string) $input['show_on_homepage'], ['1', 'on', 'true'], true) ? 1 : 0;
+        }
         foreach (self::AUTOMATION_FIELDS as $f) {
             if (! array_key_exists($f, $input) || $input[$f] === '' || $input[$f] === null) {
                 continue;

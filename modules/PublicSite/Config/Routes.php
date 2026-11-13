@@ -5,6 +5,7 @@ $routes->group('', ['namespace' => 'Modules\PublicSite\Controllers', 'filter' =>
     $routes->get('slams', 'PublicController::index');
     $routes->get('slams/(:segment)/calendar.ics', 'PublicController::ics/$1');
     $routes->get('slams/(:segment)/presenters', 'PublicController::presenters/$1');
+    $routes->get('slams/(:segment)/results', 'PublicController::results/$1');
     $routes->get('slams/(:segment)/tv', 'PublicController::tv/$1');
     $routes->get('tv', 'PublicController::tvCurrent');
     $routes->get('slams/(:segment)/stage', 'PublicController::stage/$1');

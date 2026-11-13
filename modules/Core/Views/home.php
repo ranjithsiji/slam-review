@@ -52,6 +52,38 @@ $sig = static fn (array $l) => implode('|', array_map(static fn ($d) => $d['slug
     <a href="<?= site_url('admin/login') ?>" class="text-secondary">Organiser sign-in</a>
 </div>
 
+<?php $upcoming = array_values(array_filter($coming, static fn (array $s): bool => $s['badge'] !== 'live')); ?>
+<?php if ($upcoming !== []): ?>
+    <!-- Upcoming slams switched on for the home page (Slam settings → Show on the home page). -->
+    <section class="mb-4" aria-labelledby="upcoming-h">
+        <h2 class="h3 mb-3" id="upcoming-h">Upcoming slam<?= count($upcoming) === 1 ? '' : 's' ?></h2>
+        <div class="row g-3">
+            <?php foreach ($upcoming as $s): ?>
+                <div class="col-12<?= count($upcoming) > 1 ? ' col-md-6' : '' ?>">
+                    <div class="card card-accent accent-orange h-100">
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                <?= icon('nav.schedule', 'text-orange') ?>
+                                <span class="text-secondary small fw-bold text-uppercase"><?= $s['badge'] === 'today' ? 'Today' : 'Upcoming' ?></span>
+                            </div>
+                            <h3 class="h2 mb-1 ml-text"><?= esc($s['name']) ?></h3>
+                            <div class="text-secondary mb-3">
+                                <?= esc(local_time($s['opens_at'], 'l, d F Y')) ?> · opens <?= esc(local_time($s['opens_at'], 'g:i A')) ?>
+                                <?php $place = trim(implode(', ', array_filter([$s['venue_name'] ?? '', ($s['city'] ?? '') !== ($s['venue_name'] ?? '') ? ($s['city'] ?? '') : '']))); ?>
+                                <?php if ($place !== ''): ?><br><span class="ml-text"><?= esc($place) ?></span><?php endif ?>
+                            </div>
+                            <div class="btn-list">
+                                <a class="btn btn-primary" href="<?= site_url('slams/' . $s['slug'] . '/presenters') ?>"><?= icon('nav.presenters') ?>Slam page</a>
+                                <a class="btn" href="<?= site_url('slams/' . $s['slug']) ?>"><?= icon('nav.schedule') ?>Schedule</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach ?>
+        </div>
+    </section>
+<?php endif ?>
+
 <!-- Happening now: shown while a published slam is running; refreshed from /api/public/live. -->
 <div data-home-live="<?= site_url('api/public/live') ?>" data-sig="<?= esc($sig($live), 'attr') ?>">
     <?php foreach ($live as $d): ?>
@@ -76,31 +108,7 @@ $sig = static fn (array $l) => implode('|', array_map(static fn ($d) => $d['slug
 </div>
 
 <?php foreach ($results as $res): $rs = $res['slam']; ?>
-    <section class="card card-accent accent-orange mb-4" aria-labelledby="res-<?= esc($rs['slug'], 'attr') ?>">
-        <div class="card-header d-block">
-            <div class="text-secondary small text-uppercase fw-bold"><?= icon('nav.marks', 'icon-inline me-1') ?>Result</div>
-            <h2 class="h2 m-0" id="res-<?= esc($rs['slug'], 'attr') ?>"><?= $rs['type'] === 'final' ? esc($rs['name']) . ': final result' : esc($rs['name']) . ': top ' . count($res['top']) . ' presenters' ?></h2>
-            <div class="text-secondary small"><?= esc(local_time($rs['opens_at'], 'l, d F Y')) ?> · <?= esc($rs['venue_name']) ?><?= $rs['type'] === 'regional' ? ' · selected for the final' : '' ?></div>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <?php foreach ($res['top'] as $t): ?>
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <div class="d-flex gap-3 align-items-center">
-                            <?php if ($t['thumb']): ?><img class="avatar avatar-lg avatar-photo" src="<?= esc($t['thumb'], 'attr') ?>" alt="" loading="lazy" width="56" height="56"><?php else: ?><span class="avatar avatar-lg"><?= icon('person.user') ?></span><?php endif ?>
-                            <?php if ($rs['type'] === 'final'): ?><span class="badge <?= $t['rank'] === 1 ? 'bg-yellow' : 'bg-orange-lt' ?> fs-3 flex-none" title="Position"><?= $t['rank'] === 1 ? 'Winner' : ($t['rank'] === 2 ? '2nd' : ($t['rank'] === 3 ? '3rd' : $t['rank'] . 'th')) ?></span><?php endif ?>
-                            <div class="min-w-0">
-                                <div class="fw-bold fs-3 ml-text"><?= esc($t['presenter_name']) ?></div>
-                                <?php if ($t['designation']): ?><div class="small text-secondary ml-text"><?= esc($t['designation']) ?></div><?php endif ?>
-                                <div class="small ml-text"><?= esc($t['topic']) ?></div>
-                                <?php if ($rs['type'] === 'final'): ?><div class="fw-bold"><?= number_format($t['final_mark'] * 10, 2) ?> <span class="small text-secondary fw-normal">/ 100</span></div><?php endif ?>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach ?>
-            </div>
-        </div>
-    </section>
+    <?= view('Modules\PublicSite\Views\partials\result', ['rs' => $rs, 'top' => $res['top'], 'link' => true]) ?>
 <?php endforeach ?>
 
 <?php
@@ -177,7 +185,11 @@ $others    = array_filter($past, static fn (array $s): bool => ! isset($regional
                         <img src="<?= base_url('brand/slams/' . $slug . '-logo.webp') ?>" alt="" loading="lazy">
                         <h3 class="ml-text"><?= esc($r['date']) ?></h3>
                         <p class="ml-text"><?= esc($r['place']) ?></p>
-                        <a class="btn" href="<?= site_url('slams/' . $slug) ?>">Schedule <span aria-hidden="true">→</span></a>
+                        <?php if (($published[$slug]['badge'] ?? '') === 'finished'): ?>
+                            <a class="btn" href="<?= site_url('slams/' . $slug . '/presenters') ?>">Presenters <span aria-hidden="true">→</span></a>
+                        <?php else: ?>
+                            <a class="btn" href="<?= site_url('slams/' . $slug) ?>">Schedule <span aria-hidden="true">→</span></a>
+                        <?php endif ?>
                     </div>
                 <?php endforeach ?>
             </div>

@@ -24,7 +24,7 @@ if (root) {
     const banner = root.querySelector('[data-banner]');
     if (banner) {
       let html = '';
-      if (doc.finished) html = 'Thank you! The slam is closed. The results will be announced soon.';
+      if (doc.finished) html = doc.results_url ? `Thank you! The slam is closed. The results are out: <a href="${esc(doc.results_url)}">see the results</a>.` : 'Thank you! The slam is closed. The results will be announced soon.';
       else if (doc.now) html = doc.now.kind === 'break' ? `Now: ${esc(doc.now.label)}` : `Now: <strong>${esc(doc.now.presenter_name)}</strong> — ${esc(doc.now.topic)}`;
       else if (doc.next) html = `Up next: <strong>${esc(doc.next.kind === 'break' ? doc.next.label : doc.next.presenter_name)}</strong> at ${esc(time(doc.next.planned_start_at))}`;
       if (doc.paused && !doc.finished) html = `<span class="badge bg-orange-lt me-2">Paused</span>The programme is paused for a short while and will continue shortly. ${html}`;

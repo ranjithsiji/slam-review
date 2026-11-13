@@ -19,9 +19,10 @@ class PublicScheduleService
         'planned_start_at', 'duration_minutes', 'status'];
 
     /** Published slams for /slams with a badge: upcoming | today | live | finished. */
-    public function listPublished(): array
+    /** @param bool $homeOnly only slams switched on for the home page (Slam settings → Show on the home page) */
+    public function listPublished(bool $homeOnly = false): array
     {
-        $rows  = Db::rows("SELECT * FROM slams WHERE schedule_is_public = 1 AND status <> 'draft' ORDER BY opens_at");
+        $rows  = Db::rows("SELECT * FROM slams WHERE schedule_is_public = 1 AND status <> 'draft'" . ($homeOnly ? ' AND show_on_homepage = 1' : '') . ' ORDER BY opens_at');
         $today = Clock::localToday();
         foreach ($rows as &$s) {
             $s['badge'] = $this->badge($s, $today);
@@ -96,6 +97,7 @@ class PublicScheduleService
                 'next'         => $next !== null ? array_intersect_key($next, array_flip(['id', 'kind', 'label', 'presenter_name', 'topic', 'planned_start_at'])) : null,
                 'late_minutes' => in_array($slam['status'], ['checkin_closed', 'reviewing'], true) ? (int) $live['late_minutes'] : 0,
                 'finished'     => $finished,
+                'results_url'  => $finished && service('results')->forSlam($slam) !== null ? site_url('slams/' . $slam['slug'] . '/results') : null,
                 'paused'       => $slam['paused_at'] !== null,
                 // The talk on stage and the break ads are public; review deadlines and review state are not.
                 'talk'         => ! empty($live['talk']) ? array_intersect_key($live['talk'], array_flip(['title', 'presenter', 'designation', 'thumb', 'photo', 'photo_alt', 'summary', 'started_at', 'on_stage'])) : null,
@@ -121,10 +123,10 @@ class PublicScheduleService
      *
      * @return list<array<string, mixed>>
      */
-    public function live(): array
+    public function live(bool $homeOnly = false): array
     {
         $out = [];
-        foreach ($this->listPublished() as $s) {
+        foreach ($this->listPublished($homeOnly) as $s) {
             if ($s['badge'] !== 'live') {
                 continue;
             }

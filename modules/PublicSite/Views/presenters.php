@@ -4,8 +4,24 @@
 <header class="slam-head">
     <p class="slam-eyebrow">Kerala Science Slam – <?= esc(local_time($slam['opens_at'], 'j M')) ?> – <?= esc($slam['venue_name']) ?></p>
     <h1 class="slam-title ml-text"><?= esc($slam['name']) ?></h1>
-    <div class="mt-3"><a class="btn btn-sm" href="<?= site_url('slams/' . $slam['slug']) ?>"><?= icon('nav.schedule') ?>Schedule</a></div>
+    <div class="d-flex flex-wrap gap-2 mt-3">
+        <?php if (empty($doc['finished'])): ?>
+            <a class="btn btn-sm" href="<?= site_url('slams/' . $slam['slug']) ?>"><?= icon('nav.schedule') ?>Schedule</a>
+        <?php endif ?>
+        <?php if (! empty($doc['results_url'])): ?>
+            <a class="btn btn-sm btn-primary" href="<?= esc($doc['results_url'], 'attr') ?>"><?= icon('nav.marks') ?>Results</a>
+        <?php endif ?>
+    </div>
 </header>
+<?php if (! empty($doc['finished'])): ?>
+    <div class="alert alert-info my-3" role="status">
+        <?php if (! empty($doc['results_url'])): ?>
+            Thank you! The slam is closed. The results are out: <a href="<?= esc($doc['results_url'], 'attr') ?>">see the results</a>.
+        <?php else: ?>
+            Thank you! The slam is closed. The results will be announced soon.
+        <?php endif ?>
+    </div>
+<?php endif ?>
 <?php if ($talks === []): ?>
     <p class="text-secondary">The presenters will appear here once they are announced.</p>
 <?php else: ?>

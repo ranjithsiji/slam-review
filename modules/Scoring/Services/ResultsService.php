@@ -104,10 +104,21 @@ class ResultsService
      *
      * @return list<array{slam: array<string, mixed>, top: list<array<string, mixed>>}>
      */
-    public function published(): array
+    /** The published result of one slam (its top list), or null while results are not public. */
+    public function forSlam(array $slam): ?array
+    {
+        if ((int) ($slam['results_is_public'] ?? 0) !== 1 || ! in_array($slam['status'], ['closed', 'marks_calculated', 'ended'], true)) {
+            return null;
+        }
+        $top = $this->top((int) $slam['id']);
+
+        return $top === [] ? null : $top;
+    }
+
+    public function published(bool $homeOnly = false): array
     {
         $out = [];
-        foreach (Db::rows("SELECT * FROM slams WHERE results_is_public = 1 AND status IN ('closed','marks_calculated','ended') ORDER BY opens_at DESC") as $s) {
+        foreach (Db::rows("SELECT * FROM slams WHERE results_is_public = 1 AND status IN ('closed','marks_calculated','ended')" . ($homeOnly ? ' AND show_on_homepage = 1' : '') . ' ORDER BY opens_at DESC') as $s) {
             $top = $this->top((int) $s['id']);
             if ($top !== []) {
                 $out[] = ['slam' => $s, 'top' => $top];

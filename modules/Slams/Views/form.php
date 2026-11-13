@@ -42,6 +42,14 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
                         </div>
                     </div>
                     <div class="mb-3">
+                        <input type="hidden" name="show_on_homepage" value="0">
+                        <label class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" name="show_on_homepage" value="1" <?= (int) $v('show_on_homepage', '1') === 1 ? 'checked' : '' ?>>
+                            <span class="form-check-label">Show on the home page</span>
+                        </label>
+                        <div class="form-hint">On: this slam is listed on the public home page (once its schedule is published). Off: hidden from the home page, for example a test slam.</div>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label" for="description">Short description</label>
                         <textarea id="description" name="description" class="form-control" rows="2"><?= esc($v('description')) ?></textarea>
                     </div>

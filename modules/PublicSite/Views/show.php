@@ -27,12 +27,15 @@
         <div class="d-flex flex-wrap gap-2 mt-3">
             <a class="btn btn-sm" href="<?= site_url('slams/' . $slam['slug'] . '/presenters') ?>"><?= icon('nav.presenters') ?>Presenters</a>
             <a class="btn btn-sm" href="<?= site_url('slams/' . $slam['slug'] . '/calendar.ics') ?>"><?= icon('nav.slams') ?>Add to calendar</a>
+            <?php if (! empty($doc['results_url'])): ?><a class="btn btn-sm btn-primary" href="<?= esc($doc['results_url'], 'attr') ?>"><?= icon('nav.marks') ?>Results</a><?php endif ?>
         </div>
     </header>
     <?php
     $banner = '';
     if ($doc['finished']) {
-        $banner = 'Thank you! The slam is closed. The results will be announced soon.';
+        $banner = ! empty($doc['results_url'])
+            ? 'Thank you! The slam is closed. The results are out: <a href="' . esc($doc['results_url'], 'attr') . '">see the results</a>.'
+            : 'Thank you! The slam is closed. The results will be announced soon.';
     } elseif ($doc['now']) {
         $banner = $doc['now']['kind'] === 'break' ? 'Now: ' . esc($doc['now']['label']) : 'Now: <strong>' . esc($doc['now']['presenter_name']) . '</strong> — ' . esc($doc['now']['topic']);
     } elseif ($doc['next']) {

@@ -107,6 +107,7 @@ class TrialCreate extends BaseCommand
             'closes_at' => $at('+8 hours'),
             'default_review_minutes' => 3, 'changeover_minutes' => 2, 'edit_window_minutes' => 10, 'close_grace_minutes' => 5,
             'default_tea_break_minutes' => 15, 'default_lunch_break_minutes' => 45,
+            'show_on_homepage' => 0,
         ], $actor);
 
         try {

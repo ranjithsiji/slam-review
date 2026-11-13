@@ -11,7 +11,7 @@ class Home extends BaseController
     public function index(): string
     {
         $svc    = new PublicScheduleService();
-        $slams  = $svc->listPublished();
+        $slams  = $svc->listPublished(true);
         $coming = [];
         $past   = [];
         foreach ($slams as $s) {
@@ -25,7 +25,7 @@ class Home extends BaseController
             $coming[] = $s;
         }
 
-        return view('Modules\Core\Views\home', ['coming' => $coming, 'past' => array_reverse($past), 'live' => $svc->live(), 'results' => service('results')->published(), 'title' => 'Kerala Science Slam', 'indexable' => true]);
+        return view('Modules\Core\Views\home', ['coming' => $coming, 'past' => array_reverse($past), 'live' => $svc->live(true), 'results' => service('results')->published(true), 'title' => 'Kerala Science Slam', 'indexable' => true]);
     }
 
     public function about(): string

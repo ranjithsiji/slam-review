@@ -35,13 +35,17 @@ class PublicController extends BaseController
         return view('Modules\PublicSite\Views\index', ['slams' => $this->svc->listPublished()]);
     }
 
-    public function show(string $slug): string
+    /** Upcoming and running slams: the schedule. A finished slam has no schedule to follow: its presenters page instead. */
+    public function show(string $slug)
     {
         $slam = $this->published($slug);
         service('slamPhase')->tick((int) $slam['id']);
         $slam = service('slams')->find((int) $slam['id']);
 
         $doc = $this->svc->document($slam);
+        if ($doc['finished']) {
+            return redirect()->to(site_url('slams/' . $slam['slug'] . '/presenters'));
+        }
 
         return view('Modules\PublicSite\Views\show', ['slam' => $slam, 'doc' => $doc, 'programme' => $this->svc->programme($doc['slots'], $doc['extras'] ?? []), 'url' => site_url('slams/' . $slug)]);
     }
@@ -87,6 +91,15 @@ class PublicController extends BaseController
     }
 
     /** Presenter cards for one published slam. */
+    /** The published result of one slam; not found until the results are published. */
+    public function results(string $slug): string
+    {
+        $slam = $this->published($slug);
+        $top  = service('results')->forSlam($slam) ?? throw PageNotFoundException::forPageNotFound();
+
+        return view('Modules\PublicSite\Views\results', ['slam' => $slam, 'top' => $top, 'url' => current_url()]);
+    }
+
     public function presenters(string $slug): string
     {
         $slam = $this->published($slug);
@@ -95,7 +108,7 @@ class PublicController extends BaseController
         $doc  = $this->svc->document($slam);
 
         return view('Modules\PublicSite\Views\presenters', [
-            'slam' => $slam,
+            'slam' => $slam, 'doc' => $doc,
             'talks' => array_values(array_filter($doc['slots'], static fn (array $s): bool => $s['kind'] !== 'break')),
         ]);
     }
@@ -103,7 +116,7 @@ class PublicController extends BaseController
     /** Live block for the home page: every published slam that is running, with what is on now. */
     public function liveJson(): ResponseInterface
     {
-        $doc  = ['slams' => $this->svc->live()];
+        $doc  = ['slams' => $this->svc->live(true)];
         $etag = '"' . substr(md5(json_encode($doc)), 0, 16) . '"';
         $this->response->setHeader('ETag', $etag)->setHeader('Cache-Control', 'public, max-age=5');
         if (trim($this->request->getHeaderLine('If-None-Match')) === $etag) {
