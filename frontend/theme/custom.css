@@ -200,6 +200,7 @@ html { scroll-padding-top: 5rem; scroll-padding-bottom: 8rem; }
 .accent-azure  { --accent: var(--tblr-azure); }
 .accent-teal   { --accent: var(--tblr-teal); }
 .accent-pink   { --accent: var(--tblr-pink); }
+.accent-red    { --accent: var(--tblr-red); }
 .accent-indigo { --accent: var(--tblr-indigo); }
 .card-accent { border-top: 3px solid var(--accent, var(--tblr-primary)); }
 .card-accent > .card-header { background: color-mix(in srgb, var(--accent, var(--tblr-primary)) 11%, transparent); border-bottom-color: color-mix(in srgb, var(--accent, var(--tblr-primary)) 25%, transparent); }

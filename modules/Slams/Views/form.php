@@ -156,4 +156,25 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
         <button type="submit" class="btn btn-primary"><?= icon('action.save') ?>Save slam</button>
     </div>
 </form>
+<?php if ($slam && operator_slam() === null): ?>
+    <?php $blocker = service('slams')->deleteBlocker($slam); ?>
+    <div class="card card-accent accent-red mt-4">
+        <div class="card-header"><h3 class="card-title text-danger"><?= icon('action.delete', 'me-1') ?>Delete this slam</h3></div>
+        <div class="card-body d-flex flex-wrap align-items-center gap-3">
+            <div class="me-auto" style="max-width:48rem">
+                <?php if ($blocker === null): ?>
+                    Permanently removes <strong><?= esc($slam['name']) ?></strong> with its schedule, presenters (unless they are in another slam),
+                    judges and experts, questions, break ads, and its volunteer and operator logins. This cannot be undone.
+                <?php else: ?>
+                    <span class="text-secondary"><?= esc($blocker) ?></span>
+                <?php endif ?>
+            </div>
+            <form method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/delete') ?>"
+                  data-confirm="Permanently delete &quot;<?= esc($slam['name'], 'attr') ?>&quot; with its schedule, presenters, judges, experts, questions and its volunteer and operator logins? This cannot be undone." data-danger data-ok="Delete slam">
+                <?= csrf_field() ?>
+                <button class="btn btn-danger" type="submit" <?= $blocker !== null ? 'disabled' : '' ?>><?= icon('action.delete') ?>Delete slam</button>
+            </form>
+        </div>
+    </div>
+<?php endif ?>
 <?= $this->endSection() ?>

@@ -163,19 +163,27 @@ class SlamService
      * Permanently delete a slam that has not begun, with everything that belongs only to it. Refuses once a slam has
      * opened or holds any check-in, review or mark. The activity log is append-only and keeps its history.
      */
+    /** Why this slam cannot be deleted, or null when it can (not opened yet, no check-ins, reviews or marks). */
+    public function deleteBlocker(array $slam): ?string
+    {
+        if (! in_array($slam['status'], ['draft', 'scheduled'], true)) {
+            return 'Only a slam that has not opened yet can be deleted. This one has already opened.';
+        }
+        $id    = (int) $slam['id'];
+        $inUse = Db::value('SELECT (SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ?)
+            + (SELECT COUNT(*) FROM reviews r JOIN attendees a ON a.id = r.attendee_id WHERE a.slam_id = ?)
+            + (SELECT COUNT(*) FROM mark_runs WHERE slam_id = ?)', [$id, $id, $id]);
+
+        return (int) $inUse > 0 ? 'This slam already has check-ins, reviews or marks, so it cannot be deleted.' : null;
+    }
+
     public function delete(int $id, Actor $actor): void
     {
         $photos = [];
         Db::tx(function ($db) use ($id, $actor, &$photos): void {
             $slam = Db::lockSlam($id);
-            if (! in_array($slam['status'], ['draft', 'scheduled'], true)) {
-                throw new DomainException('not_deletable', 'Only a slam that has not opened yet can be deleted.', 409);
-            }
-            $inUse = Db::value('SELECT (SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ?)
-                + (SELECT COUNT(*) FROM reviews r JOIN attendees a ON a.id = r.attendee_id WHERE a.slam_id = ?)
-                + (SELECT COUNT(*) FROM mark_runs WHERE slam_id = ?)', [$id, $id, $id]);
-            if ((int) $inUse > 0) {
-                throw new DomainException('not_deletable', 'This slam already has check-ins, reviews or marks, so it cannot be deleted.', 409);
+            if (($why = $this->deleteBlocker($slam)) !== null) {
+                throw new DomainException('not_deletable', $why, 409);
             }
             $presenters = array_map('intval', array_column(Db::rows('SELECT presenter_id FROM performances WHERE slam_id = ?', [$id]), 'presenter_id'));
             foreach (['audience_representatives', 'late_checkin_requests', 'schedule_snapshots', 'slam_pauses', 'slam_phase_log', 'schedule_items', 'performances', 'attendees',

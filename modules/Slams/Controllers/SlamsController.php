@@ -59,7 +59,11 @@ class SlamsController extends BaseController
 
     public function form(?int $id = null): string
     {
-        $slam = $id !== null ? service('slams')->find($id) : null;
+        try {
+            $slam = $id !== null ? service('slams')->find($id) : null;
+        } catch (\Modules\Core\Libraries\DomainException $e) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound(); // for example a slam that was just deleted
+        }
 
         return $this->render('Modules\Slams\Views\form', ['title' => $slam ? 'Edit slam' : 'New slam', 'slam' => $slam]);
     }
@@ -99,6 +103,9 @@ class SlamsController extends BaseController
     public function delete(int $id): RedirectResponse
     {
         return $this->formAction(function () use ($id) {
+            if (operator_slam() !== null) {
+                throw new \Modules\Core\Libraries\DomainException('forbidden', 'Only an administrator can delete a slam.', 403);
+            }
             service('slams')->delete($id, $this->actor());
 
             return site_url('admin/slams');
