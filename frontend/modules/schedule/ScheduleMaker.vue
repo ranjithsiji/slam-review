@@ -67,7 +67,7 @@
               :title="removableSelected ? 'Remove the ticked slots from the schedule (presenters go back to the pool)' : 'Tick presenters first'">
         <Icon name="action.delete" />Delete<template v-if="removableSelected"> ({{ removableSelected }})</template>
       </button>
-      <label class="form-check form-switch ms-auto align-self-center m-0"><input class="form-check-input" type="checkbox" v-model="scaled"><span class="form-check-label">Time-scaled</span></label>
+      <label class="form-check form-switch ms-auto align-self-center m-0"><input class="form-check-input" type="checkbox" v-model="scaled"><span class="form-check-label" title="Show each slot as tall as its length (display only)">Time scaled view</span></label>
     </div>
 
     <!-- Bulk -->
