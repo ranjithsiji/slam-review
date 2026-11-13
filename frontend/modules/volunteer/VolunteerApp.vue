@@ -1,14 +1,18 @@
 <template>
   <ConnBanner :status="poll.status.value" />
   <div class="card mb-3">
-    <div class="card-body d-flex flex-wrap align-items-center gap-3">
-      <div class="me-auto">
-        <div class="fw-bold fs-3">{{ st.slam?.name || '…' }}</div>
-        <div class="text-secondary small"><Icon name="place.venue" cls="icon-inline me-1" />{{ st.slam?.venue_name }}</div>
+    <div class="card-body p-3">
+      <div class="d-flex align-items-start gap-2 mb-3">
+        <div class="me-auto min-w-0">
+          <div class="fw-bold fs-3 lh-sm">{{ st.slam?.name || '…' }}</div>
+          <div v-if="st.slam?.venue_name" class="text-secondary small"><Icon name="place.venue" cls="icon-inline me-1" />{{ st.slam.venue_name }}</div>
+        </div>
+        <StatusBadge v-if="st.slam" group="phase" :value="st.slam.status" />
       </div>
-      <StatusBadge v-if="st.slam" group="phase" :value="st.slam.status" />
-      <div class="text-center"><div class="h2 m-0">{{ st.counts?.checked_in ?? '–' }}</div><div class="small text-secondary">inside</div></div>
-      <div class="text-center"><div class="h2 m-0">{{ st.counts?.registered ?? '–' }}</div><div class="small text-secondary">registered</div></div>
+      <div class="vol-stats">
+        <div class="vol-stat"><div class="vol-stat-num text-green">{{ st.counts?.checked_in ?? '–' }}</div><div class="small text-secondary">inside</div></div>
+        <div class="vol-stat"><div class="vol-stat-num">{{ st.counts?.registered ?? '–' }}</div><div class="small text-secondary">registered</div></div>
+      </div>
     </div>
     <div v-if="st.slam" class="card-footer small" :class="readOnly ? 'text-secondary' : gateOpen ? 'text-success' : 'text-warning'">
       <template v-if="readOnly">The slam has closed. This panel is read-only.</template>
@@ -18,8 +22,18 @@
     </div>
   </div>
 
+  <!-- What is happening on stage: one compact line, so the desk work stays on top. -->
+  <div v-if="st.now" class="vol-now d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="live-dot" :class="{ on: !st.now.paused_since && !['draft', 'scheduled', 'closed', 'marks_calculated', 'ended'].includes(st.now.status) }" aria-hidden="true"></span>
+    <span class="small text-secondary text-uppercase fw-bold">Now</span>
+    <span class="min-w-0 text-truncate ml-text flex-fill">{{ st.now.talk ? `${st.now.talk.presenter}: ${st.now.talk.title}` : st.now.detail }}</span>
+    <span v-if="st.now.paused_since" class="badge bg-orange-lt">Paused</span>
+    <span v-else-if="st.now.drift && st.now.drift.minutes >= 2" class="badge bg-orange-lt">{{ st.now.drift.minutes }} min behind</span>
+    <span v-if="st.now.until && !st.now.paused_since" class="small"><Countdown :until="st.now.until" :icon="false" /> left</span>
+  </div>
+
   <!-- Late check-ins come first: a phone waiting here is a person standing at the desk. -->
-  <div v-if="lateOpen || st.waiting?.length" class="card card-accent accent-orange mb-3">
+  <div v-if="lateOpen || st.waiting?.length" class="card card-accent accent-orange mb-3 vol-waiting">
     <div class="card-header"><h3 class="card-title"><Icon name="status.live" cls="me-1" />Phones waiting for you ({{ st.waiting?.length || 0 }})</h3></div>
     <div v-if="!st.waiting?.length" class="card-body text-secondary">Nobody is waiting. A late arrival scans their badge on their own phone; it then shows up here with a 3-digit code.</div>
     <div v-else class="list-group list-group-flush">
@@ -46,23 +60,14 @@
     </div>
   </div>
 
-  <!-- What is happening on stage: one compact line, so the desk work stays on top. -->
-  <div v-if="st.now" class="vol-now d-flex flex-wrap align-items-center gap-2 mb-3">
-    <span class="live-dot" :class="{ on: !st.now.paused_since && !['draft', 'scheduled', 'closed', 'marks_calculated', 'ended'].includes(st.now.status) }" aria-hidden="true"></span>
-    <span class="small text-secondary text-uppercase fw-bold">Now</span>
-    <span class="min-w-0 text-truncate ml-text flex-fill">{{ st.now.talk ? `${st.now.talk.presenter}: ${st.now.talk.title}` : st.now.detail }}</span>
-    <span v-if="st.now.paused_since" class="badge bg-orange-lt">Paused</span>
-    <span v-else-if="st.now.drift && st.now.drift.minutes >= 2" class="badge bg-orange-lt">{{ st.now.drift.minutes }} min behind</span>
-    <span v-if="st.now.until && !st.now.paused_since" class="small"><Countdown :until="st.now.until" :icon="false" /> left</span>
-  </div>
-
   <div class="row row-cards">
     <div class="col-12">
       <div class="card">
-        <div class="card-header"><h3 class="card-title"><Icon name="action.search" cls="me-1" />Find a registration</h3></div>
-        <div class="card-body">
+        <div class="card-body p-3">
+          <h3 class="card-title mb-2"><Icon name="action.search" cls="me-1" />Find a registration</h3>
           <label class="visually-hidden" for="q">Name, mobile or email</label>
-          <input id="q" v-model="q" class="form-control mb-2" placeholder="Name, mobile or email (3+ characters)" autocomplete="off" @input="debouncedSearch">
+          <input id="q" v-model="q" type="search" enterkeyhint="search" class="form-control vol-search mb-2" placeholder="Name, mobile or email" autocomplete="off" autocapitalize="off" spellcheck="false" @input="debouncedSearch">
+          <div v-if="q.trim().length > 0 && q.trim().length < 3" class="text-secondary small">Type at least 3 characters.</div>
           <div v-if="searching" class="text-secondary small">Searching…</div>
           <div v-else-if="q.trim().length >= 3 && searched && !results.length" class="alert alert-warning mb-0">
             <div class="fw-bold">Not registered</div>
@@ -76,7 +81,7 @@
                   <div class="small text-secondary"><code>{{ a.badge_id }}</code> · {{ a.user_type }} · {{ a.mobile }}<span v-if="!Number(a.is_active)" class="text-danger"> · inactive</span></div>
                 </div>
                 <StatusBadge group="checkin" :value="Number(a.checked_in) ? 'checked_in' : a.last_state === 'forced' ? 'forced_out' : a.last_state ? 'checked_out' : 'never'" />
-                <div class="btn-list">
+                <div class="btn-list vol-result-actions">
                   <button v-if="!Number(a.checked_in) && lateOpen" type="button" class="btn btn-warning" :disabled="busy || !Number(a.is_active)" @click="checkinAttendee(a)">Late check-in</button>
                   <button v-if="Number(a.checked_in) && !readOnly" type="button" class="btn btn-outline-danger" @click="forceOut(a)">Force out</button>
                 </div>
