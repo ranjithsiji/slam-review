@@ -105,6 +105,7 @@ $rules = [
         </div>
         <div class="col-12 col-md-6">
             <p>The cash awards for the winners are sponsored by the education initiative <strong>Curiefy</strong>.</p>
+            <p>The swags are sponsored by <a href="http://edumithra.com/" target="_blank" rel="noopener"><strong>Edumithra</strong></a>. Technical support by the <a href="http://edumithra.com/" target="_blank" rel="noopener">Edumithra</a> team.</p>
             <p class="mb-0">Questions? Write to <a href="mailto:<?= esc(config(\Modules\Core\Config\Site::class)->contactEmail, 'attr') ?>"><?= esc(config(\Modules\Core\Config\Site::class)->contactEmail) ?></a>.</p>
         </div>
     </div>
