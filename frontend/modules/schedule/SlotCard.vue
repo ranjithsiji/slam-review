@@ -27,9 +27,6 @@
           <button type="button" class="btn btn-sm btn-ghost-secondary py-0" :disabled="first" @click="$emit('move', -1)" :aria-label="`Move slot ${index + 1} up`"><Icon name="action.up" /></button>
           <button type="button" class="btn btn-sm btn-ghost-secondary py-0" :disabled="last" @click="$emit('move', 1)" :aria-label="`Move slot ${index + 1} down`"><Icon name="action.down" /></button>
         </div>
-        <button v-if="!locked && !(it.review_count > 0)" type="button" class="btn btn-sm btn-ghost-danger px-2" @click="$emit('remove')"
-                :title="it.item_type === 'break' ? 'Remove this break' : 'Remove from the schedule (back to the pool)'"
-                :aria-label="`Remove ${it.item_type === 'break' ? it.label : perf?.presenter_name || 'slot'} from the schedule`"><Icon name="action.delete" /></button>
       </div>
       <div v-for="m in messages" :key="m.message" class="small mt-1" :class="m.type === 'error' ? 'text-danger' : 'text-warning'"><Icon :name="m.type === 'error' ? 'status.error' : 'status.warning'" cls="icon-inline me-1" />{{ m.message }}</div>
 
