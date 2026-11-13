@@ -576,3 +576,4 @@ a.slam-tt-body:hover .slam-tt-topic { color: var(--slam-accent-text); }
 .badge-id-input.form-control:focus { border-color: var(--tblr-primary); box-shadow: 0 0 0 .3rem rgba(var(--tblr-primary-rgb), .25); }
 .badge-id-input.form-control.is-invalid { border-color: var(--tblr-danger); }
 .badge-id-input::placeholder { color: var(--tblr-body-color); opacity: .18; font-weight: 400; }
+.badge-id-input-phone.form-control { font-size: 1.5rem; letter-spacing: .1em; }

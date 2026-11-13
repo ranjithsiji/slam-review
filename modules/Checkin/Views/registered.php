@@ -9,10 +9,13 @@
         <h2 class="h2 text-center mb-1">Am I registered?</h2>
         <p class="text-center text-secondary">Enter the mobile number you registered with.</p>
         <label class="form-label visually-hidden" for="mobile">Mobile number</label>
-        <input id="mobile" name="mobile" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="15" required
-               class="form-control form-control-lg text-center fw-bold<?= $error ? ' is-invalid' : '' ?>" style="font-size:1.5rem;letter-spacing:.1em"
-               placeholder="98470 12345" value="<?= esc($mobile) ?>">
-        <?php if ($error): ?><div class="invalid-feedback text-center"><?= esc($error) ?></div><?php endif ?>
+        <div class="badge-id-field">
+            <span class="badge-id-icon" aria-hidden="true"><?= icon('contact.phone') ?></span>
+            <input id="mobile" name="mobile" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="15" required
+                   class="form-control badge-id-input badge-id-input-phone<?= $error ? ' is-invalid' : '' ?>"
+                   placeholder="98470 12345" value="<?= esc($mobile) ?>">
+        </div>
+        <?php if ($error): ?><div class="invalid-feedback d-block text-center"><?= esc($error) ?></div><?php endif ?>
         <div class="mt-3" data-captcha="<?= esc($captcha, 'attr') ?>">
             <label class="form-label text-center" for="captcha">What is <strong data-captcha-question>…</strong>?</label>
             <input id="captcha" name="captcha" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" required autocomplete="off"
