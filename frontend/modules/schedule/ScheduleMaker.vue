@@ -27,6 +27,11 @@
       <button type="button" class="btn btn-sm" @click="discard">Discard</button>
     </div>
 
+    <div v-if="mismatch && !readOnly && !live" class="alert alert-danger d-flex flex-wrap align-items-center gap-2 py-2">
+      <Icon name="status.error" /><span class="me-auto">The schedule does not match the slam's date and times{{ mismatch === 'date' ? ` (it is on ${dateOf(sum.first)}, the slam is on ${dateOf(slamStart)})` : '' }}.</span>
+      <button type="button" class="btn btn-sm btn-danger" @click="recalculate"><Icon name="action.refresh" />Recalculate from slam settings</button>
+    </div>
+
     <!-- Toolbar -->
     <div class="d-flex flex-wrap gap-2 mb-3 no-print">
       <div class="btn-group">
@@ -40,6 +45,8 @@
       <button type="button" class="btn" :disabled="readOnly" @click="addBreak('tea')"><Icon name="break.tea" />Tea</button>
       <button type="button" class="btn" :disabled="readOnly" @click="addBreak('lunch')"><Icon name="break.lunch" />Lunch</button>
       <button type="button" class="btn" :disabled="readOnly" @click="addBreak('other')"><Icon name="break.other" />Break</button>
+      <button type="button" class="btn" :disabled="readOnly || live || !draft.length" @click="recalculate"
+              title="Start the schedule at the slam's Reviews start time (Slam settings) and re-flow every slot after it"><Icon name="action.refresh" />Recalculate</button>
       <div class="dropdown">
         <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown">More</button>
         <div class="dropdown-menu">
@@ -137,15 +144,16 @@
 
     <!-- Reorder preview -->
     <TablerModal v-if="preview" size="md" @close="preview = null">
-      <div class="modal-header"><h5 class="modal-title">Re-flow preview</h5><button type="button" class="btn-close" aria-label="Close" @click="preview = null"></button></div>
+      <div class="modal-header"><h5 class="modal-title">{{ preview.title || 'Re-flow preview' }}</h5><button type="button" class="btn-close" aria-label="Close" @click="preview = null"></button></div>
       <div class="modal-body">
         <label v-if="preview.canKeepTimes" class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" v-model="preview.keepTimes" @change="recomputePreview"><span class="form-check-label">Keep slot times, swap presenters only</span></label>
+        <p v-if="preview.note" class="small text-secondary">{{ preview.note }}</p>
         <div v-if="preview.errors.length" class="alert alert-danger">{{ preview.errors[0].message }}</div>
         <table class="table table-sm">
           <thead><tr><th>#</th><th>Slot</th><th>Old</th><th>New</th></tr></thead>
           <tbody>
             <tr v-for="(c, k) in preview.changes" :key="k" :class="{ 'table-warning': c.old !== c.new }">
-              <td>{{ c.pos }}</td><td class="ml-text">{{ c.label }}</td><td>{{ time(c.old) }}</td><td class="fw-bold">{{ time(c.new) }}</td>
+              <td>{{ c.pos }}</td><td class="ml-text">{{ c.label }}</td><td>{{ preview.dates ? dateTime(c.old) : time(c.old) }}</td><td class="fw-bold">{{ preview.dates ? dateTime(c.new) : time(c.new) }}</td>
             </tr>
           </tbody>
         </table>
@@ -203,7 +211,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import TablerModal from '@vue-tabler/Modal.vue';
 import TablerLoading from '@vue-tabler/Loading.vue';
 import { get, put, post, api } from '../../shared/api.js';
-import { time, dateTime, isoToLocal, localToIso, syncServerTime, tzLabel } from '../../shared/clock.js';
+import { time, dateTime, isoToLocal, localToIso, syncServerTime, tzLabel, addMinutes } from '../../shared/clock.js';
 import { toast, dialog } from '../../shared/ui.js';
 import Icon from '../../shared/components/Icon.vue';
 import ActionModal from '../../shared/components/ActionModal.vue';
@@ -327,6 +335,51 @@ function recomputePreview() {
   p.items = items;
   p.errors = errors;
   p.changes = items.map((it, k) => ({ pos: k + 1, label: it.item_type === 'break' ? it.label : perfById.value[it.performance_id]?.presenter_name, old: before[it._k], new: it.planned_start_at }));
+}
+// Where the slam settings say reviewing starts (never before Check-in Close).
+const slamStart = computed(() => {
+  const s = data.slam || {};
+  const gate = s.checkin_closes_at || s.opens_at;
+  const start = s.reviews_start_at || gate || addMinutes(s.opens_at, 60);
+  return gate && Date.parse(start) < Date.parse(gate) ? gate : start;
+});
+const dateOf = (iso) => (iso ? isoToLocal(iso).date.split('-').reverse().join('-') : '');
+// 'date' when the schedule sits on another day than the slam; 'time' when it clashes with the slam's times; else false.
+const mismatch = computed(() => {
+  if (!sum.value.first || !slamStart.value) return false;
+  if (isoToLocal(sum.value.first).date !== isoToLocal(slamStart.value).date) return 'date';
+  return check.value.errors.some((e) => /Check-in Close|slam close time/.test(e.message)) ? 'time' : false;
+});
+/** Recalculate from the slam settings: first slot at the Reviews start, the rest re-flowed; pinned slots keep their clock time on the slam's day. */
+function recalculate() {
+  const start = slamStart.value;
+  const day = isoToLocal(start).date;
+  const run = (keepPinned) => {
+    const items = draft.value.map((x) => ({ ...x }));
+    if (keepPinned) items.forEach((it) => { if (it.status === 'pending' && it.is_pinned) it.planned_start_at = localToIso(day, isoToLocal(it.planned_start_at).time); });
+    const firstIdx = items.findIndex((it) => it.status === 'pending');
+    if (firstIdx >= 0 && (!keepPinned || !items[firstIdx].is_pinned)) items[firstIdx].planned_start_at = start;
+    const r = reflow(items, data.slam.changeover_minutes, Math.max(0, firstIdx), !keepPinned);
+    const after = validate(data.slam, r.items, perfIds.value).errors;
+    return { items: r.items, errors: r.errors.length ? r.errors : after };
+  };
+  const hasPinned = draft.value.some((it) => it.status === 'pending' && it.is_pinned);
+  let { items, errors } = run(true);
+  let pinnedNote = hasPinned ? ' Pinned slots keep their time on the new day.' : '';
+  if (errors.length && hasPinned) {
+    // A pinned time does not fit the new day: flow the pinned slots too.
+    const second = run(false);
+    if (!second.errors.length || second.errors.length < errors.length) {
+      ({ items, errors } = second);
+      pinnedNote = ' Pinned times did not fit the new day, so pinned slots were moved into the order too.';
+    }
+  }
+  const before = Object.fromEntries(draft.value.map((d) => [d._k, d.planned_start_at]));
+  preview.value = {
+    title: 'Recalculate from slam settings', dates: true, keepTimes: false, canKeepTimes: false, order: items, items, errors,
+    note: `First slot at ${dateOf(start)} ${time(start)} (Reviews start in the slam settings), then each slot after the previous one with ${data.slam.changeover_minutes} min changeover.${pinnedNote} Apply, then Save.`,
+    changes: items.map((it, k) => ({ pos: k + 1, label: it.item_type === 'break' ? it.label : perfById.value[it.performance_id]?.presenter_name, old: before[it._k], new: it.planned_start_at })),
+  };
 }
 function applyPreview() { commit(preview.value.items); preview.value = null; }
 function reflowAll() { openPreview(draft.value.map((x) => ({ ...x }))); }
