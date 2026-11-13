@@ -61,9 +61,12 @@
             </div>
             <div class="hr-text my-3">or type your badge ID</div>
             <label class="form-label visually-hidden" for="badge_id">Badge ID</label>
-            <input id="badge_id" name="badge_id" class="form-control form-control-lg text-center fw-bold" style="font-size:1.75rem;letter-spacing:.2em"
+            <div class="badge-id-field">
+                <span class="badge-id-icon" aria-hidden="true"><?= icon('person.badge') ?></span>
+                <input id="badge_id" name="badge_id" class="form-control badge-id-input"
                    placeholder="KR48213" maxlength="7" required autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text"
                    pattern="[A-Za-z]{2}[0-9]{5}" aria-describedby="fmt" data-badge-input value="<?= esc((string) old('badge_id')) ?>">
+            </div>
             <div id="fmt" class="form-hint text-center mt-2">2 letters + 5 digits, for example KR48213</div>
             <button class="btn btn-primary btn-lg w-100 mt-3" type="submit"><?= icon('nav.checkins') ?>Continue</button>
             <div class="alert alert-warning mt-3 mb-0" data-scan-error role="alert" hidden></div>

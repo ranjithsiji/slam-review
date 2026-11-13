@@ -12,9 +12,12 @@ $this->setVar('narrow', true); $this->setVar('entry', 'frontend/entries/checkin.
         <h2 class="h2 text-center mb-1"><?= icon('qr.scan', 'me-2') ?>Get my badge</h2>
         <p class="text-center text-secondary">Lost or forgot your badge? Enter your unique ID (2 letters and 5 digits, like <strong>KR48213</strong>) to see your badge and download its QR code.</p>
         <label class="form-label visually-hidden" for="badge_id">Unique ID</label>
-        <input id="badge_id" name="badge_id" class="form-control form-control-lg text-center fw-bold<?= $error ? ' is-invalid' : '' ?>" style="font-size:1.75rem;letter-spacing:.2em"
+        <div class="badge-id-field">
+            <span class="badge-id-icon" aria-hidden="true"><?= icon('person.badge') ?></span>
+            <input id="badge_id" name="badge_id" class="form-control badge-id-input<?= $error ? ' is-invalid' : '' ?>"
                required maxlength="7" autocapitalize="characters" autocomplete="off" spellcheck="false" inputmode="text" pattern="[A-Za-z]{2}[0-9]{5}" placeholder="KR48213" data-badge-input value="<?= esc($typed) ?>">
-        <?php if ($error): ?><div class="invalid-feedback text-center"><?= esc($error) ?></div><?php endif ?>
+        </div>
+        <?php if ($error): ?><div class="invalid-feedback d-block text-center"><?= esc($error) ?></div><?php endif ?>
         <button class="btn btn-slam btn-lg w-100 mt-3" type="submit"><?= icon('action.search') ?>Show my badge</button>
     </div>
 </form>

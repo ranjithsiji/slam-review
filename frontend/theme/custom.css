@@ -558,3 +558,21 @@ a.slam-tt-body:hover .slam-tt-topic { color: var(--slam-accent-text); }
   .vol-result-actions .btn { flex: 1 1 0; }
   .vol-waiting .btn-lg { width: 100%; }
 }
+
+/* Badge ID entry (check-in, get my badge): a clearly outlined box with an ID icon; the example in the placeholder is
+   very faint so it never looks like a code that is already filled in. */
+.badge-id-field { position: relative; }
+.badge-id-icon {
+  position: absolute; left: .9rem; top: 50%; transform: translateY(-50%); pointer-events: none;
+  display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 50%;
+  background: var(--tblr-primary-lt); color: var(--tblr-primary);
+}
+.badge-id-icon .icon { width: 1.5rem; height: 1.5rem; margin: 0; }
+.badge-id-input.form-control {
+  height: 4.25rem; padding-left: 4rem; padding-right: 1rem; text-align: center; font-size: 1.75rem; font-weight: 700; letter-spacing: .2em;
+  border: 2px solid var(--tblr-primary); background: var(--tblr-bg-surface);
+  box-shadow: 0 0 0 .25rem rgba(var(--tblr-primary-rgb), .12);
+}
+.badge-id-input.form-control:focus { border-color: var(--tblr-primary); box-shadow: 0 0 0 .3rem rgba(var(--tblr-primary-rgb), .25); }
+.badge-id-input.form-control.is-invalid { border-color: var(--tblr-danger); }
+.badge-id-input::placeholder { color: var(--tblr-body-color); opacity: .18; font-weight: 400; }
