@@ -182,6 +182,27 @@ class PresenterService
      *
      * @return array{presenter_deleted: bool}
      */
+    /** Takes the presenter's slot out of the schedule (back to the pool). Only for slots that have not run and have no reviews. */
+    public function unschedule(int $performanceId, Actor $actor): void
+    {
+        $itemId = Db::value('SELECT id FROM schedule_items WHERE performance_id = ? LIMIT 1', [$performanceId])
+            ?? throw new DomainException('not_scheduled', 'This presenter is not in the schedule.', 409);
+        service('schedule')->deleteItem((int) $itemId, $actor);
+    }
+
+    /** Deletes a presenter from this slam: their slot leaves the schedule first, then the pool entry goes. */
+    public function deleteFromSlam(int $performanceId, Actor $actor): array
+    {
+        if (Db::value('SELECT id FROM mark_results WHERE performance_id = ? LIMIT 1', [$performanceId]) !== null) {
+            throw new DomainException('has_marks', 'This presenter has marks; deactivate them instead.', 409);
+        }
+        if (Db::value('SELECT id FROM schedule_items WHERE performance_id = ? LIMIT 1', [$performanceId]) !== null) {
+            $this->unschedule($performanceId, $actor);
+        }
+
+        return $this->removeFromPool($performanceId, $actor);
+    }
+
     public function removeFromPool(int $performanceId, Actor $actor): array
     {
         $perf = Db::row('SELECT p.*, pr.name, pr.photo_path, pr.photo_thumb_path FROM performances p JOIN presenters pr ON pr.id = p.presenter_id WHERE p.id = ?', [$performanceId])

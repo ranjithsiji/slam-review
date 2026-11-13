@@ -117,7 +117,16 @@ class PresentersController extends BaseController
     /** Delete a presenter that is still in the pool (not in the schedule). */
     public function deletePerformance(int $id): ResponseInterface
     {
-        return $this->api(fn () => service('presenters')->removeFromPool($id, $this->actor()) + ['ok' => true]);
+        return $this->api(fn () => service('presenters')->deleteFromSlam($id, $this->actor()) + ['ok' => true]);
+    }
+
+    public function unschedulePerformance(int $id): ResponseInterface
+    {
+        return $this->api(function () use ($id) {
+            service('presenters')->unschedule($id, $this->actor());
+
+            return ['ok' => true];
+        });
     }
 
     public function pool(int $slamId): ResponseInterface

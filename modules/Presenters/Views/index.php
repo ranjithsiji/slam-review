@@ -30,7 +30,8 @@
         'actions' => [
             ['label' => 'Edit topic & abstract', 'icon' => 'action.edit', 'href' => '/admin/performances/{id}/edit'],
             ['label' => 'Edit presenter (photo, profile)', 'icon' => 'person.user', 'href' => '/admin/presenters/{presenter_id}/edit?back=slam'],
-            ['label' => 'Delete from the pool', 'icon' => 'action.delete', 'post' => '/api/performances/{id}/delete', 'when' => 'in_pool', 'danger' => true, 'confirm' => 'Delete {presenter_name} from the pool? Their topic and abstract are removed (and the presenter with their photo, unless they are in another slam).', 'reloadPage' => true, 'success' => 'Removed from the pool.'],
+            ['label' => 'Remove from the schedule', 'icon' => 'nav.schedule', 'post' => '/api/performances/{id}/unschedule', 'when' => 'can_unschedule', 'confirm' => 'Take {presenter_name} out of the schedule? They stay in the pool and can be scheduled again.', 'reloadPage' => true, 'success' => 'Removed from the schedule.'],
+            ['label' => 'Delete presenter', 'icon' => 'action.delete', 'post' => '/api/performances/{id}/delete', 'when' => 'can_delete', 'danger' => true, 'confirm' => 'Delete {presenter_name} from this slam? Their slot leaves the schedule, and their topic and abstract are removed (and the presenter with their photo, unless they are in another slam).', 'reloadPage' => true, 'success' => 'Presenter deleted.'],
         ],
     ]), 'attr') ?>'></table>
 </div></div>

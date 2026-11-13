@@ -31,6 +31,9 @@ class PerformancesTable extends TableDefinition
             'reviews'          => ['sql' => '(SELECT COUNT(*) FROM reviews r WHERE r.schedule_item_id = si.id)', 'order' => true],
             'is_active'        => ['sql' => 'p.is_active', 'order' => true],
             'in_pool'          => ['sql' => '(si.id IS NULL)'],
+            // A slot can leave the schedule while it has not run and nobody reviewed it (ScheduleService::assertRemovable).
+            'can_unschedule'   => ['sql' => "(si.id IS NOT NULL AND si.status IN ('pending','skipped') AND NOT EXISTS (SELECT 1 FROM reviews r2 WHERE r2.schedule_item_id = si.id) AND NOT EXISTS (SELECT 1 FROM review_windows w2 WHERE w2.schedule_item_id = si.id))"],
+            'can_delete'       => ['sql' => "((si.id IS NULL OR (si.status IN ('pending','skipped') AND NOT EXISTS (SELECT 1 FROM reviews r3 WHERE r3.schedule_item_id = si.id) AND NOT EXISTS (SELECT 1 FROM review_windows w3 WHERE w3.schedule_item_id = si.id))) AND NOT EXISTS (SELECT 1 FROM mark_results m3 WHERE m3.performance_id = p.id))"],
         ];
     }
 

@@ -56,6 +56,10 @@
       </div>
       <button type="button" class="btn btn-ghost-secondary" :disabled="!undoStack.length" @click="undo" aria-label="Undo"><Icon name="action.undo" /></button>
       <button type="button" class="btn btn-ghost-secondary" :disabled="!redoStack.length" @click="redo" aria-label="Redo"><Icon name="action.redo" /></button>
+      <button type="button" class="btn btn-outline-danger" :disabled="readOnly || !removableSelected" @click="bulkRemove"
+              :title="removableSelected ? 'Remove the ticked slots from the schedule (presenters go back to the pool)' : 'Tick presenters first'">
+        <Icon name="action.delete" />Delete<template v-if="removableSelected"> ({{ removableSelected }})</template>
+      </button>
       <label class="form-check form-switch ms-auto align-self-center m-0"><input class="form-check-input" type="checkbox" v-model="scaled"><span class="form-check-label">Time-scaled</span></label>
     </div>
 
@@ -68,7 +72,6 @@
         <button type="button" class="btn btn-sm" @click="bulk({ is_pinned: true })">Pin</button>
         <button type="button" class="btn btn-sm" @click="bulk({ is_pinned: false })">Unpin</button>
         <button type="button" class="btn btn-sm" @click="bulk({ status: 'skipped' })">Skip</button>
-        <button type="button" class="btn btn-sm btn-outline-danger" @click="bulkRemove">Remove</button>
         <button type="button" class="btn btn-sm btn-link ms-auto" @click="selected.clear()">Clear</button>
       </div>
     </div>
@@ -336,6 +339,7 @@ function remove(i) {
 function bulk(p) {
   commit(draft.value.map((x) => (selected.has(x._k) && !isLocked(x) ? { ...x, ...p } : x)));
 }
+const removableSelected = computed(() => draft.value.filter((x) => selected.has(x._k) && !isLocked(x) && !(x.review_count > 0)).length);
 function bulkRemove() {
   commit(draft.value.filter((x) => !selected.has(x._k) || isLocked(x) || x.review_count > 0));
   selected.clear();

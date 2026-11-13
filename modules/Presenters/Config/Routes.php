@@ -12,6 +12,7 @@ $routes->group('', ['namespace' => 'Modules\Presenters\Controllers', 'filter' =>
     $routes->get('admin/performances/(:num)/edit', 'PresentersController::editPerformance/$1');
     $routes->post('admin/performances/(:num)', 'PresentersController::updatePerformance/$1');
     $routes->post('api/performances/(:num)/delete', 'PresentersController::deletePerformance/$1');
+    $routes->post('api/performances/(:num)/unschedule', 'PresentersController::unschedulePerformance/$1');
 
     $routes->get('api/slams/(:num)/presenter-pool', 'PresentersController::pool/$1');
     $routes->post('api/slams/(:num)/performances', 'PresentersController::apiCreate/$1');
