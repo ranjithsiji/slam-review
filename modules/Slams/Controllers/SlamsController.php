@@ -111,4 +111,16 @@ class SlamsController extends BaseController
             return site_url('admin/slams');
         }, 'The slam was deleted.');
     }
+
+    public function reset(int $id): RedirectResponse
+    {
+        return $this->formAction(function () use ($id) {
+            if (operator_slam() !== null) {
+                throw new \Modules\Core\Libraries\DomainException('forbidden', 'Only an administrator can reset a slam.', 403);
+            }
+            service('slams')->reset($id, (string) $this->request->getPost('confirm_name'), (string) $this->request->getPost('reason'), $this->actor());
+
+            return site_url('admin/slams/' . $id . '/edit');
+        }, 'The slam was reset to setup (draft). Check the times, recalculate the schedule if needed, then mark it ready.');
+    }
 }

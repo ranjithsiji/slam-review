@@ -157,6 +157,29 @@ $num = static fn (string $f, int $d) => (int) old($f, $slam[$f] ?? $d);
     </div>
 </form>
 <?php if ($slam && operator_slam() === null): ?>
+    <?php $rs = service('slams')->resetSummary((int) $slam['id']); ?>
+    <div class="card card-accent accent-orange mt-4">
+        <div class="card-header"><h3 class="card-title text-orange"><?= icon('action.refresh', 'me-1') ?>Reset this slam</h3></div>
+        <div class="card-body">
+            <p style="max-width:48rem">
+                Takes <strong><?= esc($slam['name']) ?></strong> back to setup (draft), for example after a rehearsal.
+                It removes <strong><?= (int) ($rs['checkins'] ?? 0) ?> check-ins</strong>, <strong><?= (int) ($rs['reviews'] ?? 0) ?> reviews</strong>
+                and <strong><?= (int) ($rs['mark_runs'] ?? 0) ?> mark calculations</strong>, with all review and edit windows, pauses, audience representatives and finalists,
+                and unpublishes the results. Every schedule slot goes back to pending and phones checked in to this slam are signed out.
+                Presenters, the schedule, attendees and badges, questions, weights and logins stay. This cannot be undone.
+            </p>
+            <p class="text-secondary small" style="max-width:48rem">Afterwards: check the times above, use Recalculate in the schedule maker if they changed, then mark the slam ready.</p>
+            <form method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/reset') ?>" class="d-flex flex-wrap align-items-end gap-2"
+                  data-confirm="Reset &quot;<?= esc($slam['name'], 'attr') ?>&quot; to setup? All check-ins, reviews and marks of this slam are removed. This cannot be undone." data-danger data-reason="reason" data-ok="Reset slam">
+                <?= csrf_field() ?>
+                <div>
+                    <label class="form-label" for="reset-confirm">Type the slam name to confirm</label>
+                    <input id="reset-confirm" name="confirm_name" class="form-control" autocomplete="off" placeholder="<?= esc($slam['name'], 'attr') ?>" required style="min-width:min(20rem,100%)">
+                </div>
+                <button class="btn btn-warning" type="submit"><?= icon('action.refresh') ?>Reset slam</button>
+            </form>
+        </div>
+    </div>
     <?php $blocker = service('slams')->deleteBlocker($slam); ?>
     <div class="card card-accent accent-red mt-4">
         <div class="card-header"><h3 class="card-title text-danger"><?= icon('action.delete', 'me-1') ?>Delete this slam</h3></div>

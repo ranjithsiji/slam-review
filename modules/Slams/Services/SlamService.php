@@ -167,14 +167,14 @@ class SlamService
     public function deleteBlocker(array $slam): ?string
     {
         if (! in_array($slam['status'], ['draft', 'scheduled'], true)) {
-            return 'Only a slam that has not opened yet can be deleted. This one has already opened.';
+            return 'Only a slam that has not opened yet can be deleted. This one has already opened; reset it first.';
         }
         $id    = (int) $slam['id'];
         $inUse = Db::value('SELECT (SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ?)
             + (SELECT COUNT(*) FROM reviews r JOIN attendees a ON a.id = r.attendee_id WHERE a.slam_id = ?)
             + (SELECT COUNT(*) FROM mark_runs WHERE slam_id = ?)', [$id, $id, $id]);
 
-        return (int) $inUse > 0 ? 'This slam already has check-ins, reviews or marks, so it cannot be deleted.' : null;
+        return (int) $inUse > 0 ? 'This slam already has check-ins, reviews or marks, so it cannot be deleted. Reset it first.' : null;
     }
 
     public function delete(int $id, Actor $actor): void
@@ -208,6 +208,82 @@ class SlamService
         foreach ($photos as $row) {
             service('photos')->delete($row['photo_path'], $row['photo_thumb_path']);
         }
+    }
+
+    /**
+     * Reset a slam to setup (draft), for example after a rehearsal: removes every check-in, review, mark, review and
+     * edit window, pause and finalist list, puts every schedule slot back to pending and unpublishes the results.
+     * Presenters, the schedule, attendees and their badges, questions, weights and logins stay. Phones checked in to
+     * this slam are signed out. The phase log and the activity log keep the history.
+     *
+     * @return array<string, int> how many rows of each kind were removed
+     */
+    public function reset(int $id, string $confirmName, string $reason, Actor $actor): array
+    {
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new DomainException('reason_required', 'Please give a reason for the reset.');
+        }
+
+        $counts = Db::tx(function ($db) use ($id, $confirmName, $reason, $actor): array {
+            $slam = Db::lockSlam($id);
+            if (mb_strtolower(trim($confirmName)) !== mb_strtolower(trim($slam['name']))) {
+                throw new DomainException('confirm_name', 'Type the slam name exactly to confirm the reset.');
+            }
+            $items   = 'SELECT id FROM schedule_items WHERE slam_id = ?';
+            $reviews = "SELECT id FROM reviews WHERE schedule_item_id IN ({$items})";
+            $windows = "SELECT id FROM review_windows WHERE schedule_item_id IN ({$items})";
+            $counts  = [];
+            $run     = static function (string $key, string $sql, array $args) use ($db, &$counts): void {
+                $db->query($sql, $args);
+                $counts[$key] = ($counts[$key] ?? 0) + $db->affectedRows();
+            };
+            $run('review_edits', "DELETE FROM review_revisions WHERE review_id IN ({$reviews})", [$id]);
+            $run('answers', "DELETE FROM review_answers WHERE review_id IN ({$reviews})", [$id]);
+            $run('reviews', "DELETE FROM reviews WHERE schedule_item_id IN ({$items})", [$id]);
+            $run('extensions', "DELETE FROM review_extensions WHERE review_window_id IN ({$windows})", [$id]);
+            $run('extensions', 'DELETE FROM review_extensions WHERE revision_window_id IN (SELECT id FROM revision_windows WHERE slam_id = ?)', [$id]);
+            $run('review_windows', "DELETE FROM review_windows WHERE schedule_item_id IN ({$items})", [$id]);
+            $run('edit_windows', 'DELETE FROM revision_windows WHERE slam_id = ?', [$id]);
+            $run('mark_results', 'DELETE FROM mark_results WHERE mark_run_id IN (SELECT id FROM mark_runs WHERE slam_id = ?)', [$id]);
+            $run('mark_runs', 'DELETE FROM mark_runs WHERE slam_id = ?', [$id]);
+            $run('representatives', 'DELETE FROM audience_representatives WHERE slam_id = ?', [$id]);
+            $run('late_requests', 'DELETE FROM late_checkin_requests WHERE slam_id = ?', [$id]);
+            $run('checkins', 'DELETE FROM checkins WHERE attendee_id IN (SELECT id FROM attendees WHERE slam_id = ?)', [$id]);
+            $run('pauses', 'DELETE FROM slam_pauses WHERE slam_id = ?', [$id]);
+            $run('finalists', 'DELETE FROM app_settings WHERE `key` = ?', ['finalists:' . $id]);
+
+            $now = Clock::db();
+            $db->query("UPDATE schedule_items SET status = 'pending', actual_start_at = NULL, ends_at = NULL,
+                performing_started_at = NULL, performing_ended_at = NULL, original_start_at = planned_start_at, updated_at = ? WHERE slam_id = ?", [$now, $id]);
+            $db->query('UPDATE review_questions SET locked_at = NULL WHERE slam_id = ?', [$id]);
+            $db->query("UPDATE slams SET status = 'draft', phase_changed_at = ?, paused_at = NULL, pause_reason = NULL, hold_next_step = 0,
+                activated_at = NULL, ended_at = NULL, readiness_alerted_at = NULL, results_is_public = 0, results_published_at = NULL,
+                schedule_version = schedule_version + 1, updated_at = ? WHERE id = ?", [$now, $now, $id]);
+            $db->table('slam_phase_log')->insert([
+                'slam_id' => $id, 'from_status' => $slam['status'], 'to_status' => 'draft', 'changed_at' => $now,
+                'changed_by_type' => $actor->phaseActorType(), 'changed_by_id' => $actor->isAdmin() ? $actor->id : null,
+                'trigger' => 'manual_override', 'note' => mb_substr('Reset: ' . $reason, 0, 500),
+            ]);
+            service('activityLog')->log($actor, 'slam.reset', [
+                'slam_id' => $id, 'target_type' => 'slam', 'target_id' => $id, 'reason' => $reason,
+                'old' => ['status' => $slam['status']], 'new' => ['status' => 'draft'], 'meta' => $counts,
+            ]);
+
+            return $counts;
+        });
+        service('publicCache')->purge($id);
+        cache()->delete(service('publicCache')->key('tickcheck', $id));
+
+        return $counts;
+    }
+
+    /** What a reset would remove: check-ins, reviews and mark runs. */
+    public function resetSummary(int $id): array
+    {
+        return Db::row('SELECT (SELECT COUNT(*) FROM checkins c JOIN attendees a ON a.id = c.attendee_id WHERE a.slam_id = ?) AS checkins,
+            (SELECT COUNT(*) FROM reviews r JOIN schedule_items si ON si.id = r.schedule_item_id WHERE si.slam_id = ?) AS reviews,
+            (SELECT COUNT(*) FROM mark_runs WHERE slam_id = ?) AS mark_runs', [$id, $id, $id]) ?? [];
     }
 
     /**
