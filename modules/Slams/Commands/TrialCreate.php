@@ -16,6 +16,11 @@ use Modules\Core\Libraries\Db;
  * and its own operator and volunteer logins. Nothing in other slams is touched. Times can be changed in the admin.
  *
  *   php spark slam:trial-create "Test Slam Kollam" --date 2026-11-14 --venue Kollam --judges 40 --experts 5 --presenters 8
+ *   php spark slam:trial-create "Test Slam Kollam" --venue Kollam --date today            (starts in about 10 minutes)
+ *   php spark slam:trial-create "Test Slam Kollam" --venue Kollam --date today --start 19:30
+ *
+ * Timeline from the start time: opens at start, check-in start+5 to start+65 min, reviews from start+75 min, closes start+8 h.
+ * If anything fails half-way, the new slam is deleted again.
  *
  * Badge IDs and the new logins are written to writable/trial-<slug>.csv (not reachable from the web).
  */
@@ -24,18 +29,54 @@ class TrialCreate extends BaseCommand
     protected $group       = 'Science Slam';
     protected $name        = 'slam:trial-create';
     protected $description = 'Create a rehearsal slam with test presenters, judges, experts and its own operator/volunteer logins.';
-    protected $usage       = 'slam:trial-create "Name" [--date YYYY-MM-DD] [--venue Place] [--judges 40] [--experts 5] [--presenters 8]';
+    protected $usage       = 'slam:trial-create "Name" [--date YYYY-MM-DD|today] [--start HH:MM] [--venue Place] [--judges 40] [--experts 5] [--presenters 8]';
+
+    private const OPTIONS = ['date', 'start', 'venue', 'judges', 'experts', 'presenters'];
 
     public function run(array $params): void
     {
-        $name = trim((string) ($params[0] ?? 'Test Slam'));
-        $tz   = new \DateTimeZone(Clock::tz());
-        $day  = (string) (CLI::getOption('date') ?? Clock::now()->setTimezone($tz)->modify('+1 day')->format('Y-m-d'));
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
-            CLI::error('--date must be YYYY-MM-DD');
+        $unknown = array_diff(array_keys(CLI::getOptions()), self::OPTIONS);
+        if ($unknown !== []) {
+            CLI::error('Unknown option --' . implode(', --', $unknown) . '. Use: --' . implode(', --', self::OPTIONS));
 
             return;
         }
+        $name  = trim((string) ($params[0] ?? 'Test Slam'));
+        $tz    = new \DateTimeZone(Clock::tz());
+        $local = Clock::now()->setTimezone($tz);
+        $day   = (string) (CLI::getOption('date') ?? $local->modify('+1 day')->format('Y-m-d'));
+        if ($day === 'today') {
+            $day = $local->format('Y-m-d');
+        }
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+            CLI::error('--date must be YYYY-MM-DD or today');
+
+            return;
+        }
+        $startOpt = CLI::getOption('start');
+        if ($startOpt !== null && ! preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string) $startOpt)) {
+            CLI::error('--start must be HH:MM (24-hour, India time)');
+
+            return;
+        }
+        if ($startOpt !== null) {
+            $start = new \DateTimeImmutable($day . ' ' . $startOpt, $tz);
+        } elseif ($day === $local->format('Y-m-d')) {
+            // Today: about 10 minutes from now, on a 5-minute mark.
+            $t     = $local->modify('+10 minutes');
+            $start = $t->setTime((int) $t->format('H'), (int) (ceil((int) $t->format('i') / 5) * 5) % 60);
+            if ((int) $t->format('i') > 55) {
+                $start = $start->modify('+1 hour');
+            }
+        } else {
+            $start = new \DateTimeImmutable($day . ' 09:00', $tz);
+        }
+        if ($start < $local) {
+            CLI::error('The start time ' . $start->format('d M H:i') . ' is already past. Give --start HH:MM later than now.');
+
+            return;
+        }
+        $at = static fn (string $mod): string => Clock::db($start->modify($mod));
         $venue      = (string) (CLI::getOption('venue') ?? 'Test venue');
         $nJudges    = max(4, (int) (CLI::getOption('judges') ?? 40));
         $nExperts   = max(1, (int) (CLI::getOption('experts') ?? 5));
@@ -61,13 +102,27 @@ class TrialCreate extends BaseCommand
             'description' => 'Rehearsal slam with test data. Safe to delete afterwards (php spark slam:delete).',
             'venue_name' => $venue, 'city' => $venue, 'district' => $venue, 'state' => 'Kerala',
             'contact_name' => 'Organising Desk',
-            'opens_at' => Clock::fromLocal($day, '09:00'), 'checkin_opens_at' => Clock::fromLocal($day, '09:15'),
-            'checkin_closes_at' => Clock::fromLocal($day, '10:15'), 'reviews_start_at' => Clock::fromLocal($day, '10:30'),
-            'closes_at' => Clock::fromLocal($day, '17:00'),
+            'opens_at' => $at('+0 minutes'), 'checkin_opens_at' => $at('+5 minutes'),
+            'checkin_closes_at' => $at('+65 minutes'), 'reviews_start_at' => $at('+75 minutes'),
+            'closes_at' => $at('+8 hours'),
             'default_review_minutes' => 3, 'changeover_minutes' => 2, 'edit_window_minutes' => 10, 'close_grace_minutes' => 5,
             'default_tea_break_minutes' => 15, 'default_lunch_break_minutes' => 45,
         ], $actor);
 
+        try {
+            $this->fill($id, $slug, $nPresent, $nJudges, $nExperts, $actor, $name, $start);
+        } catch (\Throwable $e) {
+            try {
+                service('slams')->delete($id, Actor::system());
+                CLI::error('Failed: ' . $e->getMessage() . ' (the half-made slam was deleted again)');
+            } catch (\Throwable $e2) {
+                CLI::error('Failed: ' . $e->getMessage() . "; could not delete slam #{$id} either: " . $e2->getMessage());
+            }
+        }
+    }
+
+    private function fill(int $id, string $slug, int $nPresent, int $nJudges, int $nExperts, Actor $actor, string $name, \DateTimeImmutable $start): void
+    {
         $topics = [
             ['Why monsoon clouds forget to rain', 'IISER Thiruvananthapuram'], ['The secret life of mangrove roots', 'CUSAT'],
             ['കായലിലെ സൂക്ഷ്മജീവികൾ', 'University of Kerala'], ['Teaching robots to pluck coconuts', 'NIT Calicut'],
@@ -100,13 +155,14 @@ class TrialCreate extends BaseCommand
             $rows[] = [$expert ? 'expert' : 'judge', $pName, $mobile, $a['badge_id'], (string) $a['category']];
         }
 
-        $suffix = substr($slug, 0, 12);
+        // Logins carry the slam number, so they never clash with an earlier trial.
+        $suffix = $id . '-' . rtrim(substr($slug, 0, 10), '-');
         $logins = [];
-        $opUser = 'op-' . $suffix;
+        $opUser = 'op' . $suffix;
         $opPass = $this->password();
         service('auth')->saveAdmin(null, ['username' => $opUser, 'name' => 'Trial Operator', 'role' => 'operator', 'slam_id' => $id, 'password' => $opPass, 'is_active' => 1], $actor);
         $logins[] = ['operator', $opUser, $opPass];
-        $voUser = 'vol-' . $suffix;
+        $voUser = 'vol' . $suffix;
         $voPass = $this->password();
         service('auth')->saveVolunteer(null, ['username' => $voUser, 'name' => 'Trial Volunteer', 'slam_id' => $id, 'password' => $voPass, 'is_active' => 1], $actor);
         $logins[] = ['volunteer', $voUser, $voPass];
@@ -116,6 +172,7 @@ class TrialCreate extends BaseCommand
         }
 
         $file = WRITEPATH . "trial-{$slug}.csv";
+        $logins[] = ['times', 'opens ' . $start->format('d M H:i'), 'check-in to ' . $start->modify('+65 minutes')->format('H:i') . ', reviews from ' . $start->modify('+75 minutes')->format('H:i')];
         $fh   = fopen($file, 'wb');
         fputcsv($fh, ['role', 'name', 'mobile', 'badge_id', 'category'], ',', '"', '');
         foreach ($rows as $r) {
@@ -129,7 +186,7 @@ class TrialCreate extends BaseCommand
         fclose($fh);
         @chmod($file, 0640);
 
-        CLI::write("Slam #{$id} \"{$name}\" ({$slug}) on {$day}: status " . service('slams')->find($id)['status'], 'green');
+        CLI::write("Slam #{$id} \"{$name}\" ({$slug}) opens " . $start->format('d M H:i') . ' India time: status ' . service('slams')->find($id)['status'], 'green');
         CLI::write("{$nPresent} presenters, {$nJudges} judges (4 categories), {$nExperts} experts. Operator {$opUser}, volunteer {$voUser}.");
         CLI::write("Badge IDs and logins: {$file}");
     }
