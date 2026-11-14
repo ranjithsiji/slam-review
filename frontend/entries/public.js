@@ -48,7 +48,7 @@ if (root) {
     clearTimeout(timer);
     if (document.hidden) return;
     try {
-      const res = await fetch(url, { headers: etag ? { 'If-None-Match': etag } : {}, credentials: 'same-origin' });
+      const res = await fetch(url, { signal: AbortSignal.timeout?.(12000), headers: etag ? { 'If-None-Match': etag } : {}, credentials: 'same-origin' });
       if (res.status === 200) { etag = res.headers.get('ETag'); render(await res.json()); }
     } catch { /* keep the last view */ }
     timer = setTimeout(poll, 8000 + Math.random() * 4000);
@@ -80,7 +80,7 @@ if (home) {
     clearTimeout(timer);
     if (!document.hidden) {
       try {
-        const res = await fetch(home.dataset.homeLive, { headers: etag ? { 'If-None-Match': etag } : {}, credentials: 'same-origin' });
+        const res = await fetch(home.dataset.homeLive, { signal: AbortSignal.timeout?.(12000), headers: etag ? { 'If-None-Match': etag } : {}, credentials: 'same-origin' });
         if (res.status === 200) {
           etag = res.headers.get('ETag');
           const { slams } = await res.json();
@@ -117,7 +117,7 @@ if (sched) {
     clearTimeout(timer);
     if (!document.hidden && url) {
       try {
-        const res = await fetch(url, { credentials: 'same-origin' });
+        const res = await fetch(url, { signal: AbortSignal.timeout?.(12000), credentials: 'same-origin' });
         if (res.status === 200 && sig(await res.json()) !== sched.dataset.talkSig) { window.location.reload(); return; }
       } catch { /* keep the page */ }
     }

@@ -17,8 +17,23 @@ export function csrfHeaders() {
   return h ? { [h]: meta('csrf-token') } : {};
 }
 
-export async function api(url, { method = 'GET', body, headers = {}, signal, raw = false } = {}) {
+// timeout (ms): give up on a request that never answers, so the caller can retry (0 = wait for ever).
+export async function api(url, { method = 'GET', body, headers = {}, signal, raw = false, timeout = 0 } = {}) {
   const isForm = body instanceof FormData;
+  let giveUp = null;
+  if (timeout > 0 && !signal) {
+    const abort = new AbortController();
+    signal = abort.signal;
+    giveUp = setTimeout(() => abort.abort(), timeout);
+  }
+  try {
+    return await send(url, { method, body, headers, signal, raw, isForm });
+  } finally {
+    clearTimeout(giveUp);
+  }
+}
+
+async function send(url, { method, body, headers, signal, raw, isForm }) {
   const res = await fetch(url, {
     method,
     credentials: 'same-origin',

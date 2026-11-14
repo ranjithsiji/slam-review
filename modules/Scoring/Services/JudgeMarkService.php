@@ -68,7 +68,7 @@ class JudgeMarkService
      * @param array<int|string, mixed> $marks schedule_item_id => mark ('' to clear)
      * @return array{saved: int, removed: int}
      */
-    public function save(int $slamId, int $judgeId, array $marks, Actor $actor): array
+    public function save(int $slamId, int $judgeId, array $marks, Actor $actor, bool $recalculate = true): array
     {
         if (! $actor->isAdmin()) {
             throw new DomainException('forbidden', 'Only an admin can enter experts\' marks.', 403);
@@ -112,7 +112,8 @@ class JudgeMarkService
             $removed = 0;
             foreach ($clean as $itemId => $value) {
                 $review = Db::row('SELECT * FROM reviews WHERE attendee_id = ? AND schedule_item_id = ? FOR UPDATE', [$judgeId, $itemId]);
-                $old    = $review === null ? null : (float) Db::value('SELECT score FROM review_answers WHERE review_id = ? AND question_id = ?', [$review['id'], $total]);
+                $old    = $review === null ? null : Db::value('SELECT score FROM review_answers WHERE review_id = ? AND question_id = ?', [$review['id'], $total]);
+                $old    = $old === null ? null : (float) $old;
                 if ($value === null) {
                     if ($review !== null) {
                         $db->table('review_revisions')->where('review_id', $review['id'])->delete();
@@ -131,7 +132,12 @@ class JudgeMarkService
                     ]);
                     $db->table('review_answers')->insert(['review_id' => (int) $db->insertID(), 'question_id' => $total, 'score' => $value]);
                 } elseif ($old === null || abs($old - $value) > 1e-9) {
-                    $db->table('review_answers')->where('review_id', $review['id'])->where('question_id', $total)->update(['score' => $value]);
+                    if ($old === null) {
+                        // a review row without the overall mark (it would otherwise be "saved" without storing anything)
+                        $db->table('review_answers')->insert(['review_id' => $review['id'], 'question_id' => $total, 'score' => $value]);
+                    } else {
+                        $db->table('review_answers')->where('review_id', $review['id'])->where('question_id', $total)->update(['score' => $value]);
+                    }
                     $db->table('review_revisions')->insert([
                         'review_id' => $review['id'], 'question_id' => $total, 'old_score' => $old, 'new_score' => $value, 'revision_window_id' => null, 'changed_at' => $now,
                     ]);
@@ -152,7 +158,7 @@ class JudgeMarkService
 
             return ['saved' => $saved, 'removed' => $removed];
         });
-        if ($result['saved'] + $result['removed'] > 0) {
+        if ($recalculate && $result['saved'] + $result['removed'] > 0) {
             $this->recalculateIfClosed($slamId, $actor);
         }
 

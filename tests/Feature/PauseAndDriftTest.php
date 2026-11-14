@@ -157,4 +157,23 @@ final class PauseAndDriftTest extends SlamTestCase
         $p->openWindow($id, $a, 5, null, $this->admin);
         $this->expectReason('item_not_pending', fn () => $p->rescheduleItem($id, $a, '2026-11-01 05:30:00', null, true, $this->admin));
     }
+
+    public function testRunningBehindDoesNotChangeTheLiveDocumentEveryFewSeconds(): void
+    {
+        $s = $this->makeSlam(2, 2, 1);
+        $id = $s['id'];
+        $this->at('2026-11-01 03:30:00', $id);
+        $this->at('2026-11-01 04:30:00', $id);
+        db_connect()->table('slams')->where('id', $id)->update(['auto_mode' => 'manual']);
+        // Manual mode, the first talk is overdue: its expected start is "now" and moves with the clock.
+        \Modules\Core\Libraries\Clock::set('2026-11-01 04:50:05');
+        $a = service('liveState')->buildShared($id);
+        \Modules\Core\Libraries\Clock::set('2026-11-01 04:50:35');
+        $b = service('liveState')->buildShared($id);
+        $this->assertSame($a['version'], $b['version'], 'phones keep getting 304 within the minute');
+        \Modules\Core\Libraries\Clock::set('2026-11-01 04:53:10');
+        $c = service('liveState')->buildShared($id);
+        $this->assertSame($a['schedule_version'], $c['schedule_version'], 'the running order is not downloaded again while only the expected times move');
+        $this->assertSame('2026-11-01T04:54:00Z', $c['next']['projected_start_at']);
+    }
 }

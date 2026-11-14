@@ -212,6 +212,22 @@ class SlamPhaseService
         }
         try {
             $applied = $this->applyAllDue($slamId);
+        } catch (\Throwable $e) {
+            if ($blocking) {
+                throw $e; // the admin's request or the cron job reports it
+            }
+            // On a phone's poll or a vote a failing step must not take the request down with it (hundreds of phones
+            // would show "reconnecting"): note it, look again in a few seconds, and let the request go on.
+            $ref = bin2hex(random_bytes(4));
+            log_message('error', "[{$ref}] tick failed for slam {$slamId}: " . $e->getMessage());
+            $cache->save($key, $now + 5, 5);
+            try {
+                service('activityLog')->log(Actor::system(), 'system.error', ['slam_id' => $slamId, 'outcome' => 'failure', 'meta' => ['ref' => $ref, 'where' => 'tick']]);
+            } catch (\Throwable) {
+                // the log line above is enough
+            }
+
+            return [];
         } finally {
             $db->query('SELECT RELEASE_LOCK(?)', [$lockName]);
         }

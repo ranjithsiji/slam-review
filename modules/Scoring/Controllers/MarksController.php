@@ -221,6 +221,7 @@ class MarksController extends BaseController
 
         return $this->api(function () use ($slamId, $in) {
             $r = service('representatives')->draw($slamId, (int) ($in['count'] ?? 0), $this->actor());
+            service('judgeMarks')->recalculateIfClosed($slamId, $this->actor()); // official marks follow the panel at once
 
             return $r + ['message' => sprintf('%d audience representative(s) drawn from %d people who reviewed every performance.', count($r['selected']), $r['pool'])];
         });
@@ -230,6 +231,7 @@ class MarksController extends BaseController
     {
         return $this->api(function () use ($slamId, $attendeeId) {
             service('representatives')->add($slamId, $attendeeId, $this->actor());
+            service('judgeMarks')->recalculateIfClosed($slamId, $this->actor()); // official marks follow the panel at once
 
             return ['message' => 'Added to the audience representatives.'];
         });
@@ -241,6 +243,7 @@ class MarksController extends BaseController
 
         return $this->api(function () use ($slamId, $attendeeId, $in) {
             service('representatives')->remove($slamId, $attendeeId, $this->actor(), isset($in['reason']) ? (string) $in['reason'] : null);
+            service('judgeMarks')->recalculateIfClosed($slamId, $this->actor()); // official marks follow the panel at once
 
             return ['message' => 'Removed from the audience representatives.'];
         });

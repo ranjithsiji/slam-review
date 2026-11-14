@@ -48,7 +48,7 @@ class PaperMarksService
      * @param list<array{badge_id: string, scores: list<string|int>, line?: int}> $rows
      * @return array{created: int, updated: int, unchanged: int}
      */
-    public function saveAudience(int $slamId, int $itemId, array $rows, Actor $actor): array
+    public function saveAudience(int $slamId, int $itemId, array $rows, Actor $actor, bool $recalculate = true): array
     {
         if (! $actor->isAdmin()) {
             throw new DomainException('forbidden', 'Only an administrator or operator can enter paper marks.', 403);
@@ -126,7 +126,9 @@ class PaperMarksService
 
             return $out;
         });
-        service('judgeMarks')->recalculateIfClosed($slamId, $actor);
+        if ($recalculate) {
+            service('judgeMarks')->recalculateIfClosed($slamId, $actor);
+        }
 
         return $res;
     }
@@ -230,7 +232,13 @@ class PaperMarksService
                     $errors[] = "Line {$line}: {$badge} is not an expert of this slam.";
                     continue;
                 }
-                $judges[(int) $j['id']][$item] = str_replace(',', '.', trim((string) ($r[$iMark] ?? '')));
+                $mark = str_replace(',', '.', trim((string) ($r[$iMark] ?? '')));
+                if ($mark === '') {
+                    // On the Experts' marks screen a blank removes a mark; a blank cell in a file must never do that.
+                    $errors[] = "Line {$line}: the mark is missing.";
+                    continue;
+                }
+                $judges[(int) $j['id']][$item] = $mark;
             }
         }
         fclose($fh);
@@ -241,20 +249,25 @@ class PaperMarksService
             throw new DomainException('validation', 'The file has no data rows.', 422);
         }
 
-        return Db::tx(function () use ($slamId, $kind, $audience, $judges, $actor, $n): array {
+        // The whole file is one unit of work; the marks are recalculated once, after it is committed (not once per
+        // talk or expert inside the transaction, which left a mark run per talk and could commit a half-made run).
+        $out = Db::tx(function () use ($slamId, $audience, $judges, $actor, $n): array {
             $out = ['rows' => $n, 'created' => 0, 'updated' => 0, 'judges' => count($judges)];
             foreach ($audience as $item => $rows) {
-                $r = $this->saveAudience($slamId, (int) $item, $rows, $actor);
+                $r = $this->saveAudience($slamId, (int) $item, $rows, $actor, false);
                 $out['created'] += $r['created'];
                 $out['updated'] += $r['updated'];
             }
             foreach ($judges as $judgeId => $marks) {
-                $r = service('judgeMarks')->save($slamId, (int) $judgeId, $marks, $actor);
+                $r = service('judgeMarks')->save($slamId, (int) $judgeId, $marks, $actor, false);
                 $out['created'] += $r['saved'];
             }
 
             return $out;
         });
+        service('judgeMarks')->recalculateIfClosed($slamId, $actor);
+
+        return $out;
     }
 
     public function template(string $kind, int $slamId): string

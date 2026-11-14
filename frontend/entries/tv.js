@@ -121,7 +121,7 @@ const render = (doc) => {
 const poll = async () => {
   clearTimeout(timer);
   try {
-    const res = await fetch(url, { headers: etag ? { 'If-None-Match': etag } : {}, credentials: 'omit' });
+    const res = await fetch(url, { signal: AbortSignal.timeout?.(12000), headers: etag ? { 'If-None-Match': etag } : {}, credentials: 'omit' });
     if (res.status === 200) { etag = res.headers.get('ETag'); render(await res.json()); lastGood = Date.now(); }
     if (res.status === 304) lastGood = Date.now();
   } catch { /* keep showing the last view */ }

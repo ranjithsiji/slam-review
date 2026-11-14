@@ -94,4 +94,31 @@ final class PaperMarksTest extends SlamTestCase
         $this->assertStringContainsString('badge_id,presenter,q1,q2', $svc->template('audience', $id));
         $this->assertStringContainsString('badge_id,presenter,mark', $svc->template('judge', $id));
     }
+
+    public function testAFileRecalculatesOnceAndABlankExpertMarkIsAnError(): void
+    {
+        $s = $this->closedSlam();
+        $id = $s['id'];
+        $svc = service('paperMarks');
+        $names = array_map(static fn ($p) => Db::value('SELECT pr.name FROM performances p JOIN presenters pr ON pr.id = p.presenter_id WHERE p.id = ?', [$p]), $s['perfs']);
+        $runs = static fn (): int => (int) Db::value('SELECT COUNT(*) FROM mark_runs WHERE slam_id = ?', [$id]);
+
+        // Two talks and two experts in one file: one new mark run, not one per talk or expert.
+        $before = $runs();
+        $j = $this->csv("badge_id,presenter,mark\n{$s['judges'][0]['badge_id']},{$names[0]},7.5\n{$s['judges'][1]['badge_id']},{$names[0]},8\n{$s['judges'][0]['badge_id']},{$names[1]},6\n");
+        $svc->importCsv($id, 'judge', $j, $this->admin);
+        $this->assertSame($before + 1, $runs());
+        $this->assertSame(1, (int) Db::value('SELECT COUNT(*) FROM mark_runs WHERE slam_id = ? AND is_current = 1', [$id]));
+
+        // A blank mark in a file is refused; it must not remove the mark entered before.
+        $blank = $this->csv("badge_id,presenter,mark\n{$s['judges'][0]['badge_id']},{$names[0]},\n");
+        try {
+            $svc->importCsv($id, 'judge', $blank, $this->admin);
+            $this->fail('should reject');
+        } catch (DomainException $e) {
+            $this->assertStringContainsString('mark is missing', $e->details['rows'][0]);
+        }
+        $this->assertSame(1, (int) Db::value('SELECT COUNT(*) FROM reviews WHERE attendee_id = ? AND schedule_item_id = ?', [$s['judges'][0]['id'], $s['items'][0]]));
+        $this->assertSame($before + 1, $runs());
+    }
 }

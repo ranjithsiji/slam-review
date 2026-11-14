@@ -6,6 +6,8 @@ import { ref } from 'vue';
 import { csrfHeaders } from './api.js';
 import { syncServerTime, serverNow } from './clock.js';
 
+const TIMEOUT_MS = 12000;
+
 export function createPoller(url, { interval = 4000, onData, onAuthError, deadlines = () => [] } = {}) {
   const status = ref('idle'); // idle | ok | retrying | offline
   const lastOk = ref(null);
@@ -35,11 +37,16 @@ export function createPoller(url, { interval = 4000, onData, onAuthError, deadli
   async function tick() {
     if (inFlight || stopped) return;
     inFlight = true;
+    // A request that never answers (weak venue Wi-Fi, a phone changing networks) would otherwise keep the one
+    // in-flight slot for good and stop all updates: give up after a while and try again.
+    const abort = new AbortController();
+    const giveUp = setTimeout(() => abort.abort(), TIMEOUT_MS);
     try {
       const res = await fetch(url, {
         credentials: 'same-origin',
         headers: { Accept: 'application/json', ...(etag ? { 'If-None-Match': etag } : {}), ...csrfHeaders() },
         cache: 'no-store',
+        signal: abort.signal,
       });
       if (res.status === 401 || res.status === 403) {
         stopped = true;
@@ -68,6 +75,7 @@ export function createPoller(url, { interval = 4000, onData, onAuthError, deadli
       status.value = failures >= 3 ? 'offline' : 'retrying';
       schedule(jitter(Math.min(30000, interval * 2 ** Math.min(failures, 3))));
     } finally {
+      clearTimeout(giveUp);
       inFlight = false;
     }
   }

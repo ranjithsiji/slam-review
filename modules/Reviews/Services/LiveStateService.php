@@ -51,7 +51,7 @@ class LiveStateService
                 'thumb'              => $p['thumb'] ?? null,
                 'photo'              => $p['photo'] ?? null,
                 'planned_start_at'   => Clock::iso($it['planned_start_at']),
-                'projected_start_at' => Clock::iso($it['projected_start_at']),
+                'projected_start_at' => Clock::iso(self::wholeMinute($it['projected_start_at'])),
                 'duration_minutes'   => (int) $it['duration_minutes'],
                 'status'             => $it['status'],
                 // On stage right now (started, not yet ended); the review may open before, during or after.
@@ -145,7 +145,9 @@ class LiveStateService
             'ads'           => $ads,
             'next'          => $next,
             'running_order' => $order,
-            'schedule_version' => substr(md5(json_encode($order)), 0, 16),
+            // The expected times move with the clock while the slam runs behind, so they are left out of the version:
+            // phones fetch the running order again only when the order, a planned time or a status changes.
+            'schedule_version' => substr(md5(json_encode(array_map(static fn (array $r): array => array_diff_key($r, ['projected_start_at' => 1]), $order))), 0, 16),
             'late_minutes'  => $proj['late_minutes'],
             'revision'      => $revision,
             'judging'       => service('scoring')->judging($slamId),
@@ -158,6 +160,20 @@ class LiveStateService
         $doc['version'] = substr(md5(json_encode($doc)), 0, 16);
 
         return $doc;
+    }
+
+    /**
+     * A time rounded up to the whole minute. An overdue slot is "expected now", which would otherwise change the
+     * document (and every phone's ETag) on each rebuild; by the minute it changes once a minute at most.
+     */
+    public static function wholeMinute(?string $dbTime): ?string
+    {
+        if ($dbTime === null) {
+            return null;
+        }
+        $ts = Clock::parse($dbTime)->getTimestamp();
+
+        return Clock::db(Clock::parse($dbTime)->setTimestamp((int) (ceil($ts / 60) * 60)));
     }
 
     /** First $max characters of a text, cut at a word, with an ellipsis. */

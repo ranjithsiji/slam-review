@@ -85,7 +85,7 @@ if (wait) {
     clearTimeout(timer);
     if (!document.hidden) {
       try {
-        const res = await fetch(wait.dataset.lateWait, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+        const res = await fetch(wait.dataset.lateWait, { signal: AbortSignal.timeout?.(12000), credentials: 'same-origin', headers: { Accept: 'application/json' } });
         if (res.status === 429) { timer = setTimeout(poll, 6000); return; }
         const d = await res.json();
         if (d.status === 'approved') { title.textContent = 'You are checked in'; say('<strong>Checked in.</strong> Opening your review screen…', 'alert-success'); window.location.href = d.redirect || wait.dataset.lateReview; return; }

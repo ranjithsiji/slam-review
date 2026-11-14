@@ -72,7 +72,7 @@ function view() {
 
 async function poll() {
   try {
-    const res = await fetch(root.dataset.stage, { headers: etag ? { 'If-None-Match': etag } : {}, credentials: 'omit', cache: 'no-store' });
+    const res = await fetch(root.dataset.stage, { signal: AbortSignal.timeout?.(12000), headers: etag ? { 'If-None-Match': etag } : {}, credentials: 'omit', cache: 'no-store' });
     const d = res.headers.get('Date');
     if (d) offset = Date.parse(d) + 500 - Date.now();
     if (res.status === 200) { etag = res.headers.get('ETag'); doc = await res.json(); }

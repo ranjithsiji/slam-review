@@ -323,7 +323,7 @@ function loadStoredSchedule() {
 async function fetchSchedule() {
   clearTimeout(scheduleRetry);
   try {
-    const doc = await api('/api/live/schedule');
+    const doc = await api('/api/live/schedule', { timeout: 15000 });
     s.running_order = doc.running_order;
     scheduleVersion = doc.version;
     try { localStorage.setItem(scheduleKey(), JSON.stringify(doc)); } catch {}
@@ -421,7 +421,7 @@ async function deliver(draft) {
   const isCurrent = () => cur.value.schedule_item_id === id;
   for (let attempt = 0; ; attempt++) {
     try {
-      await post('/api/review', draft.body);
+      await post('/api/review', draft.body, { timeout: 15000 });
       clearDraft(id);
       if (isCurrent()) {
         s.already_reviewed = true;
