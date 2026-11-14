@@ -17,7 +17,7 @@ foreach ($districts as $en => $ml) {
     <div class="alert alert-info">Choose the finalists first, on the <a href="<?= site_url('admin/slams/' . (int) $slam['id'] . '/finalists') ?>">Finalists</a> screen.</div>
 <?php else: ?>
 <div class="card" data-poster='<?= esc(json_encode([
-    'people' => $people, 'logo' => base_url('brand/slam-logo.svg'), 'logoLight' => base_url('brand/slam-logo-on-light.svg'), 'partners' => base_url('brand/logos-final.webp'), 'slam' => $slam['name'],
+    'people' => $people, 'logo' => base_url('brand/slam-logo.svg'), 'logoLight' => base_url('brand/slam-logo-on-light.svg'), 'logoMain' => base_url('brand/kss-logo-2026.png'), 'partners' => base_url('brand/logos-final.webp'), 'slam' => $slam['name'],
     'venue' => trim(($slam['venue_name'] ?? '') . ''), 'date' => local_time($slam['opens_at'], 'j F Y'), 'file' => 'finalists-' . $slam['slug'],
 ], JSON_UNESCAPED_UNICODE), 'attr') ?>'>
     <div class="card-header d-flex flex-wrap gap-2 align-items-center">
@@ -38,8 +38,10 @@ foreach ($districts as $en => $ml) {
         </span>
         <label class="form-label mb-0 small" for="poster-size">Size</label>
         <select id="poster-size" class="form-select form-select-sm" style="width:auto" data-poster-size>
-            <option value="1080x1350">Social media 1080 × 1350</option>
-            <option value="1080x1080">Square 1080 × 1080</option>
+            <option value="1080x1350">Instagram / Facebook post 1080 × 1350</option>
+            <option value="1080x1920">Story / WhatsApp status 1080 × 1920</option>
+            <option value="1080x1080">Square post 1080 × 1080</option>
+            <option value="1200x630">Facebook / link share 1200 × 630</option>
             <option value="1920x1080">Screen 1920 × 1080</option>
             <option value="2480x3508">A4 print (300 dpi)</option>
         </select>
@@ -47,6 +49,7 @@ foreach ($districts as $en => $ml) {
             <label class="form-label mb-0 small" for="poster-title">Heading</label>
             <input id="poster-title" class="form-control form-control-sm" style="width:16rem" value="Selected for the Final" data-poster-title>
         </span>
+        <button type="button" class="btn btn-success btn-sm" data-poster-share><?= icon('action.share') ?>Share</button>
         <button type="button" class="btn btn-primary btn-sm" data-poster-png><?= icon('action.download') ?>Download PNG</button>
         <button type="button" class="btn btn-sm" data-poster-each><?= icon('action.download') ?>Download one per person (<?= count($people) ?>)</button>
     </div>

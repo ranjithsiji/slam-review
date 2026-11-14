@@ -17,6 +17,7 @@
   "break.other": "player-pause",
   "action.print": "printer",
   "action.download": "download",
+  "action.share": "share",
   "action.search": "search",
   "action.filter": "filter",
   "action.add": "plus",
