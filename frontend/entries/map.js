@@ -14,6 +14,9 @@ if (box) {
   const map = L.map(box, { scrollWheelZoom: false, zoomSnap: 0.5 }).fitBounds(KERALA);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    // OpenStreetMap's tile policy requires a Referer; the site's own policy sends none to other hosts. The tiles alone
+    // send the site's origin (https://star.scienceslam.in), never the page path.
+    referrerPolicy: 'strict-origin-when-cross-origin',
   }).addTo(map);
   // Boundaries (DataMeet, CC BY 2.5 India, via Wikimedia Commons / Wikidata): Tamil Nadu, Kerala's districts and the
   // Kerala outline, drawn under the dots. The dots never wait for them.
