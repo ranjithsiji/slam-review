@@ -33,6 +33,7 @@ export default defineConfig({
         schedule: resolve(__dirname, 'frontend/entries/schedule.js'),
         questions: resolve(__dirname, 'frontend/entries/questions.js'),
         stats: resolve(__dirname, 'frontend/entries/stats.js'),
+        map: resolve(__dirname, 'frontend/entries/map.js'),
       },
     },
   },

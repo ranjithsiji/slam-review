@@ -10,7 +10,7 @@ use CodeIgniter\HTTP\ResponseInterface;
 
 /**
  * Global security headers. Every asset is self-hosted (fonts, icons, theme), so
- * the CSP can be strict: no external hosts, no inline scripts. Inline styles are
+ * the CSP can be strict: no external hosts (except the map tiles on /map), no inline scripts. Inline styles are
  * allowed because Tabler/DataTables/Vue set style attributes.
  */
 class SecurityHeadersFilter implements FilterInterface
@@ -22,12 +22,12 @@ class SecurityHeadersFilter implements FilterInterface
 
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
-        $csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+        // The presenters map (/map) is the one page that shows images from another host: the OpenStreetMap tiles.
+        $tiles = '/' . trim($request->getUri()->getPath(), '/') === '/map' ? ' https://tile.openstreetmap.org' : '';
+        $csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:{$tiles}; "
             . "font-src 'self'; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; "
             . "form-action 'self'; frame-ancestors 'none'";
-        if (! $response->hasHeader('Content-Security-Policy')) {
-            $response->setHeader('Content-Security-Policy', $csp);
-        }
+        $response->setHeader('Content-Security-Policy', $csp); // always: decided by the path, never left over from elsewhere
         $response->setHeader('X-Content-Type-Options', 'nosniff')
             ->setHeader('X-Frame-Options', 'DENY')
             ->setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');

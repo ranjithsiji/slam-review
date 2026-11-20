@@ -3,6 +3,7 @@
 /** @var \CodeIgniter\Router\RouteCollection $routes */
 $routes->group('', ['namespace' => 'Modules\PublicSite\Controllers', 'filter' => 'ratelimit:public'], static function ($routes): void {
     $routes->get('slams', 'PublicController::index');
+    $routes->get('map', 'PublicController::map');
     $routes->get('slams/(:segment)/calendar.ics', 'PublicController::ics/$1');
     $routes->get('slams/(:segment)/presenters', 'PublicController::presenters/$1');
     $routes->get('slams/(:segment)/results', 'PublicController::results/$1');

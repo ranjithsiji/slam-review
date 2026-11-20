@@ -7,6 +7,7 @@ $menu = [
     ['Schedule', '/slams', '#^/slams#'],
     ['Check in', '/checkin', '#^/(checkin|in/)#'],
     ['Am I registered?', '/registered', '#^/registered#'],
+    ['Map', '/map', '#^/map#'],
     ['About', '/about', '#^/about#'],
 ];
 ?>

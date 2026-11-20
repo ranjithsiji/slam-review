@@ -35,6 +35,12 @@ class PublicController extends BaseController
         return view('Modules\PublicSite\Views\index', ['slams' => $this->svc->listPublished()]);
     }
 
+    /** Where the presenters come from: a map of their institutions (its OpenStreetMap tiles are allowed by SecurityHeadersFilter on this page only). */
+    public function map(): string
+    {
+        return view('Modules\PublicSite\Views\map', ['map' => (new \Modules\PublicSite\Services\PresenterMapService())->data()]);
+    }
+
     /** Upcoming and running slams: the schedule. A finished slam has no schedule to follow: its presenters page instead. */
     public function show(string $slug)
     {

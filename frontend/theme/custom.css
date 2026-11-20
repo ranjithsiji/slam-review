@@ -577,3 +577,20 @@ a.slam-tt-body:hover .slam-tt-topic { color: var(--slam-accent-text); }
 .badge-id-input.form-control.is-invalid { border-color: var(--tblr-danger); }
 .badge-id-input::placeholder { color: var(--tblr-body-color); opacity: .18; font-weight: 400; }
 .badge-id-input-phone.form-control { font-size: 1.5rem; letter-spacing: .1em; }
+
+/* Presenters map (/map) */
+.pmap { height: min(72vh, 640px); min-height: 360px; border-radius: .5rem; border: 1px solid var(--tblr-border-color); z-index: 0 }
+.pmap-legend { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: center }
+.pmap-chip { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; cursor: pointer }
+.pmap-chip input { width: 1.1rem; height: 1.1rem }
+.pmap-dot { display: inline-block; width: .8rem; height: .8rem; border-radius: 50%; flex: none; box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0,0,0,.25) }
+.pmap-pin { background: none; border: 0 }
+.pmap-pin span { display: block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.45) }
+.pmap-pop { display: flex; gap: .6rem; align-items: flex-start; min-width: 200px }
+.pmap-pop img { border-radius: .4rem; object-fit: cover; flex: none }
+.pmap img.leaflet-tile { max-width: none !important; max-height: none !important; border: 0; box-shadow: none; outline: 1px solid transparent }
+.pmap .leaflet-tile-container img { image-rendering: auto }
+.pmap .pmap-district { background: none; border: 0; box-shadow: none; padding: 0; color: #5a3d12; font: 600 11px/1.1 var(--tblr-font-sans-serif); text-shadow: 0 0 3px #fff, 0 0 3px #fff }
+.pmap .pmap-district::before { display: none }
+.pmap.pmap-small .pmap-district { display: none }
+.pmap .pmap-state { color: #2f5216; font-size: 15px; letter-spacing: .04em }
