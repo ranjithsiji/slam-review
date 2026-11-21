@@ -27,6 +27,7 @@ $nav  = [
     ['admin/users', 'Administrators', 'nav.admins', '#^/admin/users#'],
     ['admin/qr', 'Badges & QR', 'nav.qr', '#^/admin/qr#'],
     ['admin/questions/templates', 'Question templates', 'nav.questions', '#^/admin/questions#'],
+    ['admin/ads', 'Ad pool', 'media.photo', '#^/admin/ads#'],
     ['admin/activity-log', 'Activity log', 'nav.log', '#^/admin/activity-log#'],
     ['admin/lockouts', 'Lockouts', 'status.lock', '#^/admin/lockouts#'],
     ['admin/settings', 'Settings', 'nav.system', '#^/admin/settings#'],
