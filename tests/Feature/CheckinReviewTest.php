@@ -138,6 +138,25 @@ final class CheckinReviewTest extends SlamTestCase
         }
     }
 
+    public function testOpeningTheHomePageAgainGoesBackToTheVotingScreen(): void
+    {
+        $s = $this->makeSlam(1, 1, 0);
+        $a = $s['users'][0];
+        $this->at('2026-11-01 03:30:00', $s['id']);
+        $r    = service('checkins')->selfCheckin($a['badge_id'], '5.5.5.6');
+        $sess = ['attendee_id' => (int) $a['id'], 'slam_id' => $s['id'], 'badge_id' => $a['badge_id'], 'name' => $a['name'], 'user_type' => 'user', 'checkin_id' => $r['checkin_id'], 'token' => $r['token']];
+
+        $home = $this->withSession(['reviewer' => $sess])->get('/')->response();
+        $this->assertTrue($home->hasHeader('Location'));
+        $this->assertStringEndsWith('/review', $home->getHeaderLine('Location'));
+        // ?home=1 still shows the home page; nobody else is redirected; a stale or checked-out session is not either.
+        $this->assertSame(200, $this->withSession(['reviewer' => $sess])->get('/', ['home' => '1'])->response()->getStatusCode());
+        $this->assertSame(200, $this->withSession([])->get('/')->response()->getStatusCode());
+        $this->assertSame(200, $this->withSession(['reviewer' => ['token' => 'wrong'] + $sess])->get('/')->response()->getStatusCode());
+        service('checkins')->checkout((int) $a['id'], 'manual', new \Modules\Core\Libraries\Actor('user', (int) $a['id'], $a['badge_id'], $s['id']));
+        $this->assertSame(200, $this->withSession(['reviewer' => $sess])->get('/')->response()->getStatusCode());
+    }
+
     public function testScanningAgainResumesTheSameBrowserAndNoOtherOne(): void
     {
         $s = $this->makeSlam(1, 2, 0);

@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace Modules\Core\Controllers;
 
+use CodeIgniter\HTTP\RedirectResponse;
 use Modules\PublicSite\Services\PublicScheduleService;
 
 class Home extends BaseController
 {
-    public function index(): string
+    public function index(): string|RedirectResponse
     {
+        // A judge or expert who is checked in (the tab closed, the phone dropped off the network, someone opened the
+        // site again) goes straight back to the voting screen. ?home=1 still shows the home page.
+        $sess = session('reviewer');
+        if (is_array($sess) && $this->request->getGet('home') === null && service('checkins')->validateSession($sess) !== null) {
+            return redirect()->to(site_url('review'));
+        }
         $svc    = new PublicScheduleService();
         $slams  = $svc->listPublished(true);
         $coming = [];
