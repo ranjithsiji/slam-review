@@ -20,8 +20,8 @@
       <span class="small" :class="poll.status.value === 'offline' ? 'text-danger' : 'text-secondary'" role="status" aria-live="polite">
         {{ poll.status.value === 'offline' ? 'No connection. Still trying.' : updatedAt ? `Updated ${updatedAt}` : 'Connecting…' }}
       </span>
-      <button type="button" class="btn btn-sm flex-shrink-0" :disabled="refreshing" data-refresh @click="refresh">
-        <span v-if="refreshing" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Refresh
+      <button type="button" class="btn btn-refresh flex-shrink-0" :class="{ 'btn-refresh-alert': poll.status.value === 'retrying' || poll.status.value === 'offline' }" :disabled="refreshing" data-refresh @click="refresh">
+        <span v-if="refreshing" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span><Icon v-else name="action.refresh" cls="me-1" />Refresh
       </button>
     </div>
     <div v-if="welcome" class="alert alert-success" role="status">{{ welcome }}</div>
@@ -39,16 +39,15 @@
     <template v-else-if="tab === 'now'">
       <!-- Live performance -->
       <template v-if="screen === 'review'">
-        <div class="card mb-3">
+        <div class="card mb-2">
           <div class="card-status-top bg-red"></div>
-          <div class="card-body">
-            <div class="d-flex align-items-center mb-3">
+          <div class="card-body py-2 px-3">
+            <div class="d-flex align-items-center mb-2">
               <span class="badge bg-red-lt me-auto"><Icon name="status.live" cls="icon-inline me-1" />Review open<template v-if="cur.performing === false"> · performance ended</template></span>
               <span v-if="s.paused" class="badge bg-orange-lt fs-3">Paused</span>
               <Countdown v-else :until="cur.closes_at" size="xl" />
             </div>
-            <div v-if="s.talk" class="small text-secondary mb-2"><Icon name="status.time" cls="icon-inline me-1" />Talk started {{ time(s.talk.started_at) }}</div>
-            <PresenterCard :item="cur" />
+            <PresenterCard :item="cur" compact />
           </div>
         </div>
 
@@ -74,7 +73,8 @@
             <div class="text-secondary">It will be sent as soon as the connection comes back. Keep this page open if you can; if you close it, open it again before the review closes.</div>
           </div>
         </div>
-        <form v-else class="card" @submit.prevent="openConfirm">
+        <form v-else class="card vote-card" @submit.prevent="openConfirm">
+          <div class="vote-card-head"><Icon name="action.edit" cls="me-2" />Give your marks <span class="ml-text ms-1">· മാർക്കിടൂ</span></div>
           <div class="card-body">
             <ScoreQuestion v-for="(q, i) in s.questions" :key="`${cur.schedule_item_id}-${q.id}`" :question="q" :index="i" v-model="answers[q.id]" :disabled="sending" />
             <label class="form-label" for="comment">Comment (optional)</label>

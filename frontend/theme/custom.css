@@ -605,3 +605,16 @@ a.slam-tt-body:hover .slam-tt-topic { color: var(--slam-accent-text); }
 .nx-time strong, .nx-count strong { font-size: 6vh; line-height: 1.1; font-variant-numeric: tabular-nums }
 .nx-time em { font-style: normal; color: #9fb0cf; font-size: 2vh }
 .nx-count.nx-soon { background: #5a3a06; box-shadow: 0 0 0 .3vh #f59300 inset }
+
+/* Voting screen: a Refresh button people notice (it pulses while updates are not coming through) */
+.btn-refresh { background: var(--slam-orange, #ff9a00); border-color: var(--slam-orange, #ff9a00); color: #1f1f1f; font-weight: 700; min-height: 44px; padding-inline: 1rem; border-radius: 999px; box-shadow: 0 2px 6px rgba(255, 154, 0, .45) }
+.btn-refresh:hover, .btn-refresh:focus { background: #f08c00; border-color: #f08c00; color: #111 }
+.btn-refresh-alert { animation: refresh-pulse 1.4s ease-in-out infinite }
+@keyframes refresh-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 154, 0, .7) } 50% { box-shadow: 0 0 0 .55rem rgba(255, 154, 0, 0) } }
+@media (prefers-reduced-motion: reduce) { .btn-refresh-alert { animation: none } }
+/* While the review is open: a small presenter card, and the questions in a highlighted card */
+.presenter-photo-sm { width: 56px; height: 56px }
+.presenter-topic-sm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.vote-card { border: 2px solid var(--slam-orange, #ff9a00); box-shadow: 0 4px 16px rgba(255, 154, 0, .18) }
+.vote-card-head { display: flex; align-items: center; padding: .65rem 1rem; background: var(--slam-orange, #ff9a00); color: #1f1f1f; font-weight: 700; font-size: 1.05rem; border-radius: calc(var(--tblr-border-radius) - 1px) calc(var(--tblr-border-radius) - 1px) 0 0 }
+.vote-card .card-body { background: color-mix(in srgb, var(--slam-orange, #ff9a00) 6%, var(--tblr-bg-surface)) }
