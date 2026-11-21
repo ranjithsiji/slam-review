@@ -16,7 +16,7 @@ use Modules\Core\Libraries\Db;
 class PublicScheduleService
 {
     public const SLOT_FIELDS = ['id', 'kind', 'break_type', 'label', 'presenter_name', 'designation', 'topic', 'abstract', 'profile', 'thumb', 'photo',
-        'planned_start_at', 'duration_minutes', 'status'];
+        'planned_start_at', 'duration_minutes', 'status', 'started_at', 'ended_at'];
 
     /** Published slams for /slams with a badge: upcoming | today | live | finished. */
     /** @param bool $homeOnly only slams switched on for the home page (Slam settings → Show on the home page) */
@@ -164,13 +164,16 @@ class PublicScheduleService
                 $current    = null;
             }
         };
+        // A slot that has started shows when it really started (and ended); the others their planned time.
+        $startOf = static fn (array $s): int => strtotime((string) (! empty($s['started_at']) ? $s['started_at'] : $s['planned_start_at']));
         foreach ($slots as $i => $slot) {
-            $start = strtotime((string) $slot['planned_start_at']);
-            $next  = isset($slots[$i + 1]) ? strtotime((string) $slots[$i + 1]['planned_start_at'])
+            $start = $startOf($slot);
+            $next  = isset($slots[$i + 1]) ? $startOf($slots[$i + 1])
                 : (isset($after[0]['starts_at']) ? strtotime($after[0]['starts_at'] . ' UTC') : null);
             $own   = $start + 60 * (int) $slot['duration_minutes'];
             // A slot runs up to the next one (its changeover included), unless there is a real gap in the day.
-            $end  = $next !== null && $next >= $own && $next - $own <= 1800 ? $next : $own;
+            $end  = ! empty($slot['ended_at']) ? strtotime((string) $slot['ended_at'])
+                : ($next !== null && $next >= $own && $next - $own <= 1800 ? $next : $own);
             $row  = $slot + ['start_at' => gmdate('Y-m-d H:i:s', $start), 'end_at' => gmdate('Y-m-d H:i:s', $end), 'slot_minutes' => (int) (($end - $start) / 60)];
             $isTalk = $slot['kind'] !== 'break';
             if (! $isTalk && in_array($slot['break_type'] ?? null, ['tea', 'lunch'], true)) {

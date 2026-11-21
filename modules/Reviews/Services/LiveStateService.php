@@ -56,6 +56,9 @@ class LiveStateService
                 'status'             => $it['status'],
                 // On stage right now (started, not yet ended); the review may open before, during or after.
                 'performing'         => ! empty($it['performing_started_at']) && empty($it['performing_ended_at']) && $it['status'] !== 'skipped',
+                // When it really started and ended, once it has (the public schedule shows these instead of the plan).
+                'started_at'         => Clock::iso($it['performing_started_at'] ?? $it['window_opened_at'] ?? ($it['status'] !== 'pending' ? $it['actual_start_at'] : null)),
+                'ended_at'           => $it['status'] === 'closed' ? Clock::iso($it['item_type'] === 'break' ? $it['ends_at'] : ($it['window_closed_at'] ?? null)) : null,
             ];
             $byId[(int) $it['id']] = $row;
             $order[] = $row;

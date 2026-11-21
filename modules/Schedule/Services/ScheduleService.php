@@ -121,6 +121,8 @@ class ScheduleService
         $seen   = [];
         $prevEnd = null;
         $active = [];
+        // While the slam runs, a slot that ran (or is running) ends when it really ended, not at its planned end.
+        $actual = self::isLive($slam) ? $this->actualEnds(array_column(array_filter($items, static fn ($x) => in_array($x['status'], ['open', 'closed'], true) && ! empty($x['id'])), 'id')) : [];
 
         foreach ($items as $i => $it) {
             if ($it['duration_minutes'] < 1) {
@@ -144,8 +146,8 @@ class ScheduleService
                 continue;
             }
             $start = Clock::parse($it['planned_start_at']);
-            $end   = $start->modify('+' . $it['duration_minutes'] . ' minutes');
-            if ($prevEnd !== null && $start < $prevEnd) {
+            $end   = isset($actual[(int) ($it['id'] ?? 0)]) ? Clock::parse($actual[(int) $it['id']]) : $start->modify('+' . $it['duration_minutes'] . ' minutes');
+            if ($prevEnd !== null && $start < $prevEnd && $it['status'] === 'pending') {
                 $errors[] = ['index' => $i, 'message' => 'Overlaps the previous slot (starts before it ends).'];
             }
             if ($start < $gate && $it['status'] === 'pending') {
@@ -190,13 +192,23 @@ class ScheduleService
         $errors   = [];
         $prev     = null;
         $change   = (int) $slam['changeover_minutes'];
+        // While the slam runs, a slot that has run (or is running) counts from when it really ended (or will end), not
+        // from its plan, and nothing is planned before now: so a re-flow moves the remaining slots up when the slam runs
+        // early and down when it runs late.
+        $live   = self::isLive($slam);
+        $actual = $live ? $this->actualEnds(array_column(array_filter($items, static fn ($x) => in_array($x['status'], ['open', 'closed'], true) && ! empty($x['id'])), 'id')) : [];
+        $now    = Clock::db();
         foreach ($items as $i => &$it) {
             if ($it['status'] === 'skipped') {
                 continue;
             }
             if ($i > $fromIndex && $prev !== null) {
                 $gap      = ($prev['item_type'] === 'performance' && $it['item_type'] === 'performance') ? $change : 0;
-                $earliest = Clock::addMinutes(Clock::addMinutes($prev['planned_start_at'], (int) $prev['duration_minutes']), $gap);
+                $prevEnd  = $actual[(int) ($prev['id'] ?? 0)] ?? Clock::addMinutes($prev['planned_start_at'], (int) $prev['duration_minutes']);
+                $earliest = Clock::addMinutes($prevEnd, $gap);
+                if ($live && $it['status'] === 'pending' && Clock::parse($earliest) < Clock::parse($now)) {
+                    $earliest = $now;
+                }
                 $fixed    = $it['status'] !== 'pending' || ($it['is_pinned'] && ! $movePinned);
                 if ($fixed) {
                     if (Clock::parse($it['planned_start_at']) < Clock::parse($earliest)) {
@@ -213,6 +225,36 @@ class ScheduleService
         unset($it);
 
         return ['items' => $items, 'errors' => $errors];
+    }
+
+    /**
+     * When slots that ran (or are running) really end: a break at its end time (moved when it was ended early or
+     * extended), a performance when its review closed, or will close for one still open.
+     *
+     * @param list<int> $ids
+     * @return array<int, string> id => DB time
+     */
+    private function actualEnds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+        $out = [];
+        $in  = implode(',', array_map('intval', $ids));
+        foreach (Db::rows("SELECT si.id, si.item_type, si.ends_at, si.performing_ended_at, si.slam_id,
+                                  (SELECT rw.closed_at FROM review_windows rw WHERE rw.schedule_item_id = si.id ORDER BY rw.id DESC LIMIT 1) AS w_closed,
+                                  (SELECT rw.closes_at FROM review_windows rw WHERE rw.schedule_item_id = si.id ORDER BY rw.id DESC LIMIT 1) AS w_closes,
+                                  (SELECT rw.extended_minutes_total FROM review_windows rw WHERE rw.schedule_item_id = si.id ORDER BY rw.id DESC LIMIT 1) AS w_ext
+                             FROM schedule_items si WHERE si.id IN ({$in})") as $r) {
+            $end = $r['item_type'] === 'break'
+                ? $r['ends_at']
+                : ($r['w_closed'] ?? ($r['w_closes'] !== null ? Clock::addMinutes($r['w_closes'], (int) $r['w_ext']) : $r['performing_ended_at']));
+            if ($end !== null) {
+                $out[(int) $r['id']] = $end;
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -524,26 +566,32 @@ class ScheduleService
     }
 
     /** Shift all remaining pending planned times by the current delay. */
+    /**
+     * Re-flow the slots that have not started from where the slam really is: each one follows the previous slot's real
+     * end (plus the changeover between talks), never before now. Running late moves them down, running early moves them
+     * up. Pinned slots keep their time unless $includePinned.
+     */
     public function reflowRemaining(int $slamId, bool $includePinned, bool $preview, Actor $actor): array
     {
         $slam  = service('slams')->find($slamId);
-        $proj  = service('slamPhase')->projection($slam);
-        $delay = $proj['late_minutes'];
         $draft = $this->normalise($this->toDraft(Db::rows('SELECT * FROM schedule_items WHERE slam_id = ? ORDER BY position, id', [$slamId])));
+        $flow  = $this->reflow($slam, $draft, 0, $includePinned);
         $changes = [];
-        foreach ($draft as &$it) {
-            if ($it['status'] === 'pending' && $delay > 0 && (! $it['is_pinned'] || $includePinned)) {
-                $new = Clock::addMinutes($it['planned_start_at'], $delay);
-                $changes[] = ['id' => $it['id'], 'old_start' => Clock::iso($it['planned_start_at']), 'new_start' => Clock::iso($new)];
-                $it['planned_start_at'] = $new;
+        $shifts  = [];
+        foreach ($flow['items'] as $k => $it) {
+            $old = $draft[$k]['planned_start_at'];
+            if ($it['status'] === 'pending' && $it['planned_start_at'] !== $old) {
+                $changes[] = ['id' => $it['id'], 'old_start' => Clock::iso($old), 'new_start' => Clock::iso($it['planned_start_at'])];
+                $shifts[]  = (int) round((Clock::parse($it['planned_start_at'])->getTimestamp() - Clock::parse($old)->getTimestamp()) / 60);
             }
         }
-        unset($it);
-        $check = $this->validate($slam, $draft);
-        if ($preview || $changes === [] || $check['errors'] !== []) {
-            return ['preview' => true, 'delay_minutes' => $delay, 'changes' => $changes, 'errors' => $check['errors'], 'warnings' => $check['warnings']];
+        $delay = $shifts === [] ? 0 : $shifts[0];   // the first moved slot: + later, − earlier
+        $check = $this->validate($slam, $flow['items']);
+        $errors = [...$flow['errors'], ...$check['errors']];
+        if ($preview || $changes === [] || $errors !== []) {
+            return ['preview' => true, 'delay_minutes' => $delay, 'changes' => $changes, 'errors' => $errors, 'warnings' => $check['warnings']];
         }
-        $res = $this->saveDraft($slamId, $this->draftOut($draft), (int) $slam['schedule_version'], $actor, 'Re-flow remaining');
+        $res = $this->saveDraft($slamId, $this->draftOut($flow['items']), (int) $slam['schedule_version'], $actor, 'Re-flow remaining');
         service('activityLog')->log($actor, 'schedule.reflowed', ['slam_id' => $slamId, 'meta' => ['delay_minutes' => $delay, 'include_pinned' => $includePinned, 'changes' => count($changes)]]);
 
         return ['preview' => false, 'delay_minutes' => $delay, 'changes' => $changes, 'errors' => [], 'warnings' => $res['warnings'], 'version' => $res['version']];

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use Modules\Core\Libraries\Db;
 use Modules\Core\Libraries\DomainException;
 use Modules\Schedule\Services\ScheduleService;
+use Modules\Core\Libraries\Clock;
 use Tests\Support\SlamTestCase;
 
 final class ScheduleTest extends SlamTestCase
@@ -56,6 +57,34 @@ final class ScheduleTest extends SlamTestCase
         $lunch['planned_start_at'] = '2026-11-01 04:52:00';
         $r = service('schedule')->reflow($slam, [$d[0], $tea, $d[1], $lunch, $d[2]]);
         $this->assertStringContainsString('Pinned slot cannot fit', $r['errors'][0]['message']);
+    }
+
+    public function testReflowRemainingFollowsTheLiveStateUpAndDown(): void
+    {
+        $s  = $this->makeSlam(3, 1, 0, ['auto_mode' => 'manual']);
+        $id = $s['id'];
+        $pl = fn (int $k) => (string) \Modules\Core\Libraries\Db::value('SELECT planned_start_at FROM schedule_items WHERE id = ?', [$s['items'][$k]]);
+        $this->at('2026-11-01 03:30:00', $id);
+        service('slamPhase')->activate($id, $this->admin);
+        $this->assertSame('2026-11-01 04:52:00', $pl(1));            // planned: 04:45 + 5 + 2
+        // Talk 1 opens on time and its review is closed early, at 04:47: the slam runs early.
+        Clock::set('2026-11-01 04:45:00');
+        service('slamPhase')->gateOpen($id, $this->admin);
+        service('slamPhase')->gateClose($id, $this->admin);
+        service('slamPhase')->openWindow($id, $s['items'][0], 5, null, $this->admin);
+        Clock::set('2026-11-01 04:47:00');
+        service('slamPhase')->closeWindow($id, 'done early', $this->admin);
+        $r = service('schedule')->reflowRemaining($id, false, false, $this->admin);
+        $this->assertSame([], $r['errors']);
+        $this->assertSame('2026-11-01 04:49:00', $pl(1), 'moved up: the real end + the changeover');
+        $this->assertSame('2026-11-01 04:56:00', $pl(2));
+        $this->assertSame(-3, $r['delay_minutes']);
+        // Nothing happens until 05:00: the slam now runs late, and the next re-flow moves them down, never before now.
+        Clock::set('2026-11-01 05:00:00');
+        $r = service('schedule')->reflowRemaining($id, false, false, $this->admin);
+        $this->assertSame('2026-11-01 05:00:00', $pl(1));
+        $this->assertSame('2026-11-01 05:07:00', $pl(2));
+        $this->assertSame(11, $r['delay_minutes']);
     }
 
     public function testReorderPreviewEqualsAppliedResult(): void
