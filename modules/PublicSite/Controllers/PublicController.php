@@ -62,6 +62,18 @@ class PublicController extends BaseController
         return view('Modules\\PublicSite\\Views\\tv', ['slam' => $this->published($slug)]);
     }
 
+    /** Full-screen "next presenter" display (green room, backstage, the hall between talks). Drawn from the public JSON. */
+    public function nextScreen(string $slug): string
+    {
+        return view('Modules\\PublicSite\\Views\\next', ['slam' => $this->published($slug)]);
+    }
+
+    /** A fixed address for the next-presenter screen: the same slam the TV would show. */
+    public function nextCurrent(): RedirectResponse
+    {
+        return redirect()->to(str_replace('/tv', '/next', $this->tvCurrent()->getHeaderLine('Location')));
+    }
+
     /** Big countdown for the presenter on stage. */
     public function stage(string $slug): string
     {

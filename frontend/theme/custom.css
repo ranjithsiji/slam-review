@@ -594,3 +594,14 @@ a.slam-tt-body:hover .slam-tt-topic { color: var(--slam-accent-text); }
 .pmap .pmap-district::before { display: none }
 .pmap.pmap-small .pmap-district { display: none }
 .pmap .pmap-state { color: #2f5216; font-size: 15px; letter-spacing: .04em }
+
+/* Next presenter screen (/slams/{slug}/next), on top of the venue TV styles */
+.nx-eyebrow { color: #f59300 }
+.nx .nx-name { font-size: 6.4vh; line-height: 1.15; margin-bottom: 1vh }
+.nx .nx-title { font-size: 3.4vh; font-weight: 600; margin-top: 1.6vh; color: #e8edf7 }
+.nx-when { display: flex; flex-wrap: wrap; gap: 2.5vw; margin-top: 3vh }
+.nx-time, .nx-count { display: flex; flex-direction: column; padding: 1.4vh 1.6vw; border-radius: 1.2vh; background: #16233b; min-width: 16vw }
+.nx-time span, .nx-count span { font-size: 1.9vh; text-transform: uppercase; letter-spacing: .08em; color: #9fb0cf }
+.nx-time strong, .nx-count strong { font-size: 6vh; line-height: 1.1; font-variant-numeric: tabular-nums }
+.nx-time em { font-style: normal; color: #9fb0cf; font-size: 2vh }
+.nx-count.nx-soon { background: #5a3a06; box-shadow: 0 0 0 .3vh #f59300 inset }

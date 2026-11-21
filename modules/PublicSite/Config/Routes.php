@@ -8,6 +8,8 @@ $routes->group('', ['namespace' => 'Modules\PublicSite\Controllers', 'filter' =>
     $routes->get('slams/(:segment)/presenters', 'PublicController::presenters/$1');
     $routes->get('slams/(:segment)/results', 'PublicController::results/$1');
     $routes->get('slams/(:segment)/tv', 'PublicController::tv/$1');
+    $routes->get('slams/(:segment)/next', 'PublicController::nextScreen/$1');
+    $routes->get('next', 'PublicController::nextCurrent');
     $routes->get('tv', 'PublicController::tvCurrent');
     $routes->get('slams/(:segment)/stage', 'PublicController::stage/$1');
     $routes->get('stage', 'PublicController::stageCurrent');

@@ -37,6 +37,22 @@ final class PublicProgrammeTest extends SlamTestCase
         $this->assertStringContainsString('data-stage-time', $page);
     }
 
+    public function testNextPresenterScreenIsPublicForPublishedSlamsOnly(): void
+    {
+        $s = $this->makeSlam(1, 1, 0);
+        $slug = (string) \Modules\Core\Libraries\Db::value('SELECT slug FROM slams WHERE id = ?', [$s['id']]);
+        try {
+            $this->get("slams/{$slug}/next");
+            $this->fail('an unpublished slam has no next-presenter screen');
+        } catch (\CodeIgniter\Exceptions\PageNotFoundException) {
+            // 404
+        }
+        service('slams')->setPublished($s['id'], true, $this->admin);
+        $page = (string) $this->get("slams/{$slug}/next")->response()->getBody();
+        $this->assertStringContainsString('data-nx="', $page);
+        $this->assertStringContainsString("api/public/slams/{$slug}/schedule", $page);
+    }
+
     public function testGroupsOpeningSessionsBreaksAndClosing(): void
     {
         $sections = (new PublicScheduleService())->programme([

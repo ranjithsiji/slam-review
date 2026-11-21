@@ -64,6 +64,7 @@
                     <?php if ((int) $slam['schedule_is_public']): ?><a class="btn" href="<?= esc($publicUrl) ?>" target="_blank" rel="noopener"><?= icon('action.open') ?>View</a><?php endif ?>
                 </form>
                 <?php if ((int) $slam['schedule_is_public']): ?><a class="btn mt-2" href="<?= site_url('slams/' . $slam['slug'] . '/tv') ?>" target="_blank" rel="noopener">TV screen</a>
+                    <a class="btn mt-2" href="<?= site_url('slams/' . $slam['slug'] . '/next') ?>" target="_blank" rel="noopener">Next presenter screen</a>
                     <a class="btn mt-2" href="<?= site_url('slams/' . $slam['slug'] . '/stage') ?>" target="_blank" rel="noopener">Stage timer</a><?php endif ?>
                 <?php if (in_array($slam['status'], ['draft', 'scheduled'], true)): ?>
                     <form method="post" action="<?= site_url('admin/slams/' . $slam['id'] . '/delete') ?>" class="mt-2"
