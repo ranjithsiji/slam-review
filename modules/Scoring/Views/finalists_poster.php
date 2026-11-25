@@ -29,7 +29,7 @@ foreach ($districts as $en => $ml) {
                 <option value="<?= (int) $i ?>"><?= esc($p['name']) ?> only</option>
             <?php endforeach ?>
         </select>
-        <span class="d-inline-flex gap-2 align-items-center" data-poster-style-wrap hidden>
+        <span class="d-inline-flex gap-2 align-items-center" data-poster-style-wrap>
             <label class="form-label mb-0 small" for="poster-style">Style</label>
             <select id="poster-style" class="form-select form-select-sm" style="width:auto" data-poster-style>
                 <option value="light">Light card</option>

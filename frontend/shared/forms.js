@@ -248,7 +248,7 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
   }
   const syncUi = () => {
     const single = Number(whoSel?.value ?? -1) >= 0;
-    if (styleSel) styleSel.closest('[data-poster-style-wrap]').hidden = !single;
+    // Both styles for one person and for everyone; the light card's own fields are for one person only.
     const light = single && styleSel?.value === 'light';
     if (lightBox) lightBox.hidden = !light;
     titleIn.closest('[data-poster-title-wrap]').hidden = light;
@@ -257,7 +257,15 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
   async function draw(who = Number(whoSel?.value ?? -1)) {
     if (who >= 0 && styleSel?.value === 'light') { const all = await imgs; await document.fonts?.ready; return drawLight(cfg.people[who], all[1 + who]); }
     const [, ...allPhotos] = await imgs;
-    const [, partners, logo] = await extras;
+    const [logoLight, partners, logoDark] = await extras;
+    // Light: the light card's colours (white page, pale corner, maroon, green) with the site's orange; dark: navy and gold.
+    const L = who < 0 && styleSel?.value === 'light';
+    const C = L
+      ? { ink: '#1f1f1f', accent: '#ff9a00', ribbon: '#7b1a1a', ribbonText: '#ffffff', slam: '#7b1a1a', date: '#1f1f1f', venue: '#555555', inst: '#4f7a28',
+          disc: '#d9dfc0', discText: '#6e5a12', halo: 'rgba(123,26,26,.35)', dots: 'rgba(123,26,26,.06)', rings: 'rgba(255,154,0,.20)', site: '#7b1a1a' }
+      : { ink: '#ffffff', accent: '#ffb400', ribbon: '#ffb400', ribbonText: '#0c2a40', slam: '#ffb400', date: '#ffffff', venue: '#c9d6e2', inst: '#d5e0ea',
+          disc: '#2b5272', discText: '#ffffff', halo: 'rgba(255,255,255,.45)', dots: 'rgba(255,255,255,.055)', rings: 'rgba(255,180,0,.16)', site: '#ffb400' };
+    const logo = L ? (logoLight || logoDark) : logoDark;
     const people = who < 0 ? cfg.people : [cfg.people[who]];
     const photos = who < 0 ? allPhotos : [allPhotos[who]];
     const single = people.length === 1;
@@ -268,13 +276,18 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
     // A story or status (9:16) is covered by the app's own bars at the top and bottom: keep clear of them.
     const safe = H / W > 1.6 ? 0.085 * H : 0;
     ctx.textBaseline = 'alphabetic';
-    const NAVY = '#0c2a40'; const GOLD = '#ffb400';
-    const bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#15405c'); bg.addColorStop(1, '#0a2233');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    const GOLD = C.accent;
+    if (L) {
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#eef2c4'; ctx.beginPath(); ctx.ellipse(-0.02 * W, -0.04 * H, 0.50 * W, 0.24 * H, 0, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#15405c'); bg.addColorStop(1, '#0a2233');
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    }
     // Dot grid and two soft rings, like the home page hero.
-    ctx.fillStyle = 'rgba(255,255,255,.055)';
+    ctx.fillStyle = C.dots;
     for (let y = 18 * u; y < H; y += 36 * u) for (let x = 18 * u; x < W; x += 36 * u) { ctx.beginPath(); ctx.arc(x, y, 2.2 * u, 0, Math.PI * 2); ctx.fill(); }
-    ctx.strokeStyle = 'rgba(255,180,0,.16)'; ctx.lineWidth = 26 * u;
+    ctx.strokeStyle = C.rings; ctx.lineWidth = 26 * u;
     ctx.beginPath(); ctx.arc(W + 40 * u, 60 * u, 300 * u, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.arc(-60 * u, H * 0.62, 220 * u, 0, Math.PI * 2); ctx.stroke();
 
@@ -302,14 +315,14 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
       const rw = W - 2 * pad - lw - 40 * u;
       ctx.textAlign = 'right';
       const sl = fit(ctx, cfg.slam, rw, 2, Math.round(40 * u), Math.round(24 * u), 800);
-      ctx.fillStyle = GOLD; ctx.font = `800 ${sl.fs}px ${FONT}`;
+      ctx.fillStyle = C.slam; ctx.font = `800 ${sl.fs}px ${FONT}`;
       let ry = y0 + sl.fs * 1.1;
       sl.lines.forEach((l) => { ctx.fillText(l, W - pad, ry); ry += sl.fs * 1.2; });
-      ctx.fillStyle = '#ffffff'; ctx.font = `600 ${28 * u}px ${FONT}`;
+      ctx.fillStyle = C.date; ctx.font = `600 ${28 * u}px ${FONT}`;
       if (cfg.date) { ctx.fillText(cfg.date, W - pad, ry + 8 * u); ry += 40 * u; }
       if (cfg.venue) {
         const vn = fit(ctx, cfg.venue, rw, 2, Math.round(24 * u), Math.round(18 * u), 400);
-        ctx.fillStyle = '#c9d6e2'; ctx.font = `400 ${vn.fs}px ${FONT}`;
+        ctx.fillStyle = C.venue; ctx.font = `400 ${vn.fs}px ${FONT}`;
         vn.lines.forEach((l) => { ctx.fillText(l, W - pad, ry + 6 * u); ry += vn.fs * 1.25; });
       }
       top = Math.max(top, ry);
@@ -321,8 +334,8 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
     if (hd.lines.length) {
       ctx.font = `800 ${hd.fs}px ${FONT}`;
       const ribW = Math.min(W - 2 * pad, Math.max(...hd.lines.map((l) => ctx.measureText(l).width)) + 90 * u);
-      ctx.fillStyle = GOLD; rounded(ctx, (W - ribW) / 2, ribY, ribW, ribH, ribH / 2); ctx.fill();
-      ctx.fillStyle = NAVY;
+      ctx.fillStyle = C.ribbon; rounded(ctx, (W - ribW) / 2, ribY, ribW, ribH, ribH / 2); ctx.fill();
+      ctx.fillStyle = C.ribbonText;
       hd.lines.forEach((l, i) => ctx.fillText(l, W / 2, ribY + 15 * u + hd.fs * (0.95 + i * 1.25)));
     }
     // People: round photo with a gold ring, name below, institution smaller.
@@ -339,7 +352,7 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
       const row = Math.floor(i / g.cols); const inRow = Math.min(g.cols, n - row * g.cols);
       const colW = areaW / g.cols; const x0 = pad + (areaW - inRow * colW) / 2;
       const cx = x0 + (i - row * g.cols + 0.5) * colW; const cy = areaTop + row * rowH + r + 14 * u;
-      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.closePath(); ctx.fillStyle = '#2b5272'; ctx.fill(); ctx.clip();
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.closePath(); ctx.fillStyle = C.disc; ctx.fill(); ctx.clip();
       const ph = photos[i];
       if (ph) {
         // Cover the circle, keeping the upper part of the photo (where the face usually is).
@@ -347,17 +360,17 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
         const w = ph.naturalWidth * s; const h = ph.naturalHeight * s;
         ctx.drawImage(ph, cx - w / 2, cy - r - Math.max(0, (h - 2 * r) * 0.15), w, h);
       } else {
-        ctx.fillStyle = '#ffffff'; ctx.font = `700 ${r * 0.8}px ${FONT}`; ctx.textBaseline = 'middle';
+        ctx.fillStyle = C.discText; ctx.font = `700 ${r * 0.8}px ${FONT}`; ctx.textBaseline = 'middle';
         ctx.fillText(p.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join(''), cx, cy); ctx.textBaseline = 'alphabetic';
       }
       ctx.restore();
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.lineWidth = Math.max(4 * u, r * 0.055); ctx.strokeStyle = GOLD; ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, cy, r + Math.max(7 * u, r * 0.09), 0, Math.PI * 2); ctx.lineWidth = 2 * u; ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, r + Math.max(7 * u, r * 0.09), 0, Math.PI * 2); ctx.lineWidth = 2 * u; ctx.strokeStyle = C.halo; ctx.stroke();
       // Name, then the institution: smaller rather than cut off, and never below the row.
       const width = colW * 0.92; const room = rowH - (2 * r + 24 * u);
       const top0 = Math.max(20 * u, Math.min((single ? 64 : 40) * u, r * 0.3, room * 0.22));
       const nm = fit(ctx, p.name, width, 2, Math.round(top0), Math.round(16 * u), 700);
-      ctx.fillStyle = '#ffffff'; ctx.font = `700 ${nm.fs}px ${FONT}`;
+      ctx.fillStyle = C.ink; ctx.font = `700 ${nm.fs}px ${FONT}`;
       let y = cy + r + nm.fs * 1.55;
       nm.lines.forEach((l) => { ctx.fillText(l, cx, y); y += nm.fs * 1.2; });
       if (p.designation) {
@@ -365,12 +378,12 @@ document.querySelectorAll('[data-poster]').forEach((box) => {
         const start = Math.round(nm.fs * 0.7);
         const lines = Math.max(2, Math.min(4, Math.floor(left / (start * 1.25))));
         const inst = fit(ctx, p.designation, width, lines, start, Math.round(15 * u), 500);
-        ctx.fillStyle = '#d5e0ea'; ctx.font = `500 ${inst.fs}px ${FONT}`;
+        ctx.fillStyle = C.inst; ctx.font = `${L ? 600 : 500} ${inst.fs}px ${FONT}`;
         y += inst.fs * 0.3;
         inst.lines.forEach((l) => { ctx.fillText(l, cx, y); y += inst.fs * 1.25; });
       }
     });
-    ctx.fillStyle = GOLD; ctx.font = `700 ${28 * u}px ${FONT}`; ctx.fillText('scienceslam.in', W / 2, H - bandH - 8 * u - 22 * u);
+    ctx.fillStyle = C.site; ctx.font = `700 ${28 * u}px ${FONT}`; ctx.fillText('scienceslam.in', W / 2, H - bandH - 8 * u - 22 * u);
   }
   const save = (name) => new Promise((ok) => canvas.toBlob((blob) => {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${name}-${sizeSel.value}.png`; a.click();
