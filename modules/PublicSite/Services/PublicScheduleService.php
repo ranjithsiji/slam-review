@@ -152,6 +152,7 @@ class PublicScheduleService
      */
     public function programme(array $slots, array $extras = []): array
     {
+        $extras = self::followLastSlot($slots, $extras);
         $before = array_values(array_filter($extras, static fn (array $e): bool => $e['placement'] === 'before'));
         $after  = array_values(array_filter($extras, static fn (array $e): bool => $e['placement'] === 'after'));
         $slots    = array_values($slots);
@@ -196,6 +197,75 @@ class PublicScheduleService
         $flush();
 
         return [...$this->extraSections($before), ...$this->nameSections($sections), ...$this->extraSections($after)];
+    }
+
+    /**
+     * The items after the last talk (evening tea, the valedictory session) follow the end of the last slot: when the
+     * slots move (a re-flow, a late start, a talk added or taken out), they move with them, keeping their own lengths
+     * and the gaps between them. Their stored times are the plan; only the shift is applied. Opening items stay put.
+     *
+     * @param list<array<string, mixed>> $slots  planned_start_at, duration_minutes, optional started_at/ended_at
+     * @param list<array<string, mixed>> $extras programme_extras rows (placement, starts_at, ends_at as UTC Y-m-d H:i:s)
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function followLastSlot(array $slots, array $extras): array
+    {
+        $last = $slots === [] ? null : $slots[array_key_last($slots)];
+        $first = null;
+        foreach ($extras as $e) {
+            if ($e['placement'] === 'after' && ! empty($e['starts_at'])) {
+                $first = strtotime($e['starts_at'] . ' UTC');
+                break;
+            }
+        }
+        if ($last === null || $first === null) {
+            return $extras;
+        }
+        $lastEnd = ! empty($last['ended_at']) ? strtotime((string) $last['ended_at'])
+            : strtotime((string) (! empty($last['started_at']) ? $last['started_at'] : $last['planned_start_at'])) + 60 * (int) $last['duration_minutes'];
+        if (($last['kind'] ?? $last['item_type'] ?? 'performance') !== 'break' && empty($last['ended_at'])) {
+            $lastEnd += self::changeover($slots);   // a talk's slot includes the changeover, as between the talks
+        }
+        $shift = $lastEnd - $first;
+        if ($shift === 0) {
+            return $extras;
+        }
+        foreach ($extras as &$e) {
+            if ($e['placement'] !== 'after') {
+                continue;
+            }
+            foreach (['starts_at', 'ends_at'] as $k) {
+                if (! empty($e[$k])) {
+                    $e[$k] = gmdate('Y-m-d H:i:s', strtotime($e[$k] . ' UTC') + $shift);
+                }
+            }
+        }
+        unset($e);
+
+        return $extras;
+    }
+
+    /** The usual gap between two talks in a row (seconds), 0 if there is none or it is unusual (over 10 minutes). */
+    private static function changeover(array $slots): int
+    {
+        $gaps = [];
+        $slots = array_values($slots);
+        foreach ($slots as $i => $s) {
+            $n = $slots[$i + 1] ?? null;
+            $isTalk = static fn (array $x): bool => ($x['kind'] ?? $x['item_type'] ?? 'performance') !== 'break';
+            if ($n !== null && $isTalk($s) && $isTalk($n)) {
+                $gaps[] = strtotime((string) $n['planned_start_at']) - strtotime((string) $s['planned_start_at']) - 60 * (int) $s['duration_minutes'];
+            }
+        }
+        if ($gaps === []) {
+            return 0;
+        }
+        $counts = array_count_values($gaps);
+        arsort($counts);
+        $gap = (int) array_key_first($counts);
+
+        return $gap > 0 && $gap <= 600 ? $gap : 0;
     }
 
     /** @return list<array<string, mixed>> */

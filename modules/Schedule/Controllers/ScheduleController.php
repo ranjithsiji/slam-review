@@ -66,6 +66,12 @@ class ScheduleController extends BaseController
                 'items' => array_map(static fn ($d) => $d + ($extra[$d['id']] ?? []), service('schedule')->toDraft($rows)),
                 'performances' => $perfs,
                 'projection' => $live ? $this->projection($slam) : null,
+                // Display-only programme items (registration, opening talks, evening tea, valedictory session). The
+                // items after the last talk follow it (PublicScheduleService::followLastSlot); the screen does the same.
+                'programme' => array_map(static fn (array $e): array => [
+                    'placement' => $e['placement'], 'item_type' => $e['item_type'], 'break_type' => $e['break_type'], 'label' => $e['label'], 'note' => $e['note'],
+                    'starts_at' => Clock::iso($e['starts_at']), 'ends_at' => Clock::iso($e['ends_at']),
+                ], Db::rows('SELECT * FROM programme_extras WHERE slam_id = ? ORDER BY placement DESC, position', [$id])),
             ];
         });
     }

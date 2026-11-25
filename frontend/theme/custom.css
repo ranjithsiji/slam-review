@@ -618,3 +618,8 @@ a.slam-tt-body:hover .slam-tt-topic { color: var(--slam-accent-text); }
 .vote-card { border: 2px solid var(--slam-orange, #ff9a00); box-shadow: 0 4px 16px rgba(255, 154, 0, .18) }
 .vote-card-head { display: flex; align-items: center; padding: .65rem 1rem; background: var(--slam-orange, #ff9a00); color: #1f1f1f; font-weight: 700; font-size: 1.05rem; border-radius: calc(var(--tblr-border-radius) - 1px) calc(var(--tblr-border-radius) - 1px) 0 0 }
 .vote-card .card-body { background: color-mix(in srgb, var(--slam-orange, #ff9a00) 6%, var(--tblr-bg-surface)) }
+
+/* Schedule maker: display-only programme items (not slots) */
+.programme-extra { display: flex; align-items: center; gap: .5rem; padding: .45rem .75rem; margin-bottom: .5rem; border: 1px dashed var(--tblr-border-color); border-radius: var(--tblr-border-radius); background: var(--tblr-bg-surface-secondary); color: var(--tblr-secondary-color, var(--tblr-secondary)) }
+.programme-extra-heading { background: transparent; border-style: none; padding-left: 0; padding-bottom: 0; color: var(--tblr-body-color) }
+.programme-extra-break { background: rgba(var(--tblr-warning-rgb), .06) }

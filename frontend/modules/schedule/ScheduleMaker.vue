@@ -92,7 +92,17 @@
 
     <div class="row g-3">
       <div class="col-12" :class="{ 'col-lg-8': poolVisible }">
-        <!-- Timeline -->
+        <!-- Timeline. Programme items (registration, opening talks, evening tea, valedictory session) are shown for the
+             whole day but are display-only: they are not slots, and the ones after the last talk follow its end. -->
+        <div v-if="programme.length" class="small text-secondary mb-2"><Icon name="status.info" cls="me-1" />Shaded rows are programme items on the public page. They are not run by the system; the ones after the last talk move with it.</div>
+        <div v-for="(e, k) in programme.filter((x) => x.placement === 'before')" :key="`pe-before-${k}`" class="programme-extra" :class="`programme-extra-${e.item_type}`">
+          <template v-if="e.item_type === 'heading'"><span class="fw-bold ml-text">{{ e.label }}</span><span v-if="e.note" class="small text-secondary ml-text ms-2">{{ e.note }}</span></template>
+          <template v-else>
+            <div class="text-center" style="min-width:4.2rem"><div class="fw-bold">{{ time(e.starts_at) }}</div><div class="small text-secondary">{{ time(e.ends_at) }}</div></div>
+            <Icon v-if="e.item_type === 'break'" :name="`break.${e.break_type || 'other'}`" cls="text-orange" />
+            <span class="ml-text flex-fill">{{ e.label }}</span>
+          </template>
+        </div>
         <div v-if="!draft.length" class="empty border rounded">
           <div class="empty-icon"><Icon name="nav.schedule" cls="icon-xl" /></div>
           <p class="empty-title">No slots yet</p>
@@ -104,6 +114,14 @@
           @edit="editing = editing === it._k ? null : it._k" @patch="(p) => patch(i, p)" @move="(d) => move(i, i + d)" @move-to="(n) => move(i, n)"
           @remove="remove(i)" @select="(on) => (on ? selected.add(it._k) : selected.delete(it._k))"
           @dragstart="dragIndex = i" @dragover="dropIndex = i" @drop="move(dragIndex, i); dragIndex = dropIndex = null" @dragend="dragIndex = dropIndex = null" />
+        <div v-for="(e, k) in programme.filter((x) => x.placement === 'after')" :key="`pe-after-${k}`" class="programme-extra" :class="`programme-extra-${e.item_type}`">
+          <template v-if="e.item_type === 'heading'"><span class="fw-bold ml-text">{{ e.label }}</span><span v-if="e.note" class="small text-secondary ml-text ms-2">{{ e.note }}</span></template>
+          <template v-else>
+            <div class="text-center" style="min-width:4.2rem"><div class="fw-bold">{{ time(e.starts_at) }}</div><div class="small text-secondary">{{ time(e.ends_at) }}</div></div>
+            <Icon v-if="e.item_type === 'break'" :name="`break.${e.break_type || 'other'}`" cls="text-orange" />
+            <span class="ml-text flex-fill">{{ e.label }}</span>
+          </template>
+        </div>
       </div>
       <div v-if="poolVisible" class="col-12 col-lg-4 d-none d-lg-block">
         <div class="card position-sticky" style="top:1rem">
@@ -216,7 +234,7 @@ import { toast, dialog } from '../../shared/ui.js';
 import Icon from '../../shared/components/Icon.vue';
 import ActionModal from '../../shared/components/ActionModal.vue';
 import SlotCard from './SlotCard.vue';
-import { reflow, validate, summary, nextStart, isLockedSlot, BREAK_LABELS } from './logic.js';
+import { reflow, validate, summary, nextStart, isLockedSlot, followLastSlot, BREAK_LABELS } from './logic.js';
 
 const props = defineProps({ boot: Object });
 const boot = props.boot;
@@ -251,7 +269,8 @@ const readOnly = computed(() => !!data.locked);
 const perfById = computed(() => Object.fromEntries((data.performances || []).map((p) => [p.id, p])));
 const perfIds = computed(() => new Set((data.performances || []).map((p) => p.id)));
 const unscheduled = computed(() => (data.performances || []).filter((p) => p.is_active && !draft.value.some((d) => d.performance_id === p.id)));
-const check = computed(() => validate(data.slam, draft.value, perfIds.value));
+const check = computed(() => validate(data.slam, draft.value, perfIds.value, data.programme || []));
+const programme = computed(() => followLastSlot(draft.value, data.programme || [], data.slam?.changeover_minutes || 0));
 const sum = computed(() => summary(data.slam, draft.value));
 const dirty = computed(() => JSON.stringify(strip(draft.value)) !== savedJson.value);
 const poolVisible = computed(() => wide && !readOnly.value);

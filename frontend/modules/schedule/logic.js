@@ -27,7 +27,7 @@ export function reflow(items, changeover, from = 0, movePinned = false) {
   return { items: out, errors };
 }
 
-export function validate(slam, items, perfIds) {
+export function validate(slam, items, perfIds, programme = []) {
   const errors = [];
   const warnings = [];
   const seen = new Set();
@@ -61,7 +61,12 @@ export function validate(slam, items, perfIds) {
   if (active.length) {
     if (items[active[0]].item_type === 'break') warnings.push({ index: active[0], message: 'The schedule starts with a break.' });
     const last = active[active.length - 1];
-    if (items[last].item_type === 'break') warnings.push({ index: last, message: 'The schedule ends with a break.' });
+    if (items[last].item_type === 'break') {
+      const after = programme.find((e) => e.placement === 'after' && e.item_type === 'break');
+      warnings.push({ index: last, message: after
+        ? `The schedule ends with a break, and the programme already has "${after.label}" after the last talk: the public page shows two breaks. Remove this one.`
+        : 'The schedule ends with a break.' });
+    }
   }
   return { errors, warnings };
 }
@@ -89,3 +94,16 @@ export function nextStart(slam, items, type = 'performance') {
 }
 
 export const BREAK_LABELS = { tea: 'Tea break', lunch: 'Lunch break', other: 'Break' };
+
+/** Mirror of PublicScheduleService::followLastSlot: the programme items after the last talk follow the last slot's end. */
+export function followLastSlot(items, programme, changeover = 0) {
+  const act = items.filter((i) => i.status !== 'skipped');
+  const first = programme.find((e) => e.placement === 'after' && e.starts_at);
+  if (!act.length || !first) return programme;
+  const last = act[act.length - 1];
+  const end = t(endOf(last)) + (last.item_type === 'performance' ? changeover * 60000 : 0);
+  const shift = end - t(first.starts_at);
+  if (!shift) return programme;
+  const move = (iso) => (iso ? new Date(t(iso) + shift).toISOString().replace('.000Z', 'Z') : iso);
+  return programme.map((e) => (e.placement === 'after' ? { ...e, starts_at: move(e.starts_at), ends_at: move(e.ends_at) } : e));
+}
