@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Modules\Accounts;
 
 use Modules\Core\Libraries\Actor;
 use Modules\Core\Libraries\Db;

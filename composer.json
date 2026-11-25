@@ -41,6 +41,16 @@
         "sort-packages": true
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit --no-coverage",
+        "test:changed": "bash tests/run-changed.sh",
+        "test:coverage": [
+            "@putenv XDEBUG_MODE=coverage",
+            "phpunit --coverage-text --coverage-html build/logs/html"
+        ]
+    },
+    "scripts-descriptions": {
+        "test": "All tests (about 30 s). One module: composer test -- --testsuite Schedule",
+        "test:changed": "Only the test suites of the modules changed since the last commit",
+        "test:coverage": "All tests with a coverage report (slower; needs pcov or Xdebug)"
     }
 }

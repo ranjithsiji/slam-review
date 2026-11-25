@@ -9,6 +9,8 @@ use Throwable;
 
 final class Db
 {
+    private static int $savepoint = 0;
+
     /**
      * Run $fn in a transaction; commit on return, roll back and rethrow on any
      * exception. Nested calls join the outer transaction (CI4 depth counting), so
@@ -22,6 +24,22 @@ final class Db
     {
         $db = db_connect();
         $db->transException(true);
+        if ($db->transDepth > 0) {
+            // Already inside a transaction: CodeIgniter only counts nested begin/rollback, so a failure here would
+            // undo nothing. A savepoint undoes exactly this part (and keeps the per-test rollback of the tests working).
+            $sp = 'tx' . (++self::$savepoint);
+            $db->query("SAVEPOINT {$sp}");
+            try {
+                $result = $fn($db);
+                $db->query("RELEASE SAVEPOINT {$sp}");
+
+                return $result;
+            } catch (Throwable $e) {
+                $db->query("ROLLBACK TO SAVEPOINT {$sp}");
+                $db->resetTransStatus();
+                throw $e;
+            }
+        }
         $db->transBegin();
         try {
             $result = $fn($db);

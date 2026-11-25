@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Modules\Reviews;
 
 use Modules\Core\Libraries\Db;
 use Tests\Support\SlamTestCase;

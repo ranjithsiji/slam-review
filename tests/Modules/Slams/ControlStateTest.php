@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Modules\Slams;
 
 use CodeIgniter\Test\FeatureTestTrait;
 use Modules\Core\Libraries\Clock;

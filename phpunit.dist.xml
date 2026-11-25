@@ -11,26 +11,39 @@
     failOnWarning="true"
     cacheDirectory="build/.phpunit.cache"
 >
-    <coverage pathCoverage="false" ignoreDeprecatedCodeUnits="true">
-        <report>
-            <clover outputFile="build/logs/clover.xml"/>
-            <html outputDirectory="build/logs/html"/>
-            <php outputFile="build/logs/coverage.serialized"/>
-            <text outputFile="php://stdout" showUncoveredFiles="false"/>
-        </report>
-    </coverage>
-
+    <!-- One suite per module, mirroring modules/. How to run one: tests/README.md -->
     <testsuites>
-        <testsuite name="App">
-            <directory>./tests</directory>
+        <testsuite name="Accounts">
+            <directory>./tests/Modules/Accounts</directory>
+        </testsuite>
+        <testsuite name="Ads">
+            <directory>./tests/Modules/Ads</directory>
+        </testsuite>
+        <testsuite name="Attendees">
+            <directory>./tests/Modules/Attendees</directory>
+        </testsuite>
+        <testsuite name="Checkin">
+            <directory>./tests/Modules/Checkin</directory>
+        </testsuite>
+        <testsuite name="Core">
+            <directory>./tests/Modules/Core</directory>
+        </testsuite>
+        <testsuite name="PublicSite">
+            <directory>./tests/Modules/PublicSite</directory>
+        </testsuite>
+        <testsuite name="Reviews">
+            <directory>./tests/Modules/Reviews</directory>
+        </testsuite>
+        <testsuite name="Schedule">
+            <directory>./tests/Modules/Schedule</directory>
+        </testsuite>
+        <testsuite name="Scoring">
+            <directory>./tests/Modules/Scoring</directory>
+        </testsuite>
+        <testsuite name="Slams">
+            <directory>./tests/Modules/Slams</directory>
         </testsuite>
     </testsuites>
-
-    <logging>
-        <testdoxHtml outputFile="build/logs/testdox.html"/>
-        <testdoxText outputFile="build/logs/testdox.txt"/>
-        <junit outputFile="build/logs/logfile.xml"/>
-    </logging>
 
     <source>
         <include>

@@ -12,8 +12,9 @@ use Modules\Core\Libraries\Clock;
 use Modules\Core\Libraries\Db;
 
 /**
- * Base for database tests: migrates every module, freezes the clock at
- * 2026-11-01 03:00 UTC (08:30 IST) and offers a ready-made slam.
+ * Base for database tests: the test database is rebuilt from every module's migrations once per run, and each test
+ * runs inside a transaction that is rolled back afterwards, so every test still starts from a clean database
+ * (nested Db::tx calls use savepoints). Freezes the clock at 2026-11-01 03:00 UTC (08:30 IST) and offers a ready-made slam.
  *
  * Fixture slam times (UTC):  opens 03:00 · gates 03:30–04:30 · reviews 04:45 · closes 11:30
  * Schedule: N performances, 5 min each, 2 min changeover, starting 04:45.
@@ -23,11 +24,28 @@ abstract class SlamTestCase extends CIUnitTestCase
     use DatabaseTestTrait;
 
     protected $migrate     = true;
-    protected $migrateOnce = false;
+    protected $migrateOnce = true;   // built once per run; the per-test transaction below keeps tests apart
     protected $refresh     = true;
     protected $namespace   = null; // all module namespaces
 
     protected Actor $admin;
+
+    /** True once the test database has been rebuilt in this PHPUnit process. */
+    private static bool $built = false;
+
+    /**
+     * CodeIgniter resets its "migrated" flag after every test class (#[AfterClass]), so $migrateOnce alone still
+     * rebuilds the database for each class. This rebuilds it once per run: a clean regress + migrate the first time.
+     */
+    protected function setUpMigrate(): void
+    {
+        if (self::$built) {
+            return;
+        }
+        $this->regressDatabase();
+        $this->migrateDatabase();
+        self::$built = true;
+    }
 
     protected function setUp(): void
     {
@@ -40,6 +58,7 @@ abstract class SlamTestCase extends CIUnitTestCase
         }
         Clock::set('2026-11-01 03:00:00');
         Clock::resetDisplay();
+        db_connect()->transBegin();
         $this->admin = new Actor('admin', $this->createAdmin(), 'admin');
     }
 
@@ -47,6 +66,10 @@ abstract class SlamTestCase extends CIUnitTestCase
     {
         Clock::set(null);
         Clock::resetDisplay();
+        $db = db_connect();
+        while ($db->transDepth > 0) {
+            $db->transRollback();
+        }
         parent::tearDown();
     }
 

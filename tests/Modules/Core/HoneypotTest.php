@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Modules\Core;
 
 use Modules\Core\Filters\HoneypotFilter;
 use Tests\Support\SlamTestCase;

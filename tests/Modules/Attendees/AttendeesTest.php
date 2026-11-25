@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Modules\Attendees;
 
 use CodeIgniter\Test\FeatureTestTrait;
 use Modules\Attendees\Services\AttendeeService;

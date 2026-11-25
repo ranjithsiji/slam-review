@@ -1,118 +1,47 @@
-# Running Application Tests
+# Tests
 
-This is the quick-start to CodeIgniter testing. Its intent is to describe what
-it takes to set up your application and get it ready to run unit tests.
-It is not intended to be a full description of the test features that you can
-use to test your application. Those details can be found in the documentation.
+The tests mirror the modules: `tests/Modules/<Module>/` holds the tests of `modules/<Module>/`, and each module is one
+PHPUnit suite (`phpunit.dist.xml`). They run against the `slam_test` database (`.env`, `database.tests.*`); never point
+them at the real `slam` database.
 
-## Resources
+## Running them
 
-* [CodeIgniter 4 User Guide on Testing](https://codeigniter.com/user_guide/testing/index.html)
-* [PHPUnit docs](https://phpunit.de/documentation.html)
-* [Any tutorials on Unit testing in CI4?](https://forum.codeigniter.com/showthread.php?tid=81830)
+| What | Command | Time |
+|---|---|---|
+| Everything | `composer test` | about 30 s |
+| The modules you changed (uncommitted work) | `composer test:changed` | a few seconds |
+| The modules changed since a commit | `composer test:changed -- main~3` | |
+| One module | `composer test -- --testsuite Schedule` | 4–8 s |
+| Several modules | `composer test -- --testsuite PublicSite,Scoring` | |
+| One test class or method | `composer test -- --filter ScheduleTest` · `--filter testReflowRemaining` | |
+| With coverage (needs pcov) | `composer test:coverage` → `build/logs/html/index.html` | slower |
 
-## Requirements
+Suites: Accounts, Ads, Attendees, Checkin, Core, PublicSite, Reviews, Schedule, Scoring, Slams.
 
-It is recommended to use the latest version of PHPUnit. At the time of this
-writing, we are running version 9.x. Support for this has been built into the
-**composer.json** file that ships with CodeIgniter and can easily be installed
-via [Composer](https://getcomposer.org/) if you don't already have it installed globally.
+`test:changed` maps changed files to suites: a change in `modules/X/` or `tests/Modules/X/` runs suite X. A change
+that every module depends on (`modules/Core`, `app/`, `tests/_support`, composer or PHPUnit config) runs everything.
+Frontend-only changes run nothing (use `pnpm run build`).
 
-```console
-> composer install
-```
+## Why it is fast
 
-If running under macOS or Linux, you can create a symbolic link to make running tests a touch nicer.
+- The test database is rebuilt from all migrations **once per run** (`SlamTestCase::setUpMigrate`), not before every
+  test or every class. CodeIgniter's own `$migrateOnce` resets after each class, hence the override.
+- Each test runs **inside a transaction that is rolled back** in `tearDown`, so every test still starts from a clean
+  database. `Db::tx` uses a savepoint when a transaction is already open, so a refused action still undoes exactly
+  its own writes, in tests and in production.
+- Coverage is off unless asked for (`composer test:coverage`).
 
-```console
-> ln -s ./vendor/bin/phpunit ./phpunit
-```
+Consequences when writing tests: ids keep counting up between tests (never assert a literal id; use the ids the
+fixtures return), and a query that lists rows must order them fully (add `id` as the last sort key) or the test
+can be flaky.
 
-You also need to install [XDebug](https://xdebug.org/docs/install) in order
-for code coverage to be calculated successfully. After installing `XDebug`, you must add `xdebug.mode=coverage` in the **php.ini** file to enable code coverage.
+## Adding a test
 
-## Setting Up
+1. Put it in `tests/Modules/<Module>/<Thing>Test.php`, namespace `Tests\Modules\<Module>`.
+2. Extend `Tests\Support\SlamTestCase` for anything touching the database (it freezes the clock at
+   2026-11-01 03:00 UTC and has `makeSlam()`), or `CodeIgniter\Test\CIUnitTestCase` for pure logic.
+3. Run `composer test:changed` while working and `composer test` before committing.
 
-A number of the tests use a running database.
-In order to set up the database edit the details for the `tests` group in
-**app/Config/Database.php** or **.env**.
-Make sure that you provide a database engine that is currently running on your machine.
-More details on a test database setup are in the
-[Testing Your Database](https://codeigniter.com/user_guide/testing/database.html) section of the documentation.
+A new module gets its own `<testsuite>` in `phpunit.dist.xml`.
 
-## Running the tests
-
-The entire test suite can be run by simply typing one command-line command from the main directory.
-
-```console
-> ./phpunit
-```
-
-If you are using Windows, use the following command.
-
-```console
-> vendor\bin\phpunit
-```
-
-You can limit tests to those within a single test directory by specifying the
-directory name after phpunit.
-
-```console
-> ./phpunit app/Models
-```
-
-## Generating Code Coverage
-
-To generate coverage information, including HTML reports you can view in your browser,
-you can use the following command:
-
-```console
-> ./phpunit --colors --coverage-text=tests/coverage.txt --coverage-html=tests/coverage/ -d memory_limit=1024m
-```
-
-This runs all of the tests again collecting information about how many lines,
-functions, and files are tested. It also reports the percentage of the code that is covered by tests.
-It is collected in two formats: a simple text file that provides an overview as well
-as a comprehensive collection of HTML files that show the status of every line of code in the project.
-
-The text file can be found at **tests/coverage.txt**.
-The HTML files can be viewed by opening **tests/coverage/index.html** in your favorite browser.
-
-## PHPUnit XML Configuration
-
-The repository has a ``phpunit.dist.xml`` file in the project root that's used for
-PHPUnit configuration. This is used to provide a default configuration if you
-do not have your own configuration file in the project root.
-
-The normal practice would be to copy ``phpunit.dist.xml`` to ``phpunit.xml``
-(which is git ignored), and to tailor it as you see fit.
-For instance, you might wish to exclude database tests, or automatically generate
-HTML code coverage reports.
-
-## Test Cases
-
-Every test needs a *test case*, or class that your tests extend. CodeIgniter 4
-provides one class that you may use directly:
-* `CodeIgniter\Test\CIUnitTestCase`
-
-Most of the time you will want to write your own test cases that extend `CIUnitTestCase`
-to hold functions and services common to your test suites.
-
-## Creating Tests
-
-All tests go in the **tests/** directory. Each test file is a class that extends a
-**Test Case** (see above) and contains methods for the individual tests. These method
-names must start with the word "test" and should have descriptive names for precisely what
-they are testing:
-`testUserCanModifyFile()` `testOutputColorMatchesInput()` `testIsLoggedInFailsWithInvalidUser()`
-
-Writing tests is an art, and there are many resources available to help learn how.
-Review the links above and always pay attention to your code coverage.
-
-### Database Tests
-
-Tests can include migrating, seeding, and testing against a mock or live database.
-Be sure to modify the test case (or create your own) to point to your seed and migrations
-and include any additional steps to be run before tests in the `setUp()` method.
-See [Testing Your Database](https://codeigniter.com/user_guide/testing/database.html)
-for details.
+The load test (k6, about 1,000 phones) is separate: see `tests/load/README.md`.

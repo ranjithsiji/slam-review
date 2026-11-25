@@ -52,7 +52,7 @@ class AdService
     {
         $ads  = Db::rows('SELECT * FROM ads WHERE slam_id IS NULL ORDER BY sort_order, id');
         $used = [];
-        foreach (Db::rows('SELECT sa.ad_id, s.id, s.name FROM slam_ads sa JOIN slams s ON s.id = sa.slam_id ORDER BY s.opens_at') as $r) {
+        foreach (Db::rows('SELECT sa.ad_id, s.id, s.name FROM slam_ads sa JOIN slams s ON s.id = sa.slam_id ORDER BY s.opens_at, s.id') as $r) {
             $used[(int) $r['ad_id']][] = ['id' => (int) $r['id'], 'name' => $r['name']];
         }
         foreach ($ads as &$a) {

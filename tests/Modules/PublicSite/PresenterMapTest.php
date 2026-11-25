@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Modules\PublicSite;
 
 use Modules\Core\Libraries\Db;
 use Modules\PublicSite\Services\PresenterMapService;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Modules\Scoring;
 
 use Modules\Core\Libraries\Db;
 use Modules\Core\Libraries\DomainException;

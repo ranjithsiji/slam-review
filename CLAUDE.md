@@ -605,6 +605,7 @@ All state-changing routes: CSRF + role filter + slam scope check.
 - Tests (PHPUnit): badge ID generation/uniqueness, DataTable endpoint contract (paging cap, allow-listed sort/search, scope filtering, injection attempts), throttle/lockout, phase-transition table (allowed and forbidden moves), check-in rejected after Gate Close, hard stop at `closes_at`, review window open/extend/auto-close boundaries, marks calculation snapshots and recalculation, review rejection after close, single active check-in, scoring with missing groups, "complete reviewer" logic.
 - All dates stored in UTC; entered and displayed in the **display timezone** from Admin → Settings (default `Asia/Kolkata`, also `slam.timezone` in `.env`), with a 24-hour or 12-hour clock (`time_format`). Use `Clock::local()` / `Clock::fromLocal*()` and `local_time()` / `local_input()` / `tz_label()` in views; the frontend reads the zone from `<meta name="app-tz">` via `frontend/shared/clock.js`. Never hard-code IST or +05:30.
 - Commit small, one feature per commit; run tests and `php spark migrate:status` before finishing a task.
+- **Tests mirror the modules** (`tests/Modules/<Module>/`, one PHPUnit suite each). While working run `composer test:changed` (only the changed modules' suites) or `composer test -- --testsuite <Module>`; run `composer test` (about 30 s) before committing. The test database is built once per run and each test is rolled back (`SlamTestCase`), so never assert literal ids and always order listed rows fully. Details: `tests/README.md`.
 
 ## 12. Suggested build order
 

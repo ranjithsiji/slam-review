@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Modules\Slams;
 
 use Modules\Core\Libraries\Clock;
 use Modules\Core\Libraries\Db;
